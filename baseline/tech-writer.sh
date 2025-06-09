@@ -8,6 +8,7 @@ DEFAULT_MODEL="gpt-4.1-mini"
 DEFAULT_REPO=""
 DEFAULT_OUTPUT_DIR=""
 DEFAULT_EXTENSION=""
+DEFAULT_EVAL_PROMPT=""
 
 # Parse command line arguments
 DIRECTORY=$DEFAULT_DIRECTORY
@@ -16,6 +17,7 @@ MODEL=$DEFAULT_MODEL
 REPO=$DEFAULT_REPO
 OUTPUT_DIR=$DEFAULT_OUTPUT_DIR
 EXTENSION=$DEFAULT_EXTENSION
+EVAL_PROMPT=$DEFAULT_EVAL_PROMPT
 
 # Function to display usage information
 function show_usage {
@@ -27,6 +29,7 @@ function show_usage {
     echo "  --repo REPO       Repository to use (default: none)"
     echo "  --output-dir DIR  Directory to save results to (default: output)"
     echo "  --extension EXT   File extension for output files (default: .md)"
+    echo "  --eval-prompt FILE Path to evaluation prompt file (optional)"
     echo "  --help            Show this help message"
     exit 1
 }
@@ -56,6 +59,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --extension)
             EXTENSION="$2"
+            shift 2
+            ;;
+        --eval-prompt)
+            EVAL_PROMPT="$2"
             shift 2
             ;;
         --output)
@@ -113,6 +120,11 @@ fi
 # Add optional extension parameter
 if [ -n "$EXTENSION" ]; then
     CMD="$CMD --extension \"$EXTENSION\""
+fi
+
+# Add optional eval-prompt parameter
+if [ -n "$EVAL_PROMPT" ]; then
+    CMD="$CMD --eval-prompt \"$EVAL_PROMPT\""
 fi
 
 # Run the tech writer agent

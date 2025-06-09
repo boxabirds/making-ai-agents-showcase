@@ -1,5 +1,5 @@
 Find the installation instructions in this project (often in the README) 
-for using the project in its package form (not local builds)
+for using the project in its package form (not local builds).
 The installation instructions might be for any programming language. Here are some tips for specific languages.
 
 == Javascript / TypeScript ==
@@ -11,6 +11,8 @@ For hybrid projects (multiple languages), choose python, ignoring all others.
 
 == Final output = 
 Then create a bash script that installs it. 
+Some projects have packages but require running of a local server, 
+be it docker or directly using npm or another tool: include client and server instructions as separate sections in the script with appropriate coments. 
 The bash script is the only output -- no other narrative or escape sequences or backticks at start or end
 
 == Extra Python instructions ==

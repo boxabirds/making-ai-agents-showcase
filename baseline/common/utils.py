@@ -14,6 +14,7 @@ import argparse
 import os
 from typing import List, Dict, Any
 from binaryornot.check import is_binary
+from openai import OpenAI
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -447,6 +448,10 @@ def get_command_line_args():
     parser.add_argument("--extension", default=None,
                       help="File extension for output files (default: .md)")
     
+    # Add eval prompt argument
+    parser.add_argument("--eval-prompt", default=None,
+                      help="Path to file containing prompt to evaluate the tech writer results")
+    
     # Define available models based on which API keys are set
     available_models = []
     if OPENAI_API_KEY:
@@ -466,3 +471,59 @@ def get_command_line_args():
         parser.error("No API keys set. Please set OPENAI_API_KEY or GEMINI_API_KEY environment variables.")
     
     return args
+
+
+def run_evaluation(tech_writer_result: str, eval_prompt_file: str, output_file: Path, model_name: str) -> None:
+    """
+    Run an evaluation prompt against the tech writer result and save it.
+    
+    Args:
+        tech_writer_result: The output from the tech writer
+        eval_prompt_file: Path to file containing the evaluation prompt
+        output_file: Path to the original output file
+        model_name: Model to use for evaluation
+    """
+    try:
+        # Read the evaluation prompt
+        eval_prompt = read_prompt_file(eval_prompt_file)
+        
+        # Prepare the full prompt with the tech writer result
+        full_prompt = f"{eval_prompt}\n\n{tech_writer_result}"
+        
+        # Initialize client based on model
+        if model_name in GEMINI_MODELS:
+            if not GEMINI_API_KEY:
+                raise ValueError("GEMINI_API_KEY environment variable is not set")
+            client = OpenAI(
+                api_key=GEMINI_API_KEY,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            )
+        else:
+            if not OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY environment variable is not set")
+            client = OpenAI(api_key=OPENAI_API_KEY)
+        
+        # Call the API for evaluation
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "user", "content": full_prompt}
+            ],
+            temperature=0
+        )
+        
+        eval_result = response.choices[0].message.content
+        
+        # Create eval output filename
+        # If output file is "file.sh", eval file will be "file.sh.eval.txt"
+        eval_output_file = output_file.parent / f"{output_file.name}.eval.txt"
+        
+        # Save the evaluation result
+        with open(eval_output_file, "w", encoding="utf-8") as f:
+            f.write(eval_result)
+        
+        logger.info(f"Evaluation complete. Results saved to: {eval_output_file}")
+        
+    except Exception as e:
+        logger.error(f"Error running evaluation: {str(e)}")
+        raise

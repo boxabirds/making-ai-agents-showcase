@@ -10,6 +10,7 @@ import sys
 from common.utils import (
     read_prompt_file,
     save_results,
+    run_evaluation,
     ROLE_AND_TASK,
     GENERAL_ANALYSIS_GUIDELINES,
     INPUT_PROCESSING_GUIDELINES,
@@ -337,6 +338,10 @@ def main():
         # Save the results
         output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension)
         logger.info(f"Analysis complete. Results saved to: {output_file}")
+        
+        # Run evaluation if eval prompt provided
+        if args.eval_prompt:
+            run_evaluation(analysis_result, args.eval_prompt, output_file, args.model)
         
     except Exception as e:
         logger.error(f"Error: {str(e)}")

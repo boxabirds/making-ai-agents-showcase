@@ -63,7 +63,7 @@ cd "$BASE_DIR/baseline"
 function analyze_repo {
     local repo="$1"
     echo "Analyzing repository: $repo"
-    ./tech-writer.sh --prompt ../setup/install-instructions.prompt.txt --repo "$repo" --model "$MODEL" --output-dir "../setup/output" --extension "sh"
+    ./tech-writer.sh --prompt ../setup/install-instructions.prompt.txt --repo "$repo" --model "$MODEL" --output-dir "../setup/output" --extension "sh" --eval-prompt "../setup/determine-project-format.prompt.txt"
 }
 
 # Test mode: process multiple repositories from file
@@ -101,6 +101,6 @@ else
         analyze_repo "$REPO"
     else
         # Otherwise analyze the local directory
-        ./tech-writer.sh --prompt ../setup/install-instructions.prompt.txt --dir "$BASE_DIR" --model "$MODEL" --output-dir "../setup/output" --extension "sh"
+        ./tech-writer.sh --prompt ../setup/install-instructions.prompt.txt --dir "$BASE_DIR" --model "$MODEL" --output-dir "../setup/output" --extension "sh" --eval-prompt "../setup/determine-project-format.prompt.txt"
     fi
 fi
