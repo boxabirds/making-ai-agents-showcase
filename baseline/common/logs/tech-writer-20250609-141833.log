@@ -1,0 +1,47 @@
+2025-06-09 14:18:33,483 - common.utils - INFO - Logging to file: /Users/julian/expts/awesome-agent-showcase/baseline/common/logs/tech-writer-20250609-141833.log
+2025-06-09 14:18:33,511 - common.utils - INFO - 
+--- Step 1 ---
+2025-06-09 14:18:35,432 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:18:35,440 - common.utils - INFO - Processing 1 tool calls
+2025-06-09 14:18:35,442 - common.utils - INFO - Added 14 patterns from .gitignore
+2025-06-09 14:18:35,471 - common.utils - INFO - Memory length: 4 messages
+2025-06-09 14:18:35,471 - common.utils - INFO - 
+--- Step 2 ---
+2025-06-09 14:18:36,770 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:18:36,774 - common.utils - INFO - Processing 1 tool calls
+2025-06-09 14:18:36,777 - common.utils - INFO - Memory length: 6 messages
+2025-06-09 14:18:36,777 - common.utils - INFO - 
+--- Step 3 ---
+2025-06-09 14:18:37,984 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:18:37,986 - common.utils - INFO - Processing 1 tool calls
+2025-06-09 14:18:37,988 - common.utils - INFO - Memory length: 8 messages
+2025-06-09 14:18:37,989 - common.utils - INFO - 
+--- Step 4 ---
+2025-06-09 14:18:39,315 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:18:39,318 - common.utils - INFO - Processing 1 tool calls
+2025-06-09 14:18:39,320 - common.utils - INFO - Memory length: 10 messages
+2025-06-09 14:18:39,321 - common.utils - INFO - 
+--- Step 5 ---
+2025-06-09 14:18:40,646 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:18:40,648 - common.utils - INFO - Processing 1 tool calls
+2025-06-09 14:18:40,651 - common.utils - INFO - Memory length: 12 messages
+2025-06-09 14:18:40,652 - common.utils - INFO - 
+--- Step 6 ---
+2025-06-09 14:18:42,373 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:18:42,377 - common.utils - INFO - Processing 1 tool calls
+2025-06-09 14:18:42,380 - common.utils - INFO - Memory length: 14 messages
+2025-06-09 14:18:42,381 - common.utils - INFO - 
+--- Step 7 ---
+2025-06-09 14:18:45,051 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:18:45,053 - common.utils - INFO - Processing 1 tool calls
+2025-06-09 14:18:45,055 - common.utils - INFO - Memory length: 16 messages
+2025-06-09 14:18:45,056 - common.utils - INFO - 
+--- Step 8 ---
+2025-06-09 14:18:46,687 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:18:46,688 - common.utils - INFO - Processing 1 tool calls
+2025-06-09 14:18:46,694 - common.utils - INFO - Memory length: 18 messages
+2025-06-09 14:18:46,696 - common.utils - INFO - 
+--- Step 9 ---
+2025-06-09 14:19:31,335 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-09 14:19:31,384 - common.utils - INFO - Received final answer from LLM
+2025-06-09 14:19:31,385 - common.utils - INFO - Analysis complete. Results saved to: output/20250609-141931-axios-gpt-4.1-mini.md

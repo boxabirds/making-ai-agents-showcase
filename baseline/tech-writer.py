@@ -32,7 +32,7 @@ from common.utils import (
 
 class TechWriterReActAgent:
     
-    def __init__(self, model_name="gpt-4o-mini", base_url=None):
+    def __init__(self, model_name="gpt-4.1-mini", base_url=None):
         """Initialise the agent with the specified model."""
         self.model_name = model_name
         self.memory = []
@@ -335,7 +335,7 @@ def main():
             sys.exit(1)
         
         # Save the results
-        output_file = save_results(analysis_result, args.model, args.agent_type, repo_name)
+        output_file = save_results(analysis_result, args.model, repo_name)
         logger.info(f"Analysis complete. Results saved to: {output_file}")
         
     except Exception as e:

@@ -1,4 +1,5 @@
 
+import datetime
 from pathlib import Path
 import pathspec
 from pathspec.patterns import GitWildMatchPattern
@@ -439,8 +440,6 @@ def get_command_line_args():
                       help="Model to use for analysis")
     parser.add_argument("--base-url", default=None,
                       help="Base URL for the API (automatically set based on model if not provided)")
-    parser.add_argument("--agent-type", choices=["react", "reflexion"], default="react",
-                      help="Type of agent to use for analysis (react or reflexion)")
     
     args = parser.parse_args()
     

@@ -5,14 +5,12 @@
 DEFAULT_DIRECTORY="."
 DEFAULT_PROMPT="prompt.txt"
 DEFAULT_MODEL="gpt-4o-mini"
-DEFAULT_AGENT_TYPE="react"
 DEFAULT_REPO=""
 
 # Parse command line arguments
 DIRECTORY=$DEFAULT_DIRECTORY
 PROMPT_FILE=$DEFAULT_PROMPT
 MODEL=$DEFAULT_MODEL
-AGENT_TYPE=$DEFAULT_AGENT_TYPE
 REPO=$DEFAULT_REPO
 
 # Function to display usage information
@@ -88,9 +86,9 @@ fi
 
 # Build command
 if [ -n "$REPO" ]; then
-    CMD="source .venv/bin/activate && python tech-writer-from-scratch.py --repo \"$REPO\" \"$PROMPT_FILE\" --model \"$MODEL\" --agent-type \"$AGENT_TYPE\""
+    CMD="source .venv/bin/activate && python tech-writer.py --repo \"$REPO\" \"$PROMPT_FILE\" --model \"$MODEL\" "
 else
-    CMD="source .venv/bin/activate && python tech-writer-from-scratch.py \"$DIRECTORY\" \"$PROMPT_FILE\" --model \"$MODEL\" --agent-type \"$AGENT_TYPE\""
+    CMD="source .venv/bin/activate && python tech-writer.py \"$DIRECTORY\" \"$PROMPT_FILE\" --model \"$MODEL\" "
 fi
 
 # Run the tech writer agent
