@@ -1,4 +1,66 @@
 
+from pathlib import Path
+import pathspec
+from pathspec.patterns import GitWildMatchPattern
+import logging
+import textwrap
+import ast
+import math
+import json
+import re
+import subprocess
+import argparse
+import os
+from typing import List, Dict, Any
+from binaryornot.check import is_binary
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Check for API keys
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+# Define model providers
+GEMINI_MODELS = ["gemini-2.0-flash"]
+OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1-nano"]
+
+def save_results(analysis_result: str, model_name: str,repo_name: str = None) -> Path:
+    """
+    Save analysis results to a timestamped Markdown file in the output directory.
+    
+    Args:
+        analysis_result: The analysis text to save
+        model_name: The name of the model used for analysis
+        repo_name: The name of the repository being analysed
+        
+    Returns:
+        Path to the saved file
+    """
+    # Create output directory if it doesn't exist
+    output_dir = Path("output")
+    output_dir.mkdir(exist_ok=True)
+    
+    # Generate timestamp for filename
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    
+    # Include repository name in filename if available
+    if repo_name:
+        output_filename = f"{timestamp}-{repo_name}-{model_name}.md"
+    else:
+        output_filename = f"{timestamp}-{model_name}.md"
+        
+    output_path = output_dir / output_filename
+    
+    # Save results to markdown file
+    try:
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(analysis_result)
+        return output_path
+    except IOError as e:
+        logger.error(f"Failed to save results: {str(e)}")
+        raise
+
 def get_gitignore_spec(directory: str) -> pathspec.PathSpec:
     """
     Get a PathSpec object from .gitignore in the specified directory.
@@ -269,6 +331,32 @@ TOOLS = {
     "read_file": read_file,
     "calculate": calculate
 }
+
+
+def configure_logging():
+    # Configure logging
+    log_dir = Path(__file__).parent / "logs"
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / f"tech-writer-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()
+        ]
+    )
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging to file: {log_file}")
+
+    # Warn if neither API key is set
+    if not GEMINI_API_KEY and not OPENAI_API_KEY:
+        logger.warning("Neither GEMINI_API_KEY nor OPENAI_API_KEY environment variables are set.")
+        logger.warning("Please set at least one of these environment variables to use the respective API.")
+        logger.warning("You can get a Gemini API key from https://aistudio.google.com")
+        logger.warning("You can get an OpenAI API key from https://platform.openai.com")
+
 
 class CustomEncoder(json.JSONEncoder):
     """

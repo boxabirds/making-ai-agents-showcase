@@ -22,8 +22,6 @@ function show_usage {
     echo "  --dir DIR       Directory to analyze (default: current directory)"
     echo "  --prompt FILE   Path to prompt file (default: prompt.txt)"
     echo "  --model MODEL   Model to use (default: gpt-4o-mini)"
-    echo "  --agent-type TYPE    Agent type to use (default: ReAct)"
-    echo "                  Available types: ReAct, Reflexion"
     echo "  --repo REPO     Repository to use (default: none)"
     echo "  --help          Show this help message"
     exit 1

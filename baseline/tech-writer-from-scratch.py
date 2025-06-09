@@ -1,60 +1,36 @@
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union
 import json
 import re
-import ast
-import datetime
-import pathspec
-from pathspec.patterns import GitWildMatchPattern
-import os
-import argparse
-import subprocess
-from binaryornot.check import is_binary
 from openai import OpenAI
-import math
 import inspect
 import typing
-import logging
-import textwrap
-import abc  # Import the abc module for abstract base classes
 import sys
 
-# Configure logging
-log_dir = Path(__file__).parent / "logs"
-log_dir.mkdir(exist_ok=True)
-log_file = log_dir / f"tech-writer-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()
-    ]
+# Import from common/utils.py
+from common.utils import (
+    read_prompt_file,
+    save_results,
+    ROLE_AND_TASK,
+    GENERAL_ANALYSIS_GUIDELINES,
+    INPUT_PROCESSING_GUIDELINES,
+    CODE_ANALYSIS_STRATEGIES,
+    REACT_PLANNING_STRATEGY,
+    QUALITY_REQUIREMENTS,
+    TOOLS,
+    CustomEncoder,
+    validate_github_url,
+    clone_repo,
+    get_command_line_args,
+    OPENAI_API_KEY,
+    GEMINI_API_KEY,
+    GEMINI_MODELS,
+    logger,
+    configure_logging
 )
-logger = logging.getLogger(__name__)
-logger.info(f"Logging to file: {log_file}")
-
-# Check for API keys
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-
-
-# Warn if neither API key is set
-if not GEMINI_API_KEY and not OPENAI_API_KEY:
-    logger.warning("Neither GEMINI_API_KEY nor OPENAI_API_KEY environment variables are set.")
-    logger.warning("Please set at least one of these environment variables to use the respective API.")
-    logger.warning("You can get a Gemini API key from https://aistudio.google.com")
-    logger.warning("You can get an OpenAI API key from https://platform.openai.com")
-
-# Define model providers: check, high volume and fast. 
-GEMINI_MODELS = ["gemini-2.0-flash"]
-OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1-nano"]
 
 
 
-class TechWriterAgent(abc.ABC):
-    """Abstract base class for codebase analysis agents."""
+class TechWriterReActAgent:
     
     def __init__(self, model_name="gpt-4o-mini", base_url=None):
         """Initialise the agent with the specified model."""
@@ -75,7 +51,11 @@ class TechWriterAgent(abc.ABC):
             if not OPENAI_API_KEY:
                 raise ValueError("OPENAI_API_KEY environment variable is not set but an OpenAI model was specified.")
             self.client = OpenAI(api_key=OPENAI_API_KEY, base_url=base_url)
-    
+        REACT_SYSTEM_PROMPT = f"{ROLE_AND_TASK}\n\n{GENERAL_ANALYSIS_GUIDELINES}\n\n{INPUT_PROCESSING_GUIDELINES}\n\n{CODE_ANALYSIS_STRATEGIES}\n\n{REACT_PLANNING_STRATEGY}\n\n{QUALITY_REQUIREMENTS}"
+
+        """Initialise the ReAct agent with the specified model."""
+        self.system_prompt = REACT_SYSTEM_PROMPT
+   
     def create_openai_tool_definitions(self, tools_dict):
         """
         Create tool definitions from a dictionary of Python functions.
@@ -104,11 +84,9 @@ class TechWriterAgent(abc.ABC):
             }
             
             for param_name, param in sig.parameters.items():
-                # Skip self parameter for methods
                 if param_name == "self":
                     continue
                 
-                # Get parameter type annotation
                 param_type = param.annotation
                 if param_type is inspect.Parameter.empty:
                     param_type = str
@@ -247,33 +225,7 @@ class TechWriterAgent(abc.ABC):
         except Exception as e:
             return f"Error executing tool {tool_name}: {str(e)}"
     
-    @abc.abstractmethod
-    def run(self, prompt, directory):
-        """
-        Run the agent to analyse a codebase.
-        
-        This method must be implemented by subclasses.
-        
-        Args:
-            prompt: The analysis prompt
-            directory: The directory containing the codebase to analyse
-            
-        Returns:
-            The analysis result
-        """
-        pass
 
-
-class ReActAgent(TechWriterAgent):
-    """Agent that uses the ReAct pattern for codebase analysis."""
-    
-    def __init__(self, model_name="gpt-4o-mini", base_url=None):
-        REACT_SYSTEM_PROMPT = f"{ROLE_AND_TASK}\n\n{GENERAL_ANALYSIS_GUIDELINES}\n\n{INPUT_PROCESSING_GUIDELINES}\n\n{CODE_ANALYSIS_STRATEGIES}\n\n{REACT_PLANNING_STRATEGY}\n\n{QUALITY_REQUIREMENTS}"
-
-        """Initialise the ReAct agent with the specified model."""
-        super().__init__(model_name, base_url)
-        self.system_prompt = REACT_SYSTEM_PROMPT
-    
     def run(self, prompt, directory):
         """Run the agent to analyse a codebase using the ReAct pattern."""
         self.initialise_memory(prompt, directory)
@@ -325,7 +277,7 @@ class ReActAgent(TechWriterAgent):
         return self.final_answer
 
 
-def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, agent_type: str = "react", base_url: str = None) -> str:
+def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None) -> tuple[str, str]:
     """
     Analyse a codebase using the specified agent type with a prompt from an external file.
     
@@ -333,7 +285,6 @@ def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str
         directory_path: Path to directory containing codebase OR GitHub repository URL
         prompt_file_path: Path to file containing analysis prompt
         model_name: Name of model to use for analysis
-        agent_type: Type of agent (react or reflexion)
         base_url: Base URL for API (optional)
         
     Returns:
@@ -342,13 +293,7 @@ def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str
     # Read the prompt from file
     prompt = read_prompt_file(prompt_file_path)
     
-    # Initialize the appropriate agent
-    if agent_type == "react":
-        agent = ReActAgent(model_name, base_url)
-    elif agent_type == "reflexion":
-        agent = ReflexionAgent(model_name, base_url)
-    else:
-        raise ValueError(f"Unknown agent type: {agent_type}")
+    agent = TechWriterReActAgent(model_name, base_url)
     
     # Run the analysis
     analysis_result = agent.run(prompt, directory_path)
@@ -358,45 +303,10 @@ def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str
     
     return analysis_result, repo_name
 
-def save_results(analysis_result: str, model_name: str, agent_type: str, repo_name: str = None) -> Path:
-    """
-    Save analysis results to a timestamped Markdown file in the output directory.
-    
-    Args:
-        analysis_result: The analysis text to save
-        model_name: The name of the model used for analysis
-        agent_type: The type of agent used (react or reflexion)
-        repo_name: The name of the repository being analysed
-        
-    Returns:
-        Path to the saved file
-    """
-    # Create output directory if it doesn't exist
-    output_dir = Path("output")
-    output_dir.mkdir(exist_ok=True)
-    
-    # Generate timestamp for filename
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    
-    # Include repository name in filename if available
-    if repo_name:
-        output_filename = f"{timestamp}-{repo_name}-{agent_type}-{model_name}.md"
-    else:
-        output_filename = f"{timestamp}-{agent_type}-{model_name}.md"
-        
-    output_path = output_dir / output_filename
-    
-    # Save results to markdown file
-    try:
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(analysis_result)
-        return output_path
-    except IOError as e:
-        logger.error(f"Failed to save results: {str(e)}")
-        raise
 
 def main():
     try:
+        configure_logging()
         args = get_command_line_args()
         
         # Handle repo cloning if specified
@@ -415,7 +325,7 @@ def main():
         if not Path(directory_path).exists():
             raise FileNotFoundError(f"Directory not found: {directory_path}")
             
-        analysis_result, repo_name = analyse_codebase(directory_path, args.prompt_file, args.model, args.agent_type, args.base_url)
+        analysis_result, repo_name = analyse_codebase(directory_path, args.prompt_file, args.model, args.base_url)
         
         # Check if the result is an error message or a step limit failure
         if isinstance(analysis_result, str) and \
