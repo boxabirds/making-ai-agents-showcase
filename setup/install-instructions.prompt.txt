@@ -1,0 +1,20 @@
+Find the installation instructions in this project (often in the README) 
+for using the project in its package form (not local builds)
+The installation instructions might be for any programming language. Here are some tips for specific languages.
+
+== Javascript / TypeScript ==
+Prefer the bun instructions if there are any, but any package manager is ok. But pick only one
+
+== Python ==
+For hybrid projects (multiple languages), choose python, ignoring all others. 
+
+== Final output = 
+Then create a bash script that installs it. 
+The bash script is the only output -- no other narrative or escape sequences or backticks at start or end
+
+== Extra Python instructions ==
+We want to use the python package manager "uv" exclusively for python instructions. 
+If the instructions don't include uv instructions
+Comment the script contents out and create a version that uses uv. 
+E.g. uv init / uv venv -p <required python version> / source .venv/bin/activate etc
+It's important to remember when using uv that pip install becomes "uv pip install". 

@@ -4,7 +4,7 @@
 # Default values
 DEFAULT_DIRECTORY="."
 DEFAULT_PROMPT="prompt.txt"
-DEFAULT_MODEL="gpt-4o-mini"
+DEFAULT_MODEL="gpt-4.1-mini"
 DEFAULT_REPO=""
 
 # Parse command line arguments

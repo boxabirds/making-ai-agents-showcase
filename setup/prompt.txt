@@ -1,3 +1,0 @@
-Create a bash script that installs this project.
-If it is a python project, create the script as the project instructs, but then comment it out and create a uv version. 
-
