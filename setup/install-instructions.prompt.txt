@@ -4,6 +4,7 @@ The installation instructions might be for any programming language. Here are so
 
 == Javascript / TypeScript ==
 Prefer the bun instructions if there are any, but any package manager is ok. But pick only one
+Make sure a supported version of node is available. 
 
 == Python ==
 For hybrid projects (multiple languages), choose python, ignoring all others. 

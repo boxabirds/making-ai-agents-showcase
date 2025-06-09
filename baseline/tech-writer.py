@@ -335,7 +335,7 @@ def main():
             sys.exit(1)
         
         # Save the results
-        output_file = save_results(analysis_result, args.model, repo_name)
+        output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension)
         logger.info(f"Analysis complete. Results saved to: {output_file}")
         
     except Exception as e:

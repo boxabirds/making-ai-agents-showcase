@@ -1,6 +1,5 @@
 https://github.com/axios/axios
-https://github.com/crewAIInc/crewAI			
-https://github.com/langgenius/dify						
+https://github.com/crewAIInc/crewAI								
 https://github.com/pydantic/pydantic-ai									
 https://github.com/julep-ai/julep				
 https://github.com/langflow-ai/langflow 

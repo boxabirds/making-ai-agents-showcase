@@ -26,38 +26,50 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 GEMINI_MODELS = ["gemini-2.0-flash"]
 OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1-nano"]
 
-def save_results(analysis_result: str, model_name: str,repo_name: str = None) -> Path:
+def save_results(analysis_result: str, model_name: str, repo_name: str = None, output_dir: str = None, extension: str = None) -> Path:
     """
-    Save analysis results to a timestamped Markdown file in the output directory.
+    Save analysis results to a timestamped file in the output directory.
     
     Args:
         analysis_result: The analysis text to save
         model_name: The name of the model used for analysis
         repo_name: The name of the repository being analysed
+        output_dir: The directory to save results to (default: "output")
+        extension: The file extension to use (default: ".md")
         
     Returns:
         Path to the saved file
     """
+    # Use default values if not provided
+    if output_dir is None:
+        output_dir = "output"
+    if extension is None:
+        extension = ".md"
+    
+    # Ensure extension starts with a dot
+    if extension and not extension.startswith('.'):
+        extension = '.' + extension
+    
     # Create output directory if it doesn't exist
-    output_dir = Path("output")
-    output_dir.mkdir(exist_ok=True)
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
     
     # Generate timestamp for filename
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     
     # Include repository name in filename if available
     if repo_name:
-        output_filename = f"{timestamp}-{repo_name}-{model_name}.md"
+        output_filename = f"{timestamp}-{repo_name}-{model_name}{extension}"
     else:
-        output_filename = f"{timestamp}-{model_name}.md"
+        output_filename = f"{timestamp}-{model_name}{extension}"
         
-    output_path = output_dir / output_filename
+    output_file = output_path / output_filename
     
-    # Save results to markdown file
+    # Save results to file
     try:
-        with open(output_path, "w", encoding="utf-8") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(analysis_result)
-        return output_path
+        return output_file
     except IOError as e:
         logger.error(f"Failed to save results: {str(e)}")
         raise
@@ -428,6 +440,12 @@ def get_command_line_args():
     # Add cache directory argument
     parser.add_argument("--cache-dir", default="output/cache",
                       help="Directory to cache cloned repositories (default: output/cache)")
+    
+    # Add output directory and extension arguments
+    parser.add_argument("--output-dir", default=None,
+                      help="Directory to save results to (default: output)")
+    parser.add_argument("--extension", default=None,
+                      help="File extension for output files (default: .md)")
     
     # Define available models based on which API keys are set
     available_models = []

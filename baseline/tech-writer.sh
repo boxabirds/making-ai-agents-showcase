@@ -6,22 +6,28 @@ DEFAULT_DIRECTORY="."
 DEFAULT_PROMPT="prompt.txt"
 DEFAULT_MODEL="gpt-4.1-mini"
 DEFAULT_REPO=""
+DEFAULT_OUTPUT_DIR=""
+DEFAULT_EXTENSION=""
 
 # Parse command line arguments
 DIRECTORY=$DEFAULT_DIRECTORY
 PROMPT_FILE=$DEFAULT_PROMPT
 MODEL=$DEFAULT_MODEL
 REPO=$DEFAULT_REPO
+OUTPUT_DIR=$DEFAULT_OUTPUT_DIR
+EXTENSION=$DEFAULT_EXTENSION
 
 # Function to display usage information
 function show_usage {
     echo "Usage: $0 [options]"
     echo "Options:"
-    echo "  --dir DIR       Directory to analyze (default: current directory)"
-    echo "  --prompt FILE   Path to prompt file (default: prompt.txt)"
-    echo "  --model MODEL   Model to use (default: gpt-4o-mini)"
-    echo "  --repo REPO     Repository to use (default: none)"
-    echo "  --help          Show this help message"
+    echo "  --dir DIR         Directory to analyze (default: current directory)"
+    echo "  --prompt FILE     Path to prompt file (default: prompt.txt)"
+    echo "  --model MODEL     Model to use (default: gpt-4.1-mini)"
+    echo "  --repo REPO       Repository to use (default: none)"
+    echo "  --output-dir DIR  Directory to save results to (default: output)"
+    echo "  --extension EXT   File extension for output files (default: .md)"
+    echo "  --help            Show this help message"
     exit 1
 }
 
@@ -42,6 +48,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --repo)
             REPO="$2"
+            shift 2
+            ;;
+        --output-dir)
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --extension)
+            EXTENSION="$2"
             shift 2
             ;;
         --output)
@@ -86,9 +100,19 @@ fi
 
 # Build command
 if [ -n "$REPO" ]; then
-    CMD="source .venv/bin/activate && python tech-writer.py --repo \"$REPO\" \"$PROMPT_FILE\" --model \"$MODEL\" "
+    CMD="source .venv/bin/activate && python tech-writer.py --repo \"$REPO\" \"$PROMPT_FILE\" --model \"$MODEL\""
 else
-    CMD="source .venv/bin/activate && python tech-writer.py \"$DIRECTORY\" \"$PROMPT_FILE\" --model \"$MODEL\" "
+    CMD="source .venv/bin/activate && python tech-writer.py \"$DIRECTORY\" \"$PROMPT_FILE\" --model \"$MODEL\""
+fi
+
+# Add optional output-dir parameter
+if [ -n "$OUTPUT_DIR" ]; then
+    CMD="$CMD --output-dir \"$OUTPUT_DIR\""
+fi
+
+# Add optional extension parameter
+if [ -n "$EXTENSION" ]; then
+    CMD="$CMD --extension \"$EXTENSION\""
 fi
 
 # Run the tech writer agent
