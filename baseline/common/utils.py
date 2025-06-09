@@ -473,57 +473,74 @@ def get_command_line_args():
     return args
 
 
-def run_evaluation(tech_writer_result: str, eval_prompt_file: str, output_file: Path, model_name: str) -> None:
+def create_metadata(output_file: Path, model_name: str, repo_url: str, repo_name: str, tech_writer_result: str, eval_prompt_file: str = None) -> None:
     """
-    Run an evaluation prompt against the tech writer result and save it.
+    Create a metadata JSON file for the tech writer output.
     
     Args:
-        tech_writer_result: The output from the tech writer
-        eval_prompt_file: Path to file containing the evaluation prompt
         output_file: Path to the original output file
-        model_name: Model to use for evaluation
+        model_name: Model used for analysis
+        repo_url: GitHub repository URL (empty string if local)
+        repo_name: Repository name
+        tech_writer_result: The output from the tech writer
+        eval_prompt_file: Path to evaluation prompt file (optional)
     """
     try:
-        # Read the evaluation prompt
-        eval_prompt = read_prompt_file(eval_prompt_file)
+        metadata = {
+            "model": model_name,
+            "github_url": repo_url,
+            "repo_name": repo_name,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
         
-        # Prepare the full prompt with the tech writer result
-        full_prompt = f"{eval_prompt}\n\n{tech_writer_result}"
+        # Run evaluation if prompt provided
+        if eval_prompt_file:
+            try:
+                # Read the evaluation prompt
+                eval_prompt = read_prompt_file(eval_prompt_file)
+                
+                # Prepare the full prompt with the tech writer result
+                full_prompt = f"{eval_prompt}\n\n{tech_writer_result}"
+                
+                # Initialize client based on model
+                if model_name in GEMINI_MODELS:
+                    if not GEMINI_API_KEY:
+                        raise ValueError("GEMINI_API_KEY environment variable is not set")
+                    client = OpenAI(
+                        api_key=GEMINI_API_KEY,
+                        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+                    )
+                else:
+                    if not OPENAI_API_KEY:
+                        raise ValueError("OPENAI_API_KEY environment variable is not set")
+                    client = OpenAI(api_key=OPENAI_API_KEY)
+                
+                # Call the API for evaluation
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "user", "content": full_prompt}
+                    ],
+                    temperature=0
+                )
+                
+                eval_result = response.choices[0].message.content
+                metadata["eval_output"] = eval_result
+                
+            except Exception as e:
+                logger.error(f"Error running evaluation: {str(e)}")
+                metadata["eval_error"] = str(e)
         
-        # Initialize client based on model
-        if model_name in GEMINI_MODELS:
-            if not GEMINI_API_KEY:
-                raise ValueError("GEMINI_API_KEY environment variable is not set")
-            client = OpenAI(
-                api_key=GEMINI_API_KEY,
-                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-            )
-        else:
-            if not OPENAI_API_KEY:
-                raise ValueError("OPENAI_API_KEY environment variable is not set")
-            client = OpenAI(api_key=OPENAI_API_KEY)
+        # Create metadata filename
+        # If output file is "file.sh", metadata file will be "file.metadata.json"
+        metadata_file = output_file.parent / f"{output_file.stem}.metadata.json"
         
-        # Call the API for evaluation
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "user", "content": full_prompt}
-            ],
-            temperature=0
-        )
+        # Save the metadata
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2)
         
-        eval_result = response.choices[0].message.content
-        
-        # Create eval output filename
-        # If output file is "file.sh", eval file will be "file.sh.eval.txt"
-        eval_output_file = output_file.parent / f"{output_file.name}.eval.txt"
-        
-        # Save the evaluation result
-        with open(eval_output_file, "w", encoding="utf-8") as f:
-            f.write(eval_result)
-        
-        logger.info(f"Evaluation complete. Results saved to: {eval_output_file}")
+        logger.info(f"Metadata saved to: {metadata_file}")
         
     except Exception as e:
-        logger.error(f"Error running evaluation: {str(e)}")
+        logger.error(f"Error creating metadata: {str(e)}")
         raise

@@ -1,5 +1,5 @@
 Find the installation instructions in this project (often in the README) 
-for using the project in its package form (not local builds).
+for using the project in its package form (not local builds). If there is 
 The installation instructions might be for any programming language. Here are some tips for specific languages.
 
 == Javascript / TypeScript ==
@@ -8,6 +8,9 @@ Make sure a supported version of node is available.
 
 == Python ==
 For hybrid projects (multiple languages), choose python, ignoring all others. 
+If there is no mention of "pip install <repo name>" AND / OR there is mentioning of 
+cloning or downloading the repo, then it doesn't offer a package and the 
+instructions should be about git cloning the repo. 
 
 == Final output = 
 Then create a bash script that installs it. 
@@ -20,4 +23,4 @@ We want to use the python package manager "uv" exclusively for python instructio
 If the instructions don't include uv instructions
 Comment the script contents out and create a version that uses uv. 
 E.g. uv init / uv venv -p <required python version> / source .venv/bin/activate etc
-It's important to remember when using uv that pip install becomes "uv pip install". 
+It's important to remember when using uv that pip install becomes "uv pip install" and that uv init is called before any other uv commands 

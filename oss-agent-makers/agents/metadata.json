@@ -1,0 +1,7 @@
+{
+  "model": "gpt-4.1-mini",
+  "github_url": "https://github.com/cloudflare/agents",
+  "repo_name": "agents",
+  "timestamp": "2025-06-09T16:40:11.782772",
+  "eval_output": "Package option, TypeScript"
+}

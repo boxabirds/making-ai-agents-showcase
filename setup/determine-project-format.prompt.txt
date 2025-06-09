@@ -1,5 +1,13 @@
 The provided text is a bash script to install a project. 
-Review it to determine whether it is:
-a) "Package option": the project can be used as an integrated package for the specified language ( such as bun add x or uv pip install x) or 
-b) "Server required": requires to have a separate server or external SaaS to run. E.g. if docker is required, or a server being started these are pretty telltale signs of needing a separate server. 
-Simply output ONLY the following: "Package option" or "Server required" and nothing else, no other text or delimiters are to be output.
+
+Review it to determine:
+
+= Part 1 =
+Whether the format is:
+"Package option": the project can be used as an integrated package for the specified language ( such as bun add x or uv pip install x) or 
+"Server required": requires to have a separate server or external SaaS to run. E.g. if docker is required, or a server being started these are pretty telltale signs of needing a separate server. 
+
+= Part 2 =
+What language it is for (typically Python or TypeScript)
+
+Output two values only, separated by commas: <Part 1>, <Part 2>, and no other values or delimiters.

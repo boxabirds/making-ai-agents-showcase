@@ -10,7 +10,7 @@ import sys
 from common.utils import (
     read_prompt_file,
     save_results,
-    run_evaluation,
+    create_metadata,
     ROLE_AND_TASK,
     GENERAL_ANALYSIS_GUIDELINES,
     INPUT_PROCESSING_GUIDELINES,
@@ -278,18 +278,19 @@ class TechWriterReActAgent:
         return self.final_answer
 
 
-def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None) -> tuple[str, str]:
+def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:
     """
     Analyse a codebase using the specified agent type with a prompt from an external file.
     
     Args:
-        directory_path: Path to directory containing codebase OR GitHub repository URL
+        directory_path: Path to directory containing codebase
         prompt_file_path: Path to file containing analysis prompt
         model_name: Name of model to use for analysis
         base_url: Base URL for API (optional)
+        repo_url: GitHub repository URL if cloned from GitHub (optional)
         
     Returns:
-        tuple: (analysis_result, repo_name)
+        tuple: (analysis_result, repo_name, repo_url)
     """
     # Read the prompt from file
     prompt = read_prompt_file(prompt_file_path)
@@ -302,7 +303,7 @@ def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str
     # Get repository name for output file
     repo_name = Path(directory_path).name
     
-    return analysis_result, repo_name
+    return analysis_result, repo_name, repo_url or ""
 
 
 def main():
@@ -311,11 +312,13 @@ def main():
         args = get_command_line_args()
         
         # Handle repo cloning if specified
+        repo_url = ""
         if args.repo:
             if not validate_github_url(args.repo):
                 raise ValueError("Invalid GitHub repository URL format")
             try:
                 directory_path = str(clone_repo(args.repo, args.cache_dir))
+                repo_url = args.repo
             except Exception as e:
                 logger.error(f"Failed to clone repository: {str(e)}")
                 sys.exit(1)
@@ -326,7 +329,7 @@ def main():
         if not Path(directory_path).exists():
             raise FileNotFoundError(f"Directory not found: {directory_path}")
             
-        analysis_result, repo_name = analyse_codebase(directory_path, args.prompt_file, args.model, args.base_url)
+        analysis_result, repo_name, _ = analyse_codebase(directory_path, args.prompt_file, args.model, args.base_url, repo_url)
         
         # Check if the result is an error message or a step limit failure
         if isinstance(analysis_result, str) and \
@@ -339,9 +342,8 @@ def main():
         output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension)
         logger.info(f"Analysis complete. Results saved to: {output_file}")
         
-        # Run evaluation if eval prompt provided
-        if args.eval_prompt:
-            run_evaluation(analysis_result, args.eval_prompt, output_file, args.model)
+        # Always create metadata (with optional evaluation)
+        create_metadata(output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt)
         
     except Exception as e:
         logger.error(f"Error: {str(e)}")
