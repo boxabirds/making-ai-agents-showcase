@@ -2,89 +2,76 @@ Create a comprehensive code analysis report named `code-report.md` that compares
 1. Baseline implementation at `@baseline/tech-writer.py` 
 2. Framework implementation at `@oss-agent-makers/[FRAMEWORK-NAME]/tech-writer.py`
 
-The report should follow this structure:
+Requirements:
+- Count actual lines of code and calculate percentages
+- Use Mermaid for all diagrams (not ASCII art)
+- Include real code snippets for all comparisons
+- Be objective and balanced in pros/cons analysis
+- Focus on practical implications for developers
+- Highlight key architectural differences
+- Note any framework-specific concepts that need explanation
+
+
+The report should analyze these key aspects in a logical order:
 
 ## Executive Summary
-- Brief overview of both implementations
-- State that both achieve the same goal but differ in architecture, complexity, and capabilities
+- Brief overview stating both implementations achieve the same goal
+- High-level comparison table with columns: Aspect | Baseline | [Framework]
+- Include rows for: Pros, Cons, Lines of Code, Execution Model
 
-## Comparison Overview
-Create a table with the following columns:
-- Aspect
-- Baseline Implementation 
-- [Framework] Implementation
+## LLM Support
+- Which models are supported by each implementation
+- How models are configured/initialized
+- Any special handling required (e.g., wrappers, adapters)
+- Show code snippets of model initialization
 
-Include rows for:
-- Pros (use bullet points with <br> tags)
-- Cons (use bullet points with <br> tags)
-- Lines of Code (count actual lines)
-- Dependencies
-- Execution Model (sync/async)
-- Memory Management
-- Tool Calling
-- Error Handling
+## Memory Management
+- How conversation history is stored and managed
+- Compare explicit vs implicit memory handling
+- Code snippets showing memory operations
+- Session/state persistence capabilities
 
-## Architecture Analysis
-For each implementation, create a Mermaid diagram showing the flow and components. Include:
-- Main entry points
-- Key classes/functions
-- Data flow
-- Use subgraphs where appropriate
+## Tool Calling
+- How tools are defined and registered
+- Tool execution mechanisms
+- Error handling in tool calls
+- Compare manual vs automatic tool orchestration
+- Include code snippets
 
-Under each diagram, list Key Components with bullet points explaining the architecture.
-
-## Code Complexity Analysis
-For each implementation:
-- Total line count
-- Breakdown of complexity by component (e.g., "Agent class: ~X lines")
-- List key methods/functions with their purpose
-- Note any simplifications in the framework version
-
-## ReAct Pattern Implementation
-Create a dedicated section explaining how each implementation handles the ReAct (Reasoning and Acting) pattern:
-- Note if both use the same prompt
+## ReAct Support
+- Explain how each implementation achieves the ReAct pattern
 - Create Mermaid flowcharts showing:
-  - Baseline: Explicit loop management with visible state
+  - Baseline: Explicit loop with visible state management
   - Framework: How the framework handles the loop internally
-- Explain the key differences in execution flow
-- Include a "Key Insight" subsection
+- Note if both use the same prompt
+- Key differences in execution flow
 
-## Feature Comparison
-Compare at least these features with code snippets:
-1. Memory Management
-2. Tool Calling  
-3. Model Support
-4. Error Handling
+## Performance
+- Execution model (synchronous vs asynchronous)
+- Overhead and efficiency considerations
+- Streaming capabilities
+- Concurrency support
 
-Show actual code snippets from each implementation to illustrate the differences.
+## Shared Code
+- What code is reused from baseline/common
+- How utilities are imported and used
+- Percentage of code that's framework-specific vs shared
 
-## Performance Characteristics
-Compare:
-- Execution model (sync vs async)
-- API call patterns
-- Memory usage patterns
-- Any framework-specific optimizations
+## Maintenance
+- Code complexity and readability
+- Debugging considerations
+- Framework lock-in implications
+- Update and versioning concerns
 
-## Maintenance Considerations
-For each implementation, list:
-- Pros for maintenance
-- Cons for maintenance
-- Consider: code visibility, flexibility, updates, testing
+## Architecture Diagrams (place where most appropriate)
+Use Mermaid diagrams to visualize:
+- Overall architecture of each implementation
+- Data flow and component relationships
+- ReAct execution loops
+
+
 
 ## Recommendations
-Provide guidance on when to use each implementation:
-- "Use Baseline Implementation when:" (list scenarios)
-- "Use [Framework] Implementation when:" (list scenarios)
-
-## Conclusion
-Summarize:
-- Percentage difference in code size
-- Key tradeoffs
-- Final guidance on choosing between implementations
-
-Requirements:
-- Use Mermaid for all diagrams (not ASCII art)
-- Include specific line counts and percentages
-- Show actual code snippets for comparisons
-- Be objective about pros/cons of each approach
-- Focus on practical implications for developers
+- When to use baseline implementation (list specific scenarios)
+- When to use framework implementation (list specific scenarios)
+- Decision criteria for choosing between them
