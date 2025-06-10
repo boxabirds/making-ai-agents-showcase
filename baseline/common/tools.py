@@ -116,77 +116,77 @@ def read_file(file_path: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Unexpected error reading file: {str(e)}"}
 
-def calculate(expression: str) -> Dict[str, Any]:
-    """
-    Evaluate a mathematical expression and return the result.
+# def calculate(expression: str) -> Dict[str, Any]:
+#     """
+#     Evaluate a mathematical expression and return the result.
     
-    Args:
-        expression: Mathematical expression to evaluate (e.g., "2 + 2 * 3")
+#     Args:
+#         expression: Mathematical expression to evaluate (e.g., "2 + 2 * 3")
         
-    Returns:
-        Dictionary containing the expression and its result
-    """
-    logger.info(f"Tool invoked: calculate(expression='{expression}')")
+#     Returns:
+#         Dictionary containing the expression and its result
+#     """
+#     logger.info(f"Tool invoked: calculate(expression='{expression}')")
     
-    try:
-        # Create a safe environment for evaluating expressions
-        # This uses Python's ast.literal_eval for safety instead of eval()
-        def safe_eval(expr):
-            # Replace common mathematical functions with their math module equivalents
-            expr = expr.replace("^", "**")  # Support for exponentiation
-            logger.debug(f"Preprocessed expression: {expr}")
+#     try:
+#         # Create a safe environment for evaluating expressions
+#         # This uses Python's ast.literal_eval for safety instead of eval()
+#         def safe_eval(expr):
+#             # Replace common mathematical functions with their math module equivalents
+#             expr = expr.replace("^", "**")  # Support for exponentiation
+#             logger.debug(f"Preprocessed expression: {expr}")
             
-            # Parse the expression into an AST
-            parsed_expr = ast.parse(expr, mode='eval')
+#             # Parse the expression into an AST
+#             parsed_expr = ast.parse(expr, mode='eval')
             
-            # Check that the expression only contains safe operations
-            for node in ast.walk(parsed_expr):
-                # Allow names that are defined in the math module
-                if isinstance(node, ast.Name) and node.id not in math.__dict__:
-                    if node.id not in ['True', 'False', 'None']:
-                        raise ValueError(f"Invalid name in expression: {node.id}")
+#             # Check that the expression only contains safe operations
+#             for node in ast.walk(parsed_expr):
+#                 # Allow names that are defined in the math module
+#                 if isinstance(node, ast.Name) and node.id not in math.__dict__:
+#                     if node.id not in ['True', 'False', 'None']:
+#                         raise ValueError(f"Invalid name in expression: {node.id}")
                 
-                # Only allow safe operations
-                elif isinstance(node, ast.Call):
-                    if not (isinstance(node.func, ast.Name) and node.func.id in math.__dict__):
-                        raise ValueError(f"Invalid function call in expression")
+#                 # Only allow safe operations
+#                 elif isinstance(node, ast.Call):
+#                     if not (isinstance(node.func, ast.Name) and node.func.id in math.__dict__):
+#                         raise ValueError(f"Invalid function call in expression")
             
-            # Evaluate the expression with the math module available
-            return eval(compile(parsed_expr, '<string>', 'eval'), {"__builtins__": {}}, math.__dict__)
+#             # Evaluate the expression with the math module available
+#             return eval(compile(parsed_expr, '<string>', 'eval'), {"__builtins__": {}}, math.__dict__)
         
-        # Evaluate the expression
-        result = safe_eval(expression)
+#         # Evaluate the expression
+#         result = safe_eval(expression)
         
-        logger.info(f"Calculation result: {expression} = {result}")
+#         logger.info(f"Calculation result: {expression} = {result}")
         
-        return {
-            "expression": expression,
-            "result": result
-        }
-    except SyntaxError as e:
-        return {
-            "error": f"Syntax error in expression: {str(e)}",
-            "expression": expression
-        }
-    except ValueError as e:
-        return {
-            "error": f"Value error in expression: {str(e)}",
-            "expression": expression
-        }
-    except TypeError as e:
-        return {
-            "error": f"Type error in expression: {str(e)}",
-            "expression": expression
-        }
-    except Exception as e:
-        return {
-            "error": f"Unexpected error evaluating expression: {str(e)}",
-            "expression": expression
-        }
+#         return {
+#             "expression": expression,
+#             "result": result
+#         }
+#     except SyntaxError as e:
+#         return {
+#             "error": f"Syntax error in expression: {str(e)}",
+#             "expression": expression
+#         }
+#     except ValueError as e:
+#         return {
+#             "error": f"Value error in expression: {str(e)}",
+#             "expression": expression
+#         }
+#     except TypeError as e:
+#         return {
+#             "error": f"Type error in expression: {str(e)}",
+#             "expression": expression
+#         }
+#     except Exception as e:
+#         return {
+#             "error": f"Unexpected error evaluating expression: {str(e)}",
+#             "expression": expression
+#         }
 
 # Dictionary mapping tool names to their functions
 TOOLS = {
     "find_all_matching_files": find_all_matching_files,
     "read_file": read_file,
-    "calculate": calculate
+    # "calculate": calculate
 }
