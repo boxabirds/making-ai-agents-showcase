@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 from pathlib import Path
 from .logging import logger
 from binaryornot.check import is_binary
@@ -12,8 +12,9 @@ def find_all_matching_files(
     pattern: str = "*", 
     respect_gitignore: bool = True, 
     include_hidden: bool = False,
-    include_subdirs: bool = True
-    ) -> List[Path]:
+    include_subdirs: bool = True,
+    return_paths_as: str = "Path"
+    ) -> List[Union[Path, str]]:
     """
     Find files matching a pattern while respecting .gitignore.
     
@@ -23,9 +24,10 @@ def find_all_matching_files(
         respect_gitignore: Whether to respect .gitignore patterns
         include_hidden: Whether to include hidden files and directories
         include_subdirs: Whether to include files in subdirectories
+        return_paths_as: Return type for paths - "Path" for Path objects, "str" for strings
         
     Returns:
-        List of Path objects for matching files
+        List of Path objects or strings for matching files
     """
     logger.info(f"Tool invoked: find_all_matching_files(directory='{directory}', pattern='{pattern}', respect_gitignore={respect_gitignore}, include_hidden={include_hidden}, include_subdirs={include_subdirs})")
     
@@ -73,6 +75,10 @@ def find_all_matching_files(
         
         logger.info(f"Found {len(result)} matching files")
         logger.debug(f"Matching files: {[str(p) for p in result[:10]]}{'...' if len(result) > 10 else ''}")
+        
+        # Return as strings if requested
+        if return_paths_as == "str":
+            return [str(p) for p in result]
         return result
     except (FileNotFoundError, PermissionError) as e:
         logger.error(f"Error accessing files: {e}")
@@ -99,7 +105,7 @@ def read_file(file_path: str) -> Dict[str, Any]:
         
         file_size = len(content)
         logger.info(f"Successfully read file: {file_path} ({file_size} chars)")
-        logger.debug(f"File has {content.count('\n')} lines")
+        logger.debug(f"File has {content.count(chr(10))} lines")
         
         return {
             "file": file_path,

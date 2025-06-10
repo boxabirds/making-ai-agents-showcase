@@ -6,8 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "google-adk",
-    "pathspec",
-    "binaryornot",
-    "openai",
-    "litellm",
 ]
+
+[tool.setuptools]
+packages = ["adk_python"]

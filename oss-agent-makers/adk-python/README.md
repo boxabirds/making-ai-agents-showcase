@@ -1,106 +1,181 @@
-# Comprehensive Guide to Using the Google ADK Python Package to Create and Run Agents with Tool Calling (ReAct Style)
+# ADK-Python Tech Writer Agent
 
-This document provides an exhaustive, detailed guide on how to use the Google ADK Python package to create an agent that can be run directly in Python (e.g., `python agent.py`). It also answers the question: "How can I use this API to create a Python ReAct agent with tool calling?" The guide includes references to source code files and explanations of key components, highlighting specialist tools and scaffolding utilities provided by the package.
+This directory contains a Tech Writer agent implementation using Google's Agent Development Kit (ADK) Python package. The agent analyzes codebases and creates technical documentation using a ReAct (Reasoning and Acting) pattern.
+
+## Tech Writer Agent Features
+
+- **ReAct Pattern**: Uses reasoning and acting steps to analyze codebases
+- **Tool Calling**: Integrates file discovery and reading tools
+- **Command-line Interface**: Supports analyzing local directories or GitHub repositories
+- **Flexible Output**: Generates documentation in various formats
+
+## Files in this Directory
+
+- `tech_writer_agent.py` - The main agent implementation with tools
+- `tech_writer_runner.py` - CLI runner for batch processing
+- `tech_writer.sh` - Shell script wrapper for easy execution
+- `test_tech_writer.py` - Test script to verify the agent works
+- `agent.py` - Simple hello world agent example
+- `agent.sh` - Shell script for the hello world agent
+
+## Usage
+
+### Interactive Mode
+
+Run the agent in interactive mode:
+
+```bash
+python tech_writer_agent.py
+```
+
+### Command-line Mode
+
+Use the runner for batch processing:
+
+```bash
+# Analyze a local directory
+python tech_writer_runner.py -d ./my-project -p prompts/analyze.txt
+
+# Analyze a GitHub repository
+python tech_writer_runner.py -r https://github.com/user/repo -p prompts/analyze.txt
+
+# Or use the shell script
+./tech_writer.sh -d ./my-project -p prompts/analyze.txt
+```
+
+### Testing
+
+Run the test script to verify the installation:
+
+```bash
+python test_tech_writer.py
+```
 
 ---
 
-## Table of Contents
+# Google ADK Python Package - Agent Usage and ReAct Agent with Tool Calling Guide
 
-1. [Overview of the Package and Agent Concept](#overview)
-2. [Creating a Basic Agent](#basic-agent)
-3. [Using Tools with Agents](#tools-with-agents)
-4. [Creating a Python ReAct Agent with Tool Calling](#react-agent)
-5. [Running the Agent Directly in Python](#running-agent)
-6. [References to Source Code and Documentation](#references)
+This document provides an exhaustive guide on how to use the Google ADK Python package to create and run agents directly in Python, with a focus on creating a Python ReAct agent with tool calling capabilities. The guide is grounded exclusively in the source code and sample agents provided in the package.
 
 ---
 
-## 1. Overview of the Package and Agent Concept <a name="overview"></a>
+## 1. How to Use the API to Create and Run an Agent Directly in Python
 
-The Google ADK Python package provides a framework to build AI agents that can interact with language models and tools. The core abstraction is the `Agent` class, which represents an AI assistant capable of processing instructions, using tools, and generating responses.
+### Overview
 
-- The main agent class is `LlmAgent` (alias `Agent`), defined in:
-  - `src/google/adk/agents/llm_agent.py`
-- Tools are modular components that the agent can call to perform specific functions.
-- The package supports advanced features like toolsets, function tools, and integration with Langchain tools.
+The core class to create an agent is `Agent` (alias for `LlmAgent`) from the module `google.adk.agents`. An agent is configured with a model, instructions, tools, and optionally planners and callbacks. The agent can then be run using a runner such as `InMemoryRunner` or `Runner`.
 
----
+### Key Classes and Modules
 
-## 2. Creating a Basic Agent <a name="basic-agent"></a>
+- **Agent (LlmAgent)**: `google.adk.agents.llm_agent.Agent`  
+  This is the main class to instantiate an agent. It supports specifying the model, instructions, tools, planners, and callbacks.  
+  - Source: `src/google/adk/agents/llm_agent.py` (lines ~100-400)
+- **Runner / InMemoryRunner**: Used to run the agent asynchronously with session management.  
+  - Example usage in sample: `contributing/samples/hello_world/main.py`
+- **Tools**: Functions or tool classes that the agent can call during execution.
 
-A minimal agent can be created by instantiating the `Agent` class with a model, name, description, instructions, and optionally tools.
+### Minimal Example to Create and Run an Agent
 
-Example from `contributing/samples/quickstart/agent.py`:
+Refer to the sample `hello_world` agent and main runner:
+
+- **Agent definition**: `contributing/samples/hello_world/agent.py`  
+  Defines two tools: `roll_die` and `check_prime` as Python functions, then creates an `Agent` with these tools and instructions.
 
 ```python
-from google.adk.agents import Agent
+import random
+from google.adk import Agent
+from google.genai import types
 
-def get_weather(city: str) -> dict:
-    """Returns weather info for a city."""
-    if city.lower() == "new york":
-        return {
-            "status": "success",
-            "report": "The weather in New York is sunny with a temperature of 25 degrees Celsius."
-        }
-    else:
-        return {"status": "error", "error_message": f"Weather info for '{city}' not available."}
+def roll_die(sides: int, tool_context) -> int:
+    result = random.randint(1, sides)
+    # Store rolls in tool_context state for later reference
+    if 'rolls' not in tool_context.state:
+        tool_context.state['rolls'] = []
+    tool_context.state['rolls'].append(result)
+    return result
 
-def get_current_time(city: str) -> dict:
-    """Returns current time in a city."""
-    import datetime
-    from zoneinfo import ZoneInfo
-
-    if city.lower() == "new york":
-        tz_identifier = "America/New_York"
-    else:
-        return {"status": "error", "error_message": f"Timezone info for {city} not available."}
-
-    tz = ZoneInfo(tz_identifier)
-    now = datetime.datetime.now(tz)
-    report = f"The current time in {city} is {now.strftime('%Y-%m-%d %H:%M:%S %Z%z')}"
-    return {"status": "success", "report": report}
+async def check_prime(nums: list[int]) -> str:
+    primes = set()
+    for number in nums:
+        if number <= 1:
+            continue
+        is_prime = True
+        for i in range(2, int(number**0.5) + 1):
+            if number % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.add(number)
+    return "No prime numbers found." if not primes else f"{', '.join(str(num) for num in primes)} are prime numbers."
 
 root_agent = Agent(
-    name="weather_time_agent",
-    model="gemini-2.0-flash",
-    description="Agent to answer questions about the time and weather in a city.",
-    instruction="I can answer your questions about the time and weather in a city.",
-    tools=[get_weather, get_current_time],
+    model='gemini-2.0-flash',
+    name='hello_world_agent',
+    description='hello world agent that can roll a dice of 8 sides and check prime numbers.',
+    instruction=\"\"\"
+      You roll dice and answer questions about the outcome of the dice rolls.
+      You can roll dice of different sizes.
+      You can use multiple tools in parallel by calling functions in parallel(in one request and in one round).
+      ...
+    \"\"\",
+    tools=[roll_die, check_prime],
 )
 ```
 
-- The `tools` parameter accepts Python functions directly, which are wrapped internally as tools.
-- The `Agent` class automatically converts these functions into callable tools.
+- **Running the agent**: `contributing/samples/hello_world/main.py`  
+  Uses `InMemoryRunner` to run the agent asynchronously with session management.
+
+```python
+import asyncio
+from google.adk.runners import InMemoryRunner
+from google.adk.sessions import Session
+from google.genai import types
+import agent  # The above agent.py
+
+async def main():
+    runner = InMemoryRunner(agent=agent.root_agent, app_name='my_app')
+    session = await runner.session_service.create_session(app_name='my_app', user_id='user1')
+
+    async def run_prompt(session: Session, new_message: str):
+        content = types.Content(role='user', parts=[types.Part.from_text(text=new_message)])
+        async for event in runner.run_async(user_id='user1', session_id=session.id, new_message=content):
+            if event.content.parts and event.content.parts[0].text:
+                print(f'Agent says: {event.content.parts[0].text}')
+
+    await run_prompt(session, 'Roll a die with 100 sides')
+    await run_prompt(session, 'What numbers did I got?')
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+### Running the Agent
+
+Run the main script directly:
+
+```bash
+python contributing/samples/hello_world/main.py
+```
+
+This will start the agent, create a session, send user prompts, and print the agent's responses.
 
 ---
 
-## 3. Using Tools with Agents <a name="tools-with-agents"></a>
+## 2. How to Create a Python ReAct Agent with Tool Calling Using This API
 
-### FunctionTool: Wrapping Python Functions as Tools
+### What is a ReAct Agent?
 
-The package provides a `FunctionTool` class to wrap Python functions as tools with metadata and automatic function calling support.
+A ReAct agent uses reasoning and acting steps, calling tools as needed to answer questions or perform tasks. The Google ADK supports this pattern by allowing tools (functions or classes) to be registered with the agent and called during execution.
 
-- Defined in `src/google/adk/tools/function_tool.py`
-- Automatically extracts function signature and docstring.
-- Supports async functions and streaming.
-- Validates mandatory arguments before invocation.
+### Using Tools with the Agent
 
-Example usage (internal, but you can pass functions directly to `Agent` which wraps them):
+- Tools can be simple Python functions (sync or async) or more complex tool classes.
+- Tools are passed to the `Agent` constructor in the `tools` list.
+- The agent's instruction should guide it on how to use the tools.
 
-```python
-from google.adk.tools.function_tool import FunctionTool
+### Example: Langchain Structured Tool Agent (ReAct style with tool calling)
 
-def add(x: int, y: int) -> int:
-    return x + y
-
-add_tool = FunctionTool(add)
-```
-
-### LangchainTool: Using Langchain Structured Tools
-
-The package supports integration with Langchain's `StructuredTool` for advanced tool definitions.
-
-Example from `contributing/samples/langchain_structured_tool_agent/agent.py`:
+See `contributing/samples/langchain_structured_tool_agent/agent.py`:
 
 ```python
 from google.adk.agents import Agent
@@ -134,144 +209,82 @@ root_agent = Agent(
 )
 ```
 
-- This example shows how to create a ReAct-style agent with tool calling using Langchain's structured tools wrapped by `LangchainTool`.
-- The `StructuredTool.from_function` method creates a tool with argument schema validation.
-- The agent is instantiated with the tool wrapped in `LangchainTool`.
+- This example shows how to wrap a Langchain `StructuredTool` as a tool for the ADK agent.
+- The agent can then call this tool during its reasoning process.
+
+### Using the Agent with Tool Calling
+
+- The agent automatically manages tool invocation based on the instructions and the tools provided.
+- The `Agent` class internally uses an LLM flow (`AutoFlow` or `SingleFlow`) to handle reasoning and tool calling.
+- Tools can be synchronous or asynchronous functions or classes implementing the tool interface.
+
+### Advanced Features
+
+- You can specify a `planner` in the agent to control multi-step reasoning.
+- You can use callbacks (`before_model_callback`, `after_model_callback`, `before_tool_callback`, `after_tool_callback`) to hook into the agent's lifecycle.
+- You can configure code execution capabilities via `code_executor`.
 
 ---
 
-## 4. Creating a Python ReAct Agent with Tool Calling <a name="react-agent"></a>
+## 3. References to Source Code and Documentation
 
-To create a ReAct agent with tool calling:
+- **Agent class and core logic**:  
+  `src/google/adk/agents/llm_agent.py`  
+  This file defines the `LlmAgent` class (aliased as `Agent`), which is the main class for creating agents. It supports tools, instructions, planners, callbacks, and code execution.  
+  Key methods: `_run_async_impl`, `canonical_tools`, `canonical_instruction`  
+  (See lines ~50-400)
 
-1. Define your tool functions or use Langchain structured tools.
-2. Wrap them using `FunctionTool` or `LangchainTool`.
-3. Instantiate an `Agent` with the model, instructions, and tools.
-4. Use the agent's API to run it interactively or programmatically.
+- **Sample agents demonstrating tool usage and ReAct style**:  
+  - `contributing/samples/hello_world/agent.py` and `main.py` (basic tool calling with dice roll and prime check)  
+  - `contributing/samples/langchain_structured_tool_agent/agent.py` (integration with Langchain StructuredTool)  
+  - `contributing/samples/hello_world_ollama/agent.py` (another example with a different LLM model)  
+  - `contributing/samples/toolbox_agent/agent.py` (using ToolboxToolset for tool integration)
 
-Example (combining above concepts):
+- **Running agents**:  
+  Use `InMemoryRunner` or `Runner` from `google.adk.runners` to run agents asynchronously with session management.  
+  Example: `contributing/samples/hello_world/main.py`
 
-```python
-from google.adk.agents import Agent
-from google.adk.tools.langchain_tool import LangchainTool
-from langchain_core.tools.structured import StructuredTool
-from pydantic import BaseModel
+- **Tool integration**:  
+  Tools can be simple Python functions or wrapped tools like `LangchainTool` from `google.adk.tools.langchain_tool`.
 
-# Define a tool function
-def add(x, y) -> int:
-    return x + y
-
-# Define argument schema
-class AddSchema(BaseModel):
-    x: int
-    y: int
-
-# Create a Langchain structured tool
-add_tool = StructuredTool.from_function(
-    add,
-    name="add",
-    description="Adds two numbers",
-    args_schema=AddSchema,
-)
-
-# Wrap the Langchain tool for ADK
-wrapped_tool = LangchainTool(tool=add_tool)
-
-# Create the agent
-agent = Agent(
-    model="gemini-2.0-flash-001",
-    name="react_agent",
-    description="A ReAct agent with tool calling.",
-    instruction="You are a helpful assistant that can call tools to add numbers.",
-    tools=[wrapped_tool],
-)
-
-# Now you can run the agent in your Python script
-```
+- **Agent instructions and tool calling**:  
+  The agent's `instruction` string guides the LLM on how to use the tools. The agent framework handles the tool invocation automatically.
 
 ---
 
-## 5. Running the Agent Directly in Python <a name="running-agent"></a>
+## 4. Using Specialist Tools and Scaffolding
 
-To run the agent directly, create a Python script (e.g., `agent.py`) with the agent definition and add a main entry point to interact with it.
+- The package provides scaffolding tools like `LangchainTool` to easily wrap Langchain tools for use in the agent.  
+  - Example: `google.adk.tools.langchain_tool.LangchainTool` used in `langchain_structured_tool_agent/agent.py`
 
-Example `agent.py`:
+- The `Agent` class supports passing Python functions directly as tools, which are internally wrapped as `FunctionTool` instances.
 
-```python
-from google.adk.agents import Agent
-from google.adk.tools.langchain_tool import LangchainTool
-from langchain_core.tools.structured import StructuredTool
-from pydantic import BaseModel
-
-def add(x, y) -> int:
-    return x + y
-
-class AddSchema(BaseModel):
-    x: int
-    y: int
-
-add_tool = StructuredTool.from_function(
-    add,
-    name="add",
-    description="Adds two numbers",
-    args_schema=AddSchema,
-)
-
-agent = Agent(
-    model="gemini-2.0-flash-001",
-    name="react_agent",
-    description="A ReAct agent with tool calling.",
-    instruction="You are a helpful assistant that can call tools to add numbers.",
-    tools=[LangchainTool(tool=add_tool)],
-)
-
-def main():
-    # Example interaction loop
-    while True:
-        user_input = input("User: ")
-        if user_input.lower() in ("exit", "quit"):
-            break
-        # Here you would call the agent's run method or equivalent
-        # For example (pseudo-code):
-        # response = agent.run(user_input)
-        # print("Agent:", response)
-        print("Agent would process:", user_input)
-
-if __name__ == "__main__":
-    main()
-```
-
-- Replace the pseudo-code with actual agent invocation methods as per your integration.
-- This script can be run with `python agent.py`.
+- The `Runner` and `InMemoryRunner` classes provide easy ways to run agents with session and artifact management.
 
 ---
 
-## 6. References to Source Code and Documentation <a name="references"></a>
+## Summary
 
-- **Agent class and core logic:**
-  - `src/google/adk/agents/llm_agent.py` (implements `LlmAgent` which is aliased as `Agent`)
-- **FunctionTool for wrapping Python functions:**
-  - `src/google/adk/tools/function_tool.py`
-- **LangchainTool integration:**
-  - `contributing/samples/langchain_structured_tool_agent/agent.py`
-- **Basic agent example with function tools:**
-  - `contributing/samples/quickstart/agent.py`
-- **ToolboxToolset example (toolset usage):**
-  - `contributing/samples/toolbox_agent/agent.py`
-- **Langchain StructuredTool usage:**
-  - `langchain_core.tools.structured.StructuredTool` (external Langchain library)
-- **Agent instantiation and usage pattern:**
-  - See multiple sample agents in `contributing/samples/`
+- To create and run an agent directly in Python, define your tools as functions or tool classes, instantiate an `Agent` with a model, instructions, and tools, then run it using a `Runner` or `InMemoryRunner` with session management.  
+- To create a ReAct agent with tool calling, provide tools to the `Agent` and write instructions guiding the agent to use those tools. The agent framework handles the tool invocation automatically.  
+- Use provided scaffolding tools like `LangchainTool` for easier integration with Langchain tools.  
+- Refer to the sample agents in `contributing/samples/` for practical examples of agent creation and running.
 
 ---
 
-# Summary
+## Important Files for Reference
 
-- The Google ADK Python package provides a flexible `Agent` class to create AI agents.
-- Tools can be simple Python functions wrapped automatically or explicitly wrapped using `FunctionTool`.
-- For ReAct-style agents with tool calling, Langchain's `StructuredTool` can be wrapped with `LangchainTool`.
-- Sample agents in the `contributing/samples/langchain_structured_tool_agent` directory demonstrate this pattern.
-- Running the agent directly in Python involves defining the agent and adding a main loop or script entry point.
-- The package includes advanced features like callbacks, code execution, and planning, but the basic usage is straightforward.
+| File Path | Description |
+|-----------|-------------|
+| `src/google/adk/agents/llm_agent.py` | Core Agent class implementation with tool and callback support |
+| `contributing/samples/hello_world/agent.py` | Example agent with tool calling (dice roll and prime check) |
+| `contributing/samples/hello_world/main.py` | Example runner script to run the agent asynchronously |
+| `contributing/samples/langchain_structured_tool_agent/agent.py` | Example of ReAct agent using Langchain StructuredTool |
+| `contributing/samples/toolbox_agent/agent.py` | Example using ToolboxToolset for tool integration |
+| `src/google/adk/tools/langchain_tool.py` | Langchain tool wrapper for ADK agents |
 
-This guide should enable you to create, customize, and run agents with tool calling using the Google ADK Python package efficiently.
+---
+
+This guide is based 100% on the source code and samples found in the package directory `output/cache/google/adk-python`.
+
+For further details, consult the source files mentioned above.

@@ -13,8 +13,7 @@ from common.utils import (
     create_metadata,
     REACT_SYSTEM_PROMPT,
     CustomEncoder,
-    validate_github_url,
-    clone_repo,
+    configure_code_base_source,
     get_command_line_args,
     OPENAI_API_KEY,
     GEMINI_API_KEY,
@@ -255,15 +254,14 @@ class TechWriterReActAgent:
                         })
             except Exception as e:
                 logger.error(f"Unexpected error in step {step + 1}: {e}", exc_info=True)
-                self.final_answer = f"Error running code analysis: {e}"
-                break
+                raise RuntimeError(f"Error running code analysis: {e}") from e
             
             logger.info(f"Memory length: {len(self.memory)} messages")
             logger.debug(f"Current memory content size: {sum(len(str(msg)) for msg in self.memory)} chars")
         
         if self.final_answer is None:
             logger.warning(f"Failed to complete analysis within {max_steps} steps")
-            self.final_answer = "Failed to complete the analysis within the step limit."
+            raise RuntimeError("Failed to complete the analysis within the step limit.")
         
         return self.final_answer
 
@@ -282,17 +280,10 @@ def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str
     Returns:
         tuple: (analysis_result, repo_name, repo_url)
     """
-    # Read the prompt from file
     prompt = read_prompt_file(prompt_file_path)
-    
     agent = TechWriterReActAgent(model_name, base_url)
-    
-    # Run the analysis
     analysis_result = agent.run(prompt, directory_path)
-    
-    # Get repository name for output file
     repo_name = Path(directory_path).name
-    
     return analysis_result, repo_name, repo_url or ""
 
 
@@ -300,39 +291,13 @@ def main():
     try:
         configure_logging()
         args = get_command_line_args()
-        
-        # Handle repo cloning if specified
-        repo_url = ""
-        if args.repo:
-            if not validate_github_url(args.repo):
-                raise ValueError("Invalid GitHub repository URL format")
-            try:
-                directory_path = str(clone_repo(args.repo, args.cache_dir))
-                repo_url = args.repo
-            except Exception as e:
-                logger.error(f"Failed to clone repository: {str(e)}")
-                sys.exit(1)
-        else:
-            directory_path = args.directory
-            
-        # Validate directory exists
-        if not Path(directory_path).exists():
-            raise FileNotFoundError(f"Directory not found: {directory_path}")
+        repo_url, directory_path = configure_code_base_source(args.repo, args.directory, args.cache_dir)
             
         analysis_result, repo_name, _ = analyse_codebase(directory_path, args.prompt_file, args.model, args.base_url, repo_url)
-        
-        # Check if the result is an error message or a step limit failure
-        if isinstance(analysis_result, str) and \
-           (analysis_result.startswith("Error running code analysis:") or \
-            analysis_result == "Failed to complete the analysis within the step limit."):
-            logger.error(analysis_result)
-            sys.exit(1)
-        
-        # Save the results
+
         output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name)
         logger.info(f"Analysis complete. Results saved to: {output_file}")
-        
-        # Always create metadata (with optional evaluation)
+
         create_metadata(output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt)
         
     except Exception as e:

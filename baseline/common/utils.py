@@ -9,6 +9,7 @@ import re
 import subprocess
 import argparse
 import os
+from typing import List
 from openai import OpenAI
 from .logging import logger
 
@@ -28,7 +29,7 @@ if not GEMINI_API_KEY and not OPENAI_API_KEY:
 
 # Define model providers
 GEMINI_MODELS = ["gemini-2.0-flash"]
-OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1-nano"]
+OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1",  "gpt-4.1-nano"]
 
 def save_results(analysis_result: str, model_name: str, repo_name: str = None, output_dir: str = None, extension: str = None, file_name: str = None) -> Path:
     """
@@ -249,7 +250,8 @@ def clone_repo(repo_url: str, cache_dir: str) -> Path:
         Path to cloned repository
     """
     repo_name = get_repo_name_from_url(repo_url)
-    repo_path = Path(cache_dir) / repo_name
+    # Expand tilde to handle ~/.cache/github properly
+    repo_path = Path(cache_dir).expanduser() / repo_name
     if not repo_path.exists():
         repo_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -260,6 +262,45 @@ def clone_repo(repo_url: str, cache_dir: str) -> Path:
             raise ValueError(f"Failed to clone repository: {repo_url}") from e
     return repo_path
 
+
+def configure_code_base_source(repo_arg: str, directory_arg: str, cache_dir: str) -> tuple[str, str]:
+    """
+    Configure the codebase source - either from a GitHub repo or local directory.
+    
+    Args:
+        repo_arg: Repository URL from args.repo (may be None)
+        directory_arg: Directory path from args.directory (may be None)
+        cache_dir: Cache directory for cloned repos
+        
+    Returns:
+        tuple: (repo_url, directory_path) where repo_url is empty string if using local directory
+        
+    Raises:
+        ValueError: If repo URL is invalid
+        FileNotFoundError: If directory doesn't exist
+        SystemExit: If repo cloning fails
+    """
+    import sys
+    
+    repo_url = ""
+    if repo_arg:
+        if not validate_github_url(repo_arg):
+            raise ValueError("Invalid GitHub repository URL format")
+        try:
+            directory_path = str(clone_repo(repo_arg, cache_dir))
+            repo_url = repo_arg
+        except Exception as e:
+            logger.error(f"Failed to clone repository: {str(e)}")
+            sys.exit(1)
+    else:
+        directory_path = directory_arg
+        
+    # Validate directory exists
+    if not Path(directory_path).exists():
+        raise FileNotFoundError(f"Directory not found: {directory_path}")
+        
+    return repo_url, directory_path
+
 def get_command_line_args():
     """Get command line arguments."""
     parser = argparse.ArgumentParser(description="Analyse a codebase using an LLM agent.")
@@ -269,8 +310,8 @@ def get_command_line_args():
     parser.add_argument("prompt_file", help="Path to a file containing the analysis prompt")
     
     # Add cache directory argument
-    parser.add_argument("--cache-dir", default="output/cache",
-                      help="Directory to cache cloned repositories (default: output/cache)")
+    parser.add_argument("--cache-dir", default="~/.cache/github",
+                      help="Directory to cache cloned repositories (default: ~/.cache/github)")
     
     # Add output directory and extension arguments
     parser.add_argument("--output-dir", default=None,
@@ -376,3 +417,27 @@ def create_metadata(output_file: Path, model_name: str, repo_url: str, repo_name
     except Exception as e:
         logger.error(f"Error creating metadata: {str(e)}")
         raise
+
+
+# Tool wrapper functions for JSON compatibility
+def find_all_matching_files_json(
+    directory: str, 
+    pattern: str = "*", 
+    respect_gitignore: bool = True, 
+    include_hidden: bool = False,
+    include_subdirs: bool = True
+) -> List[str]:
+    """
+    Wrapper for find_all_matching_files that returns paths as strings for JSON serialization.
+    
+    This is useful for frameworks that require JSON-serializable outputs (e.g., ADK, LangChain).
+    """
+    from .tools import find_all_matching_files
+    return find_all_matching_files(
+        directory=directory,
+        pattern=pattern,
+        respect_gitignore=respect_gitignore,
+        include_hidden=include_hidden,
+        include_subdirs=include_subdirs,
+        return_paths_as="str"
+    )
