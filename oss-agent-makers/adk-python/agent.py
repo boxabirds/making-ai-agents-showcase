@@ -6,7 +6,7 @@ from google.genai import types
 # Define your agent  
 root_agent = Agent(  
     name="hello_agent",  
-    model="gemini-2.0-flash",  
+    model="google/gemini-2.0-flash",  
     instruction="You are a helpful assistant. Answer user questions politely and helpfully.",  
     description="A simple helpful assistant agent"  
 )  

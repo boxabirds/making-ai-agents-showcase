@@ -4,7 +4,7 @@
 # Default values
 DEFAULT_DIRECTORY="."
 DEFAULT_PROMPT="prompt.txt"
-DEFAULT_MODEL="gpt-4.1-mini"
+DEFAULT_MODEL="openai/gpt-4o-mini"
 DEFAULT_REPO=""
 DEFAULT_OUTPUT_DIR=""
 DEFAULT_EXTENSION=""
@@ -27,7 +27,7 @@ function show_usage {
     echo "Options:"
     echo "  --dir DIR         Directory to analyze (default: current directory)"
     echo "  --prompt FILE     Path to prompt file (default: prompt.txt)"
-    echo "  --model MODEL     Model to use (default: gpt-4.1-mini)"
+    echo "  --model MODEL     Model to use (default: openai/gpt-4o-mini)"
     echo "  --repo REPO       Repository to use (default: none)"
     echo "  --output-dir DIR  Directory to save results to (default: output)"
     echo "  --extension EXT   File extension for output files (default: .md)"

@@ -33,12 +33,9 @@ from common.logging import logger, configure_logging
 async def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, repo_url: str = None) -> tuple[str, str, str]:
     prompt = read_prompt_file(prompt_file_path)
     
-    # Use LiteLLM wrapper for OpenAI models
-    if model_name.startswith("gpt"):
-        model = LiteLlm(model=f"openai/{model_name}")
-    else:
-        # Gemini models can be used directly
-        model = model_name
+    # Use LiteLLM for all models with vendor/model format
+    # ADK's GoogleLlm handles Gemini models internally
+    model = LiteLlm(model=model_name)
     
     tech_writer_agent = Agent(
         name="tech_writer",

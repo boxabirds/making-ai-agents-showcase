@@ -31,36 +31,41 @@ from common.tools import read_file
 
 
 class ModelFactory:
-    """This is unavoidably brittle glue required for the Agno library. 
-    Other solutions avoid this by delegating to LiteLLM or OpenRouter"""
+    """Factory for creating Agno models using vendor/model format."""
     
-    # Map of model prefixes to their provider classes
-    PROVIDER_MAP = {
-        # OpenAI models
-        'gpt-': OpenAIChat,
-        'o1-': OpenAIChat,
-        'o3-': OpenAIChat,
-        # Anthropic models
-        'claude-': Claude,
-        # Google models
-        'gemini-': Gemini,
-        'models/gemini-': Gemini,  # Full Google model paths
-        # Open source models via Groq
-        'llama-': GroqChat,
-        'llama3-': GroqChat,
-        'mixtral-': GroqChat,
-        'gemma-': GroqChat,
+    # Map of vendors to their model classes
+    VENDOR_MAP = {
+        'openai': OpenAIChat,
+        'anthropic': Claude,
+        'google': Gemini,
+        'groq': GroqChat,
     }
     
     @classmethod
     def create(cls, model_name: str, **kwargs):
-        for prefix, model_class in cls.PROVIDER_MAP.items():
-            if model_name.startswith(prefix):
-                return model_class(id=model_name, **kwargs)
+        """
+        Create a model instance from vendor/model format.
         
-        # Default to OpenAI for unknown models
-        logger.warning(f"Unknown model prefix for '{model_name}', defaulting to OpenAI")
-        return OpenAIChat(id=model_name, **kwargs)
+        Args:
+            model_name: Model name in vendor/model format (e.g., 'openai/gpt-4')
+            **kwargs: Additional arguments for model constructor
+            
+        Returns:
+            Configured model instance
+        """
+        if "/" in model_name:
+            vendor, model_id = model_name.split("/", 1)
+        else:
+            # Fallback for models without vendor prefix
+            logger.warning(f"Model '{model_name}' missing vendor prefix, assuming 'openai/{model_name}'")
+            vendor = "openai"
+            model_id = model_name
+            
+        model_class = cls.VENDOR_MAP.get(vendor)
+        if not model_class:
+            raise ValueError(f"Unknown model vendor: {vendor}. Supported: {list(cls.VENDOR_MAP.keys())}")
+            
+        return model_class(id=model_id, **kwargs)
 
 
 def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:

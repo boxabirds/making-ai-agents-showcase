@@ -16,13 +16,13 @@ The tech writer agent accepts the same command-line arguments as the baseline ve
 
 ```bash
 # Clone and analyze a GitHub repository
-python tech-writer.py -r https://github.com/owner/repo -p prompts/api-guide.prompt.txt
+python tech-writer.py -r https://github.com/owner/repo -p prompts/api-guide.prompt.txt -m openai/gpt-4o
 
 # Analyze a local directory
-python tech-writer.py -d ./my-project -p prompts/architecture-overview.prompt.txt
+python tech-writer.py -d ./my-project -p prompts/architecture-overview.prompt.txt -m google/gemini-2.0-flash
 
-# Using the shell script
-./tech-writer.sh -d ./my-project -p prompts/api-guide.prompt.txt
+# Using the shell script with Anthropic model
+./tech-writer.sh -d ./my-project -p prompts/api-guide.prompt.txt -m anthropic/claude-3-opus-20240229
 ```
 
 ### Command Line Arguments
@@ -30,7 +30,7 @@ python tech-writer.py -d ./my-project -p prompts/architecture-overview.prompt.tx
 - `-r, --repo` - GitHub repository URL to analyze
 - `-d, --directory` - Local directory path to analyze
 - `-p, --prompt-file` - Path to prompt file (required)
-- `-m, --model` - Model name (default: gpt-4o-mini)
+- `-m, --model` - Model name in vendor/model format (default: openai/gpt-4o-mini)
 - `-o, --output-dir` - Output directory (default: ./output)
 - `-c, --cache-dir` - Cache directory for repos (default: ~/.cache/github)
 

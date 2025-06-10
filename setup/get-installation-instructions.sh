@@ -5,7 +5,7 @@
 BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Default values
-DEFAULT_MODEL="gpt-4.1-mini"
+DEFAULT_MODEL="openai/gpt-4o-mini"
 DEFAULT_REPO=""
 DEFAULT_TEST_REPO_FILE="test-repos.txt"
 
@@ -19,7 +19,7 @@ TEST_REPO_FILE=$DEFAULT_TEST_REPO_FILE
 function show_usage {
     echo "Usage: $0 [options]"
     echo "Options:"
-    echo "  --model MODEL         Model to use (default: gpt-4.1-mini)"
+    echo "  --model MODEL         Model to use (default: openai/gpt-4o-mini)"
     echo "  --repo REPO           Repository to analyze instead of local directory"
     echo "  --test                Run test mode on multiple repositories"
     echo "  --test-repo-file FILE File containing list of repos (default: test-repos.txt)"

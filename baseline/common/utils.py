@@ -27,9 +27,9 @@ if not GEMINI_API_KEY and not OPENAI_API_KEY:
     logger.warning("You can get an OpenAI API key from https://platform.openai.com")
 
 
-# Define model providers
-GEMINI_MODELS = ["gemini-2.0-flash"]
-OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1",  "gpt-4.1-nano"]
+# Define model providers using vendor/model format
+GEMINI_MODELS = ["google/gemini-2.0-flash"]
+OPENAI_MODELS = ["openai/gpt-4o-mini", "openai/gpt-4o", "openai/gpt-4-turbo"]
 
 def save_results(analysis_result: str, model_name: str, repo_name: str = None, output_dir: str = None, extension: str = None, file_name: str = None) -> Path:
     """
@@ -333,7 +333,7 @@ def get_command_line_args():
         available_models.extend(GEMINI_MODELS)
     
     parser.add_argument("--model", choices=available_models, default=available_models[0] if available_models else None,
-                      help="Model to use for analysis")
+                      help="Model to use for analysis (format: vendor/model, e.g., openai/gpt-4o)")
     parser.add_argument("--base-url", default=None,
                       help="Base URL for the API (automatically set based on model if not provided)")
     
@@ -375,22 +375,31 @@ def create_metadata(output_file: Path, model_name: str, repo_url: str, repo_name
                 # Prepare the full prompt with the tech writer result
                 full_prompt = f"{eval_prompt}\n\n{tech_writer_result}"
                 
-                # Initialize client based on model
-                if model_name in GEMINI_MODELS:
+                # Parse vendor/model format
+                if "/" in model_name:
+                    vendor, model_id = model_name.split("/", 1)
+                else:
+                    vendor = "openai"
+                    model_id = model_name
+                
+                # Initialize client based on vendor
+                if vendor == "google":
                     if not GEMINI_API_KEY:
                         raise ValueError("GEMINI_API_KEY environment variable is not set")
                     client = OpenAI(
                         api_key=GEMINI_API_KEY,
                         base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
                     )
-                else:
+                elif vendor == "openai":
                     if not OPENAI_API_KEY:
                         raise ValueError("OPENAI_API_KEY environment variable is not set")
                     client = OpenAI(api_key=OPENAI_API_KEY)
+                else:
+                    raise ValueError(f"Unknown model vendor: {vendor}")
                 
                 # Call the API for evaluation
                 response = client.chat.completions.create(
-                    model=model_name,
+                    model=model_id,
                     messages=[
                         {"role": "user", "content": full_prompt}
                     ],

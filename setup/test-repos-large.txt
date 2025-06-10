@@ -14,7 +14,6 @@ https://github.com/TrafficGuard/typedai
 https://github.com/i-am-bee/beeai-framework
 https://github.com/langflow-ai/langflow
 https://github.com/manthanguptaa/water
-https://github.com/simonmesmith/agentflow
 https://github.com/emcie-co/parlant
 https://github.com/Fallomai/spinai
 https://github.com/pompeii-labs/magma

@@ -23,25 +23,30 @@ from common.utils import (
 from common.tools import TOOLS
 from common.logging import logger, configure_logging
 class TechWriterReActAgent:
-    def __init__(self, model_name="gpt-4.1-mini", base_url=None):
+    def __init__(self, model_name="openai/gpt-4.1-mini", base_url=None):
         """Initialise the agent with the specified model."""
         self.model_name = model_name
         self.memory = []
         self.final_answer = None
         self.system_prompt = None  # To be defined by subclasses
         
-        # Determine which API to use based on the model name
-        if model_name in GEMINI_MODELS:
+        vendor, self.model_id = model_name.split("/", 1)
+            
+        # Determine which API to use based on vendor
+        # TODO v2: delegate this to LiteLLM that everyone uses now
+        if vendor == "google":
             if not GEMINI_API_KEY:
-                raise ValueError("GEMINI_API_KEY environment variable is not set but a Gemini model was specified.")
+                raise ValueError("GEMINI_API_KEY environment variable is not set but a Google model was specified.")
             self.client = OpenAI(
                 api_key=GEMINI_API_KEY,
                 base_url=base_url or "https://generativelanguage.googleapis.com/v1beta/openai/"
             )
-        else:
+        elif vendor == "openai":
             if not OPENAI_API_KEY:
                 raise ValueError("OPENAI_API_KEY environment variable is not set but an OpenAI model was specified.")
             self.client = OpenAI(api_key=OPENAI_API_KEY, base_url=base_url)
+        else:
+            raise ValueError(f"Unknown model vendor: {vendor}")
 
         """Initialise the ReAct agent with the specified model."""
         self.system_prompt = REACT_SYSTEM_PROMPT
@@ -154,7 +159,7 @@ class TechWriterReActAgent:
         """
         try:
             response = self.client.chat.completions.create(
-                model=self.model_name,
+                model=self.model_id,
                 messages=self.memory,
                 tools=self.tools,
                 temperature=0
