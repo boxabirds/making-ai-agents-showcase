@@ -25,7 +25,7 @@ from common.utils import (
     read_prompt_file,
     save_results,
     create_metadata,
-    REACT_SYSTEM_PROMPT,
+    TECH_WRITER_SYSTEM_PROMPT,
     configure_code_base_source,
     get_command_line_args
 )
@@ -44,6 +44,12 @@ class ModelFactory:
     
     @classmethod
     def create(cls, model_name: str, **kwargs):
+        if not model_name:
+            raise ValueError("Model name cannot be None or empty")
+        
+        if "/" not in model_name:
+            raise ValueError(f"Model name must be in vendor/model format, got: {model_name}")
+            
         vendor, model_id = model_name.split("/", 1)    
         model_class = cls.VENDOR_MAP.get(vendor)
         if not model_class:
@@ -58,7 +64,7 @@ def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str
 
     agent = Agent(
         model=model,
-        instructions=REACT_SYSTEM_PROMPT,
+        instructions=TECH_WRITER_SYSTEM_PROMPT,
         tools=TOOLS_JSON,
         markdown=False,  # We want plain text output for consistency
     )
@@ -97,7 +103,7 @@ def main():
         )
         
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error: {str(e)}", exc_info=True)
         sys.exit(1)
 
 
