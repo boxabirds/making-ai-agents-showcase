@@ -1,0 +1,90 @@
+Create a comprehensive code analysis report named `code-report.md` that compares two implementations of a tech writer agent:
+1. Baseline implementation at `@baseline/tech-writer.py` 
+2. Framework implementation at `@oss-agent-makers/[FRAMEWORK-NAME]/tech-writer.py`
+
+The report should follow this structure:
+
+## Executive Summary
+- Brief overview of both implementations
+- State that both achieve the same goal but differ in architecture, complexity, and capabilities
+
+## Comparison Overview
+Create a table with the following columns:
+- Aspect
+- Baseline Implementation 
+- [Framework] Implementation
+
+Include rows for:
+- Pros (use bullet points with <br> tags)
+- Cons (use bullet points with <br> tags)
+- Lines of Code (count actual lines)
+- Dependencies
+- Execution Model (sync/async)
+- Memory Management
+- Tool Calling
+- Error Handling
+
+## Architecture Analysis
+For each implementation, create a Mermaid diagram showing the flow and components. Include:
+- Main entry points
+- Key classes/functions
+- Data flow
+- Use subgraphs where appropriate
+
+Under each diagram, list Key Components with bullet points explaining the architecture.
+
+## Code Complexity Analysis
+For each implementation:
+- Total line count
+- Breakdown of complexity by component (e.g., "Agent class: ~X lines")
+- List key methods/functions with their purpose
+- Note any simplifications in the framework version
+
+## ReAct Pattern Implementation
+Create a dedicated section explaining how each implementation handles the ReAct (Reasoning and Acting) pattern:
+- Note if both use the same prompt
+- Create Mermaid flowcharts showing:
+  - Baseline: Explicit loop management with visible state
+  - Framework: How the framework handles the loop internally
+- Explain the key differences in execution flow
+- Include a "Key Insight" subsection
+
+## Feature Comparison
+Compare at least these features with code snippets:
+1. Memory Management
+2. Tool Calling  
+3. Model Support
+4. Error Handling
+
+Show actual code snippets from each implementation to illustrate the differences.
+
+## Performance Characteristics
+Compare:
+- Execution model (sync vs async)
+- API call patterns
+- Memory usage patterns
+- Any framework-specific optimizations
+
+## Maintenance Considerations
+For each implementation, list:
+- Pros for maintenance
+- Cons for maintenance
+- Consider: code visibility, flexibility, updates, testing
+
+## Recommendations
+Provide guidance on when to use each implementation:
+- "Use Baseline Implementation when:" (list scenarios)
+- "Use [Framework] Implementation when:" (list scenarios)
+
+## Conclusion
+Summarize:
+- Percentage difference in code size
+- Key tradeoffs
+- Final guidance on choosing between implementations
+
+Requirements:
+- Use Mermaid for all diagrams (not ASCII art)
+- Include specific line counts and percentages
+- Show actual code snippets for comparisons
+- Be objective about pros/cons of each approach
+- Focus on practical implications for developers

@@ -46,6 +46,9 @@ async def analyse_codebase(directory_path: str, prompt_file_path: str, model_nam
         instruction=REACT_SYSTEM_PROMPT,
         description="A technical documentation agent that analyzes codebases using ReAct pattern",
         tools=[find_all_matching_files_json, read_file],
+        generate_content_config=types.GenerateContentConfig(
+            temperature=0,  # Use 0 for "more deterministic 😉"
+        )
     )
     
     # ADK uses runners to manage agent execution and state persistence
