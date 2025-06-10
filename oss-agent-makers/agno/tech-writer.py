@@ -5,15 +5,19 @@ Direct port of baseline/tech-writer.py to Agno framework
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict
 
+# Handle environment variable compatibility
+# Agno expects GOOGLE_API_KEY but we use GEMINI_API_KEY
+if os.environ.get("GEMINI_API_KEY") and not os.environ.get("GOOGLE_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
+
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from agno.models.anthropic import Claude
 from agno.models.google import Gemini
-from agno.models.groq import GroqChat
 
 # Import from common directory
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baseline"))
@@ -23,11 +27,10 @@ from common.utils import (
     create_metadata,
     REACT_SYSTEM_PROMPT,
     configure_code_base_source,
-    get_command_line_args,
-    find_all_matching_files_json,
+    get_command_line_args
 )
 from common.logging import logger, configure_logging
-from common.tools import read_file
+from common.tools import TOOLS_JSON
 
 
 class ModelFactory:
@@ -36,31 +39,12 @@ class ModelFactory:
     # Map of vendors to their model classes
     VENDOR_MAP = {
         'openai': OpenAIChat,
-        'anthropic': Claude,
         'google': Gemini,
-        'groq': GroqChat,
     }
     
     @classmethod
     def create(cls, model_name: str, **kwargs):
-        """
-        Create a model instance from vendor/model format.
-        
-        Args:
-            model_name: Model name in vendor/model format (e.g., 'openai/gpt-4')
-            **kwargs: Additional arguments for model constructor
-            
-        Returns:
-            Configured model instance
-        """
-        if "/" in model_name:
-            vendor, model_id = model_name.split("/", 1)
-        else:
-            # Fallback for models without vendor prefix
-            logger.warning(f"Model '{model_name}' missing vendor prefix, assuming 'openai/{model_name}'")
-            vendor = "openai"
-            model_id = model_name
-            
+        vendor, model_id = model_name.split("/", 1)    
         model_class = cls.VENDOR_MAP.get(vendor)
         if not model_class:
             raise ValueError(f"Unknown model vendor: {vendor}. Supported: {list(cls.VENDOR_MAP.keys())}")
@@ -71,11 +55,11 @@ class ModelFactory:
 def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:
     prompt = read_prompt_file(prompt_file_path)
     model = ModelFactory.create(model_name)
+
     agent = Agent(
         model=model,
         instructions=REACT_SYSTEM_PROMPT,
         tools=TOOLS_JSON,
-        show_tool_calls=True,
         markdown=False,  # We want plain text output for consistency
     )
     agent.model.generate_content_config = {"temperature": 0}

@@ -1,0 +1,7 @@
+# Codebase Architectural Analysis: Lite version
+
+**Objective:** Analyze the provided codebase from an architect's perspective and generate a detailed architectural overview document. Focus on extracting insights directly supported by the code, rather than providing exhaustive file listings or making assumptions.
+
+Describe the system in terms of microarchitectures and their relationships in a mermaid diagram
+
+Call out potential antipatterns and design issues to watch out for. 

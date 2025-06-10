@@ -29,20 +29,31 @@ from common.utils import (
 from common.tools import TOOLS_JSON 
 from common.logging import logger, configure_logging
 
+async def stupid_adk_hack_to_get_model(vendor_model_id_combo):
+    # This feels like marketing getting in the way of clean API design
+    # openrouter and liteLLM both support <vendor>/<model id> but does ADK? 
+    # CONDITIONALLY
 
-async def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, repo_url: str = None) -> tuple[str, str, str]:
+    vendor, model_id = vendor_model_id_combo.split("/", 1)
+    if vendor == "google":
+        # Gemini models can be used directly without vendor prefix
+        # Yeah this is some crappy DevUX for sure
+        return model_id
+    else:
+        # Non-Google models need LiteLLM wrapper with full vendor/model string
+        return LiteLlm(model=vendor_model_id_combo)
+
+
+async def analyse_codebase(directory_path: str, prompt_file_path: str, vendor_model_id_combo: str, repo_url: str = None) -> tuple[str, str, str]:
     prompt = read_prompt_file(prompt_file_path)
     
-    # Use LiteLLM for all models with vendor/model format
-    # ADK's GoogleLlm handles Gemini models internally
-    model = LiteLlm(model=model_name)
-    
+    model = await stupid_adk_hack_to_get_model(vendor_model_id_combo)
     tech_writer_agent = Agent(
         name="tech_writer",
         model=model,
         instruction=REACT_SYSTEM_PROMPT,
         description="A technical documentation agent that analyzes codebases using ReAct pattern",
-        tools=TOOLS_JSON],
+        tools=list(TOOLS_JSON.values()),
         generate_content_config=types.GenerateContentConfig(
             temperature=0,  # Use 0 for "more deterministic 😉"
         )
@@ -112,7 +123,7 @@ async def main():
         create_metadata(output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt)
         
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error: {str(e)}", exc_info=True)
         sys.exit(1)
 
 

@@ -1,7 +1,7 @@
 {
   "model": "gpt-4.1-mini",
-  "github_url": "https://github.com/phidatahq/phidata",
-  "repo_name": "phidata",
+  "github_url": "https://github.com/agno-agi/agno",
+  "repo_name": "agno",
   "timestamp": "2025-06-09T16:42:34.704129",
   "eval_output": "Package option, Python"
 }

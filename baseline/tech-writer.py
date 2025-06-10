@@ -51,7 +51,7 @@ class TechWriterReActAgent:
         """Initialise the ReAct agent with the specified model."""
         self.system_prompt = REACT_SYSTEM_PROMPT
 
-        self.tools = self.create_openai_tool_definitions(TOOLS),
+        self.tools = self.create_openai_tool_definitions(TOOLS)
    
     def create_openai_tool_definitions(self, tools_dict):
         """

@@ -29,7 +29,24 @@ if not GEMINI_API_KEY and not OPENAI_API_KEY:
 
 # Define model providers using vendor/model format
 GEMINI_MODELS = ["google/gemini-2.0-flash"]
-OPENAI_MODELS = ["openai/gpt-4o-mini", "openai/gpt-4o", "openai/gpt-4-turbo"]
+OPENAI_MODELS = ["openai/gpt-4.1-mini", "openai/gpt-4.1-nano", "openai/gpt-4.1"]
+
+def sanitize_filename(name: str) -> str:
+    """
+    Sanitize a string to be safe for use in filenames.
+    
+    Args:
+        name: The string to sanitize
+        
+    Returns:
+        A sanitized version safe for filenames
+    """
+    # Use str.translate() with a translation table for efficiency
+    # Characters that are problematic in filenames across different OS
+    unsafe_chars = '/\\:*?"<>|'
+    translation_table = str.maketrans(unsafe_chars, '-' * len(unsafe_chars))
+    return name.translate(translation_table)
+
 
 def save_results(analysis_result: str, model_name: str, repo_name: str = None, output_dir: str = None, extension: str = None, file_name: str = None) -> Path:
     """
@@ -70,11 +87,14 @@ def save_results(analysis_result: str, model_name: str, repo_name: str = None, o
         # Generate timestamp for filename
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         
+        # Sanitize model name for use in filename
+        safe_model_name = sanitize_filename(model_name)
+        
         # Include repository name in filename if available
         if repo_name:
-            output_filename = f"{timestamp}-{repo_name}-{model_name}{extension}"
+            output_filename = f"{timestamp}-{repo_name}-{safe_model_name}{extension}"
         else:
-            output_filename = f"{timestamp}-{model_name}{extension}"
+            output_filename = f"{timestamp}-{safe_model_name}{extension}"
     
     output_file = output_path / output_filename
     
@@ -332,7 +352,7 @@ def get_command_line_args():
     if GEMINI_API_KEY:
         available_models.extend(GEMINI_MODELS)
     
-    parser.add_argument("--model", choices=available_models, default=available_models[0] if available_models else None,
+    parser.add_argument("--model",
                       help="Model to use for analysis (format: vendor/model, e.g., openai/gpt-4o)")
     parser.add_argument("--base-url", default=None,
                       help="Base URL for the API (automatically set based on model if not provided)")
