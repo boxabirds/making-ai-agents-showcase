@@ -1,260 +1,268 @@
-# CAMEL API Usage Guide: Creating a ReAct Agent with Tool Calling
+```markdown
+# CAMEL AI Package: How to Use the API to Create and Run a Python Agent with ReAct and Tool Calling
 
-This document provides an exhaustive, detailed guide on how to use the CAMEL API to create a ReAct (Reasoning and Acting) agent with tool calling capabilities. It covers the core concepts, API usage, and practical examples to help you build an agent that can reason, call external tools, and interact effectively.
-
----
-
-## Table of Contents
-
-- [1. Overview of CAMEL Agents](#1-overview-of-camel-agents)
-- [2. Creating a Chat Agent](#2-creating-a-chat-agent)
-- [3. Defining and Using Tools](#3-defining-and-using-tools)
-- [4. Integrating Tools with ChatAgent](#4-integrating-tools-with-chatagent)
-- [5. Example: Role-Playing Agent with Tool Calling](#5-example-role-playing-agent-with-tool-calling)
-- [6. Best Practices and Advanced Features](#6-best-practices-and-advanced-features)
-- [7. Additional Resources](#7-additional-resources)
+This document provides an exhaustive guide on how to use the CAMEL AI package API to create an agent that can be run directly in Python (e.g., `python agent.py`), specifically focusing on creating a Python ReAct agent with tool calling capabilities. It includes detailed references to source code files and examples within the package.
 
 ---
 
-## 1. Overview of CAMEL Agents
+## 1. Creating and Running a Basic Agent in Python
 
-CAMEL agents are autonomous entities designed to perform tasks by interacting with language models and other components. The primary agent class for conversational and tool-using agents is the `ChatAgent`.
+### Key File Reference: `examples/agents/single_agent.py`
 
-### Key Features of `ChatAgent`:
-
-- Supports system message configuration for role definition.
-- Manages conversation memory.
-- Supports tool/function calling.
-- Supports structured output formats.
-- Supports multiple model backends and async operation.
-
-Agents inherit from a base class `BaseAgent` with core methods:
-
-- `reset()`: Reset the agent state.
-- `step()`: Perform a single interaction step.
-
----
-
-## 2. Creating a Chat Agent
-
-You can create a `ChatAgent` in multiple ways depending on how you want to specify the underlying language model.
-
-### Example: Different Ways to Initialize a ChatAgent
+This example demonstrates the simplest way to create and run a CAMEL AI agent in Python.
 
 ```python
 from camel.agents import ChatAgent
-from camel.models import ModelFactory
-from camel.types import ModelPlatformType, ModelType
+from camel.prompts import PromptTemplateGenerator
+from camel.types import TaskType
 
-# Method 1: Using a model name string (default platform OpenAI)
-agent_1 = ChatAgent("You are a helpful assistant.", model="gpt-4o-mini")
-
-# Method 2: Using ModelType enum
-agent_2 = ChatAgent("You are a helpful assistant.", model=ModelType.GPT_4O_MINI)
-
-# Method 3: Using a tuple of strings (platform, model)
-agent_3 = ChatAgent("You are a helpful assistant.", model=("anthropic", "claude-3-5-sonnet-latest"))
-
-# Method 4: Using a tuple of enums
-agent_4 = ChatAgent(
-    "You are a helpful assistant.",
-    model=(ModelPlatformType.ANTHROPIC, ModelType.CLAUDE_3_5_SONNET),
-)
-
-# Method 5: Default model (no model specified)
-agent_5 = ChatAgent("You are a helpful assistant.")
-
-# Method 6: Using a pre-created model instance
-model = ModelFactory.create(
-    model_platform=ModelPlatformType.OPENAI,
-    model_type=ModelType.GPT_4O_MINI,
-)
-agent_6 = ChatAgent("You are a helpful assistant.", model=model)
-```
-
-### Using the Agent
-
-```python
-response = agent_3.step("Which model are you?")
-print(response.msgs[0].content)
-# Output: I am Claude, an AI assistant created by Anthropic...
-```
-
----
-
-## 3. Defining and Using Tools
-
-Tools in CAMEL are function-like entities that agents can call to perform external actions or computations. They are similar to OpenAI Functions and can be wrapped using `FunctionTool`.
-
-### Defining a Custom Tool
-
-```python
-from camel.toolkits import FunctionTool
-
-def add(a: int, b: int) -> int:
-    """Adds two numbers."""
-    return a + b
-
-add_tool = FunctionTool(add)
-```
-
-### Inspecting Tool Properties
-
-```python
-print(add_tool.get_function_name())  # Output: add
-print(add_tool.get_function_description())  # Output: Adds two numbers.
-print(add_tool.get_openai_function_schema())  # Output: JSON schema for OpenAI function
-print(add_tool.get_openai_tool_schema())  # Output: Tool schema compatible with OpenAI
-```
-
-### Using Built-in Toolkits
-
-CAMEL provides many built-in toolkits, e.g., `SearchToolkit`, `MathToolkit`, etc.
-
-```python
-from camel.toolkits import SearchToolkit
-
-search_tool = SearchToolkit().search_duckduckgo
-```
-
----
-
-## 4. Integrating Tools with ChatAgent
-
-You can pass tools to the `ChatAgent` during initialization to enable tool calling.
-
-```python
-from camel.agents import ChatAgent
-from camel.toolkits import FunctionTool, SearchToolkit
-
-# Define or get tools
-search_tool = SearchToolkit().search_duckduckgo
-calculator_tool = FunctionTool(lambda a, b: a + b)
-
-# Create agent with tools
-agent = ChatAgent(
-    model="gpt-4o-mini",
-    tools=[search_tool, calculator_tool],
-)
-
-# Use the agent
-response = agent.step("What is 5 + 3?")
-print(response.msgs[0].content)
-```
-
----
-
-## 5. Example: Role-Playing Agent with Tool Calling
-
-The following example demonstrates a ReAct style agent setup where an assistant and user role play a task involving tool calls (math and search).
-
-```python
-from camel.models import ModelFactory
-from camel.societies import RolePlaying
-from camel.toolkits import MathToolkit, SearchToolkit
-from camel.types import ModelPlatformType, ModelType
-
-def main():
-    task_prompt = (
-        "Assume now is 2024 in the Gregorian calendar, "
-        "estimate the current age of University of Oxford "
-        "and then add 10 more years to this age, "
-        "and get the current weather of the city where "
-        "the University is located. You must use tool to solve the task."
+def main(key: str = 'generate_users', num_roles: int = 50, model=None):
+    prompt_template = PromptTemplateGenerator().get_prompt_from_key(
+        TaskType.AI_SOCIETY, key
     )
+    prompt = prompt_template.format(num_roles=num_roles)
+    print(prompt)
+    agent = ChatAgent("You are a helpful assistant.", model=model)
+    agent.reset()
 
-    tools_list = [
-        *MathToolkit().get_tools(),
-        SearchToolkit().search_duckduckgo,
-    ]
-
-    role_play_session = RolePlaying(
-        assistant_role_name="Searcher",
-        user_role_name="Professor",
-        assistant_agent_kwargs=dict(
-            model=ModelFactory.create(
-                model_platform=ModelPlatformType.DEFAULT,
-                model_type=ModelType.DEFAULT,
-            ),
-            tools=tools_list,
-        ),
-        user_agent_kwargs=dict(
-            model=ModelFactory.create(
-                model_platform=ModelPlatformType.DEFAULT,
-                model_type=ModelType.DEFAULT,
-            ),
-        ),
-        task_prompt=task_prompt,
-        with_task_specify=False,
-    )
-
-    input_msg = role_play_session.init_chat()
-    chat_turn_limit = 10
-    for _ in range(chat_turn_limit):
-        assistant_response, user_response = role_play_session.step(input_msg)
-
-        if assistant_response.terminated or user_response.terminated:
-            break
-
-        print("User:", user_response.msg.content)
-        print("Assistant:", assistant_response.msg.content)
-
-        if "CAMEL_TASK_DONE" in user_response.msg.content:
-            break
-
-        input_msg = assistant_response.msg
+    assistant_response = agent.step(prompt)
+    print(assistant_response.msg.content)
 
 if __name__ == "__main__":
     main()
 ```
 
-This example shows:
+- **How it works:**
+  - Uses `ChatAgent` from `camel.agents` as the core agent class.
+  - Uses a prompt template from `PromptTemplateGenerator` keyed by a task type.
+  - Calls `agent.step()` to send the prompt and get a response.
+  - Prints the response content.
 
-- Creating a role-playing session with two agents.
-- Passing toolkits (math and search) to the assistant agent.
-- Running a conversation loop where the assistant can call tools to solve the task.
-- Terminating when the task is done or turn limit is reached.
+- **To run:** Save as `agent.py` and run `python agent.py`.
 
 ---
 
-## 6. Best Practices and Advanced Features
+## 2. Creating a Python ReAct Agent with Tool Calling
 
-- **Memory Management:** Use conversation memory to maintain context over multiple steps.
-- **Tool Integration:** Keep tools focused and handle errors gracefully.
-- **Structured Output:** Use Pydantic models to enforce structured responses.
-- **Model Scheduling:** CAMEL supports multiple model backends with customizable scheduling strategies.
-- **Output Language Control:** You can set the language of agent responses.
+### Core Agent Class: `camel.agents.chat_agent.ChatAgent`
 
-Example of setting output language:
+- The `ChatAgent` class is the main agent implementation supporting conversation, tool calling, memory, and model management.
+- Located at: `camel/camel/agents/chat_agent.py`
+
+### Key Features for ReAct and Tool Calling:
+
+- **Tools Support:**
+  - Internal tools: Python callables wrapped as `FunctionTool` instances.
+  - External tools: Tools represented by schemas that the agent can request but not execute internally.
+  - Tools are passed as a list to the `ChatAgent` constructor via the `tools` parameter.
+  
+- **Tool Calling Flow:**
+  - When the agent generates a response, it may include tool call requests.
+  - The agent executes internal tools automatically and records the results.
+  - External tool calls are returned as requests for external handling.
+  
+- **Memory and Context:**
+  - Uses `AgentMemory` (default `ChatHistoryMemory`) to store conversation history.
+  - Supports token limits and message windowing.
+
+- **Model Management:**
+  - Supports single or multiple models via `ModelManager`.
+  - Models are created via `ModelFactory` with platform and type specifications.
+
+### Example Usage to Create a ReAct Agent with Tool Calling
 
 ```python
-agent.set_output_language("Spanish")
+from camel.agents import ChatAgent
+from camel.models import ModelFactory
+from camel.toolkits import MCPToolkit  # Example toolkit with tools
+from camel.types import ModelPlatformType, ModelType
+
+def main():
+    # Create a language model backend
+    model = ModelFactory.create(
+        model_platform=ModelPlatformType.DEFAULT,
+        model_type=ModelType.DEFAULT,
+    )
+
+    # Initialize toolkit with tools (e.g., MCPToolkit for file system operations)
+    mcp_toolkit = MCPToolkit(config_path="path/to/mcp_servers_config.json")
+    tools = list(mcp_toolkit.get_tools())
+
+    # Create the ChatAgent with system message, model, and tools
+    agent = ChatAgent(
+        system_message="You are a helpful assistant with tool calling capabilities.",
+        model=model,
+        tools=tools,
+    )
+
+    # Reset agent state
+    agent.reset()
+
+    # Example user input that may trigger tool calls
+    user_input = "List 5 files in the current project directory."
+
+    # Run a single step (sync or async)
+    response = agent.step(user_input)
+
+    # Print the agent's response content
+    print(response.msgs[0].content)
+
+if __name__ == "__main__":
+    main()
 ```
 
----
-
-## 7. Additional Resources
-
-- [CAMEL Agents Documentation](https://docs.camel-ai.org/key_modules/agents.html)
-- [Tools and Toolkits Documentation](https://docs.camel-ai.org/key_modules/tools.html)
-- [Tools Cookbook](https://docs.camel-ai.org/cookbooks/advanced_features/agents_with_tools.html)
-- [Role Playing with Functions Example](examples/toolkits/role_playing_with_functions.py)
-- [Create Chat Agent Example](examples/agents/create_chat_agent.py)
+- This example uses the `MCPToolkit` (see `examples/toolkits/mcp/mcp_toolkit.py`) which provides tools for file system operations.
+- The agent automatically handles tool calls internally for tools it owns.
+- External tool calls (if any) are returned for external processing.
 
 ---
 
-# Summary
+## 3. Using MCPToolkit for Tool Calling (Example Toolkit)
 
-To create a ReAct agent with tool calling in CAMEL:
+### File Reference: `examples/toolkits/mcp/mcp_toolkit.py`
 
-1. Define or use existing tools wrapped as `FunctionTool` or from toolkits.
-2. Create a `ChatAgent` and pass the tools list during initialization.
-3. Use the `step()` method to interact with the agent, which can call tools as needed.
-4. For complex scenarios, use `RolePlaying` to simulate multi-agent interactions with tool calling.
-5. Leverage CAMEL's built-in toolkits and model factory for flexible model and tool management.
+- Demonstrates how to connect to MCP servers and expose their tools to the agent.
+- Shows both async and sync usage examples.
+- Example snippet from the file:
 
-This approach enables building powerful agents that can reason, act, and interact with external tools seamlessly.
+```python
+from camel.agents import ChatAgent
+from camel.models import ModelFactory
+from camel.toolkits import MCPToolkit
+from camel.types import ModelPlatformType, ModelType
+
+async def mcp_toolkit_example():
+    async with MCPToolkit(config_path="mcp_servers_config.json") as mcp_toolkit:
+        sys_msg = "You are a helpful assistant"
+        model = ModelFactory.create(
+            model_platform=ModelPlatformType.DEFAULT,
+            model_type=ModelType.DEFAULT,
+        )
+        camel_agent = ChatAgent(
+            system_message=sys_msg,
+            model=model,
+            tools=[*mcp_toolkit.get_tools()],
+        )
+        user_msg = "List 5 files in the project, using relative paths"
+        response = await camel_agent.astep(user_msg)
+        print(response.msgs[0].content)
+        print(response.info['tool_calls'])
+```
+
+- This example shows how to instantiate the agent with tools from MCPToolkit and run an async step.
+- The agent will call the appropriate tools based on the model's function call requests.
 
 ---
 
-If you need further help, join the CAMEL community on [Discord](https://discord.camel-ai.org/) or consult the official documentation at [docs.camel-ai.org](https://docs.camel-ai.org).
+## 4. Grounding and References
+
+- **Agent Core:** `camel/camel/agents/chat_agent.py`
+  - Implements `ChatAgent` with tool calling, memory, model management, and response formatting.
+  - Supports sync (`step()`) and async (`astep()`) interaction.
+  - Tool execution methods: `_execute_tool()`, `_aexecute_tool()`.
+  - Tool management: `add_tool()`, `remove_tool()`, `add_external_tool()`.
+  - MCP server exposure via `to_mcp()` method.
+
+- **Function Tool Abstraction:** `camel/camel/toolkits/function_tool.py`
+  - `FunctionTool` wraps Python functions for OpenAI-compatible function calling.
+  - Generates OpenAI JSON schemas from Python function signatures and docstrings.
+  - Supports synchronous and asynchronous function calls.
+  - Supports schema synthesis and output synthesis using LLMs.
+
+- **Model Factory and Manager:**
+  - `camel/camel/models/model_factory.py` (not fully shown here) creates model backends.
+  - `ModelManager` manages multiple models and scheduling strategies.
+
+- **Example Agents:**
+  - `examples/agents/single_agent.py` - Basic agent usage.
+  - `examples/agents/agent_step_with_reasoning.py` - Shows advanced reasoning with multiple choices.
+  - `examples/toolkits/mcp/mcp_toolkit.py` - Shows toolkits integration and tool calling.
+
+- **Documentation:**
+  - The package includes docstrings with detailed explanations.
+  - OpenAI function calling schema references: https://platform.openai.com/docs/api-reference/chat/create
+
+---
+
+## 5. Summary: How to Create and Run a Python ReAct Agent with Tool Calling
+
+1. **Install CAMEL AI package and dependencies.**
+
+2. **Create or import a language model backend:**
+
+```python
+from camel.models import ModelFactory
+from camel.types import ModelPlatformType, ModelType
+
+model = ModelFactory.create(
+    model_platform=ModelPlatformType.DEFAULT,
+    model_type=ModelType.DEFAULT,
+)
+```
+
+3. **Prepare tools for the agent:**
+
+- Use existing toolkits like `MCPToolkit` or create your own tools wrapped as `FunctionTool`.
+- Example:
+
+```python
+from camel.toolkits import MCPToolkit
+
+mcp_toolkit = MCPToolkit(config_path="path/to/mcp_servers_config.json")
+tools = list(mcp_toolkit.get_tools())
+```
+
+4. **Create the ChatAgent with system message, model, and tools:**
+
+```python
+from camel.agents import ChatAgent
+
+agent = ChatAgent(
+    system_message="You are a helpful assistant with tool calling.",
+    model=model,
+    tools=tools,
+)
+agent.reset()
+```
+
+5. **Run the agent synchronously or asynchronously:**
+
+```python
+# Sync
+response = agent.step("Your question or command here")
+print(response.msgs[0].content)
+
+# Async
+response = await agent.astep("Your question or command here")
+print(response.msgs[0].content)
+```
+
+6. **Handle external tool calls if any are returned in the response.**
+
+---
+
+## 6. Additional Notes
+
+- The `ChatAgent` class supports advanced features like memory management, output language setting, response terminators, and model scheduling strategies.
+- The `FunctionTool` class in `camel.toolkits.function_tool` is the recommended way to wrap Python functions for tool calling with OpenAI-compatible schemas.
+- The package supports exposing agents as MCP servers for remote interaction (`ChatAgent.to_mcp()`).
+- Extensive examples are provided in the `examples/` directory for various use cases.
+
+---
+
+# References to Source Code and Examples
+
+| Topic | File Path | Description |
+|-------|-----------|-------------|
+| Basic agent example | `examples/agents/single_agent.py` | Minimal example to create and run a ChatAgent |
+| ChatAgent implementation | `camel/camel/agents/chat_agent.py` | Core agent class with tool calling and memory |
+| FunctionTool abstraction | `camel/camel/toolkits/function_tool.py` | Wrap Python functions for OpenAI function calling |
+| MCPToolkit example | `examples/toolkits/mcp/mcp_toolkit.py` | Example toolkit and agent usage with MCP tools |
+| Agent with reasoning example | `examples/agents/agent_step_with_reasoning.py` | Shows advanced agent reasoning with multiple choices |
+
+---
+
+This guide should enable you to create, run, and extend CAMEL AI agents in Python with ReAct-style tool calling, leveraging the package's built-in tools and models efficiently.
+
+If you want me to generate a ready-to-run example script file (`agent.py`) based on this, please let me know.
+```

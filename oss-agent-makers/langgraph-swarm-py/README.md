@@ -1,111 +1,73 @@
-# LangGraph-Swarm-Py API Usage Guide for Creating a ReAct Agent with Tool Calling
+# LangGraph-Swarm-Py API Usage Guide for Creating a Python ReAct Agent with Tool Calling
 
-This document provides an exhaustive and detailed explanation of how to use the `langgraph-swarm-py` package API to create a ReAct agent with tool calling capabilities, specifically focusing on building a multi-agent ReAct system (a "swarm") with agent handoff (tool calling) between agents.
+This document provides an exhaustive guide on how to use the `langgraph-swarm-py` package API to create and run a multi-agent ReAct (Reasoning and Acting) agent system in Python. It includes detailed references to source code and usage examples, focusing on creating an agent that can be run directly (e.g., `python agent.py`) and how to implement a Python ReAct agent with tool calling.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Key Concepts and Components](#key-concepts-and-components)
-- [Core API Functions and Classes](#core-api-functions-and-classes)
-  - [`SwarmState`](#swarmstate)
-  - [`create_handoff_tool`](#create_handoff_tool)
-  - [`add_active_agent_router`](#add_active_agent_router)
-  - [`create_swarm`](#create_swarm)
-- [Step-by-Step Guide to Create a ReAct Agent with Tool Calling](#step-by-step-guide-to-create-a-react-agent-with-tool-calling)
-- [Example Usage](#example-usage)
-- [Additional Notes](#additional-notes)
+1. [Overview of the Package](#overview-of-the-package)
+2. [Creating a ReAct Agent](#creating-a-react-agent)
+3. [Creating a Multi-Agent Swarm](#creating-a-multi-agent-swarm)
+4. [Using Handoff Tools for Agent Communication](#using-handoff-tools-for-agent-communication)
+5. [Example: Running a Multi-Agent ReAct System](#example-running-a-multi-agent-react-system)
+6. [Summary and References](#summary-and-references)
 
 ---
 
-## Overview
+## Overview of the Package
 
-The `langgraph-swarm-py` package enables the creation of multi-agent systems ("swarms") where multiple ReAct agents can interact and hand off control to each other via tool calls. This is useful for complex workflows where different agents specialize in different tasks and can transfer control dynamically.
+The `langgraph-swarm-py` package builds on top of LangGraph and LangChain to enable multi-agent workflows with tool calling and agent handoff capabilities. It provides:
 
-The package builds on top of LangGraph's `StateGraph` and `Pregel` abstractions and provides utilities to:
+- Facilities to create individual ReAct agents with tools.
+- Utilities to create handoff tools that allow agents to transfer control to each other.
+- A `SwarmState` and `StateGraph` based system to manage multi-agent state and routing.
+- A `create_swarm` function to combine multiple agents into a single multi-agent system.
 
-- Define a shared state schema for the swarm (`SwarmState`).
-- Create handoff tools that allow agents to transfer control to other agents.
-- Add routing logic to track the currently active agent.
-- Compose multiple agents into a swarm with automatic routing and handoff.
-
----
-
-## Key Concepts and Components
-
-- **ReAct Agent**: An agent built using LangGraph's `create_react_agent` function, which supports reasoning and acting with tools.
-- **Tool Calling / Handoff**: Mechanism by which one agent can transfer control to another agent by invoking a special "handoff" tool.
-- **Swarm**: A multi-agent system composed of multiple ReAct agents connected in a graph with routing and handoff capabilities.
-- **StateGraph**: The underlying graph structure representing the multi-agent workflow.
-- **Active Agent**: The agent currently handling the conversation or task, tracked in the shared state.
+Key modules and files:
+- `langgraph_swarm/swarm.py`: Core multi-agent swarm creation and routing logic.
+- `langgraph_swarm/handoff.py`: Tools for creating handoff tools to transfer control between agents.
+- `examples/research/src/agent/agent.py`: Example usage of creating and running a multi-agent system.
+- `examples/research/src/agent/configuration.py`: Configuration management.
+- `examples/research/src/agent/prompts.py`: Prompts used for agents.
+- `examples/research/src/agent/utils.py`: Utility functions including document fetching.
 
 ---
 
-## Core API Functions and Classes
+## Creating a ReAct Agent
 
-### `SwarmState`
+The package leverages LangGraph's `create_react_agent` function to create ReAct agents. This function initializes an agent with a language model, a prompt, and a set of tools it can use.
 
-Defined in `langgraph_swarm/swarm.py` (lines 7-15):
+### Key points from `examples/research/src/agent/agent.py`:
 
 ```python
-class SwarmState(MessagesState):
-    """State schema for the multi-agent swarm."""
+from langchain.chat_models import init_chat_model
+from langgraph.prebuilt import create_react_agent
 
-    # Optional field to track the currently active agent by name.
-    active_agent: Optional[str]
+# Initialize the language model (e.g., GPT-4o from OpenAI)
+model = init_chat_model(model="gpt-4o", model_provider="openai")
+
+# Create a ReAct agent with a prompt and tools
+planner_agent = create_react_agent(
+    model,
+    prompt=planner_prompt_formatted,
+    tools=[fetch_doc, transfer_to_researcher_agent],
+    name="planner_agent",
+)
 ```
 
-- Extends `MessagesState` (from LangGraph).
-- Contains an optional `active_agent` field to track which agent is currently active.
-- The package dynamically updates this field's type to a `Literal` of agent names for type safety.
+- `model`: The language model instance.
+- `prompt`: The prompt guiding the agent's behavior.
+- `tools`: A list of callable tools the agent can use (e.g., `fetch_doc` to fetch documents, handoff tools).
+- `name`: Unique name for the agent.
 
 ---
 
-### `create_handoff_tool`
+## Creating a Multi-Agent Swarm
 
-Defined in `langgraph_swarm/handoff.py` (lines 15-56):
+The package provides a high-level API to create a multi-agent swarm that manages multiple agents and routes requests between them.
 
-```python
-def create_handoff_tool(
-    *, agent_name: str, name: str | None = None, description: str | None = None
-) -> BaseTool:
-    """Create a tool that can handoff control to the requested agent."""
-    ...
-```
-
-- Creates a special tool that, when called, transfers control to another agent in the swarm.
-- The tool name defaults to `transfer_to_<agent_name>`.
-- The tool returns a `Command` that updates the state to set the `active_agent` to the target agent and appends a tool message indicating the transfer.
-- This tool is used inside agents to enable handoff.
-
----
-
-### `add_active_agent_router`
-
-Defined in `langgraph_swarm/swarm.py` (lines 38-92):
-
-```python
-def add_active_agent_router(
-    builder: StateGraph,
-    *,
-    route_to: list[str],
-    default_active_agent: str,
-) -> StateGraph:
-    """Add a router to the currently active agent to the StateGraph."""
-    ...
-```
-
-- Adds routing logic to the `StateGraph` to route execution based on the `active_agent` field in the state.
-- Routes to one of the agents in `route_to` list.
-- Uses `default_active_agent` if no active agent is set.
-- This router is essential to keep track of which agent should handle the next step.
-
----
-
-### `create_swarm`
-
-Defined in `langgraph_swarm/swarm.py` (lines 94-153):
+### Core function: `create_swarm` (from `langgraph_swarm/swarm.py`)
 
 ```python
 def create_swarm(
@@ -115,149 +77,191 @@ def create_swarm(
     state_schema: StateSchemaType = SwarmState,
     config_schema: Type[Any] | None = None,
 ) -> StateGraph:
-    """Create a multi-agent swarm."""
     ...
 ```
 
-- Takes a list of agents (which can be compiled LangGraph graphs or ReAct agents).
-- Sets up the swarm with routing and handoff capabilities.
-- Automatically updates the `SwarmState` schema to restrict `active_agent` to the agent names.
-- Adds the active agent router.
-- Adds each agent as a node in the graph with destinations derived from their handoff tools.
+- `agents`: List of agents (e.g., created by `create_react_agent`).
+- `default_active_agent`: The agent to route to by default.
 - Returns a `StateGraph` representing the multi-agent swarm.
 
----
+### How it works:
 
-## Step-by-Step Guide to Create a ReAct Agent with Tool Calling
-
-1. **Create individual ReAct agents** using LangGraph's `create_react_agent` function. Each agent should have:
-   - A unique `name`.
-   - A prompt describing its role.
-   - A list of tools it can use, including handoff tools to other agents.
-
-2. **Create handoff tools** for each agent to enable transferring control to other agents:
-   ```python
-   from langgraph_swarm import create_handoff_tool
-
-   handoff_to_agent_b = create_handoff_tool(agent_name="agent_b")
-   handoff_to_agent_a = create_handoff_tool(agent_name="agent_a")
-   ```
-
-3. **Add handoff tools to agents' tool lists** so they can call each other:
-   ```python
-   agent_a = create_react_agent(
-       model,
-       prompt="You are Agent A",
-       tools=[some_tool, handoff_to_agent_b],
-       name="agent_a",
-   )
-
-   agent_b = create_react_agent(
-       model,
-       prompt="You are Agent B",
-       tools=[some_other_tool, handoff_to_agent_a],
-       name="agent_b",
-   )
-   ```
-
-4. **Create the swarm** by passing the list of agents and specifying the default active agent:
-   ```python
-   from langgraph_swarm import create_swarm
-
-   swarm = create_swarm([agent_a, agent_b], default_active_agent="agent_a")
-   ```
-
-5. **Compile the swarm** to get an executable application:
-   ```python
-   app = swarm.compile(checkpointer=some_checkpointer)
-   ```
-
-6. **Invoke the swarm app** with user messages and configuration:
-   ```python
-   config = {"configurable": {"thread_id": "1"}}
-   response = app.invoke(
-       {"messages": [{"role": "user", "content": "Hello, I want to talk to Agent B"}]},
-       config,
-   )
-   ```
-
-7. The swarm will route the request to the active agent, and agents can hand off control to each other by calling the handoff tools.
+- Updates the state schema to include the active agent.
+- Adds a router node that routes requests to the currently active agent.
+- Adds each agent as a node in the graph.
+- Uses handoff destinations to define edges between agents.
 
 ---
 
-## Example Usage
+## Using Handoff Tools for Agent Communication
 
-The following example is adapted from the docstrings and example files:
+Agents can transfer control to each other using handoff tools created by `create_handoff_tool`.
+
+### Function: `create_handoff_tool` (from `langgraph_swarm/handoff.py`)
 
 ```python
-from langgraph.checkpoint.memory import InMemorySaver
+def create_handoff_tool(
+    *, agent_name: str, name: str | None = None, description: str | None = None
+) -> BaseTool:
+    ...
+```
+
+- `agent_name`: The target agent to transfer control to.
+- Returns a tool that, when called, updates the state to set the active agent to the target.
+
+### Example usage:
+
+```python
+transfer_to_planner_agent = create_handoff_tool(
+    agent_name="planner_agent",
+    description="Transfer the user to the planner_agent for clarifying questions."
+)
+```
+
+This tool can be included in an agent's tool list to enable transferring control.
+
+---
+
+## Example: Running a Multi-Agent ReAct System
+
+The example in `examples/research/src/agent/agent.py` demonstrates creating two agents (`planner_agent` and `researcher_agent`), each with their own prompts and tools, and combining them into a swarm.
+
+### Key code snippet:
+
+```python
 from langgraph.prebuilt import create_react_agent
 from langgraph_swarm import create_handoff_tool, create_swarm
+from swarm_researcher.prompts import planner_prompt, researcher_prompt
+from swarm_researcher.utils import fetch_doc
 
-def add(a: int, b: int) -> int:
-    return a + b
+# Initialize model
+model = init_chat_model(model="gpt-4o", model_provider="openai")
 
 # Create handoff tools
-handoff_to_bob = create_handoff_tool(agent_name="Bob")
-handoff_to_alice = create_handoff_tool(agent_name="Alice", description="Transfer to Alice, she can help with math")
+transfer_to_planner_agent = create_handoff_tool(agent_name="planner_agent")
+transfer_to_researcher_agent = create_handoff_tool(agent_name="researcher_agent")
+
+# Format prompts
+llms_txt = "LangGraph:https://langchain-ai.github.io/langgraph/llms.txt"
+num_urls = 3
+planner_prompt_formatted = planner_prompt.format(llms_txt=llms_txt, num_urls=num_urls)
 
 # Create agents
-alice = create_react_agent(
-    "openai:gpt-4o",
-    [add, handoff_to_bob],
-    prompt="You are Alice, an addition expert.",
-    name="Alice",
+planner_agent = create_react_agent(
+    model,
+    prompt=planner_prompt_formatted,
+    tools=[fetch_doc, transfer_to_researcher_agent],
+    name="planner_agent",
 )
 
-bob = create_react_agent(
-    "openai:gpt-4o",
-    [handoff_to_alice],
-    prompt="You are Bob, you speak like a pirate.",
-    name="Bob",
+researcher_agent = create_react_agent(
+    model,
+    prompt=researcher_prompt,
+    tools=[fetch_doc, transfer_to_planner_agent],
+    name="researcher_agent",
 )
 
 # Create swarm
-checkpointer = InMemorySaver()
-swarm = create_swarm([alice, bob], default_active_agent="Alice")
-
-# Compile swarm
-app = swarm.compile(checkpointer=checkpointer)
-
-# Invoke swarm
-config = {"configurable": {"thread_id": "1"}}
-turn_1 = app.invoke(
-    {"messages": [{"role": "user", "content": "I'd like to speak to Bob"}]},
-    config,
+agent_swarm = create_swarm(
+    [planner_agent, researcher_agent], default_active_agent="planner_agent"
 )
-turn_2 = app.invoke(
-    {"messages": [{"role": "user", "content": "What's 5 + 7?"}]},
-    config,
+
+# Compile the swarm into an app
+app = agent_swarm.compile()
+
+# Now `app` can be invoked with user messages to run the multi-agent system.
+```
+
+### Running the agent
+
+You can create a Python script (e.g., `agent.py`) with the above code and run it directly:
+
+```bash
+python agent.py
+```
+
+You would then invoke the compiled app with user messages to interact with the agents.
+
+---
+
+## How to Create a Python ReAct Agent with Tool Calling Using This API
+
+1. **Initialize a language model** using `init_chat_model` from `langchain.chat_models`.
+2. **Create tools** your agent will use. This can include:
+   - Custom tools (e.g., `fetch_doc` for fetching documents).
+   - Handoff tools created with `create_handoff_tool` to enable agent switching.
+3. **Create a ReAct agent** using `create_react_agent` from `langgraph.prebuilt`:
+   - Pass the model, prompt, tools, and a unique name.
+4. **(Optional) Create multiple agents** and combine them into a swarm using `create_swarm` from `langgraph_swarm`.
+5. **Compile the swarm** to get an executable app.
+6. **Invoke the app** with user messages to run the agent(s).
+
+---
+
+## References and Further Reading
+
+- **Source code for swarm creation and routing:**  
+  [`langgraph_swarm/swarm.py`](output/cache/langchain-ai/langgraph-swarm-py/langgraph_swarm/swarm.py)  
+  Key functions: `create_swarm`, `add_active_agent_router`
+
+- **Source code for handoff tools:**  
+  [`langgraph_swarm/handoff.py`](output/cache/langchain-ai/langgraph-swarm-py/langgraph_swarm/handoff.py)  
+  Key function: `create_handoff_tool`
+
+- **Example multi-agent system:**  
+  [`examples/research/src/agent/agent.py`](output/cache/langchain-ai/langgraph-swarm-py/examples/research/src/agent/agent.py)
+
+- **Prompts used for agents:**  
+  [`examples/research/src/agent/prompts.py`](output/cache/langchain-ai/langgraph-swarm-py/examples/research/src/agent/prompts.py)
+
+- **Utility functions (e.g., document fetching):**  
+  [`examples/research/src/agent/utils.py`](output/cache/langchain-ai/langgraph-swarm-py/examples/research/src/agent/utils.py)
+
+- **LangGraph documentation:**  
+  https://langchain-ai.github.io/langgraph/
+
+---
+
+## Summary
+
+- Use `init_chat_model` to initialize your LLM.
+- Use `create_react_agent` to create agents with prompts and tools.
+- Use `create_handoff_tool` to enable agents to transfer control.
+- Use `create_swarm` to combine multiple agents into a multi-agent system.
+- Compile the swarm and invoke it to run your multi-agent ReAct system.
+- The example in `examples/research/src/agent/agent.py` is a complete reference implementation.
+
+This approach leverages the package's scaffold tools to simplify multi-agent ReAct agent creation with tool calling, avoiding the need to hand-code complex routing or state management.
+
+---
+
+# Appendix: Minimal Example to Create and Run a Single ReAct Agent
+
+```python
+from langchain.chat_models import init_chat_model
+from langgraph.prebuilt import create_react_agent
+
+# Initialize model
+model = init_chat_model(model="gpt-4o", model_provider="openai")
+
+# Define a simple tool (example)
+def add(a: int, b: int) -> int:
+    return a + b
+
+# Create agent
+agent = create_react_agent(
+    model,
+    tools=[add],
+    prompt="You are an addition expert.",
+    name="simple_agent",
 )
+
+# Compile and run
+app = agent.compile()
+response = app.invoke({"messages": [{"role": "user", "content": "What is 5 + 7?"}]})
+print(response)
 ```
 
 ---
 
-## Additional Notes
-
-- The `active_agent` field in the shared state is critical for routing and is automatically managed by the swarm.
-- The handoff tools use metadata to indicate the destination agent, which is used to build the routing graph.
-- The package supports optional configuration schemas to expose configurable parameters.
-- The example in `examples/research/src/agent/agent.py` demonstrates a more complex use case with a planner and researcher agent using handoff tools.
-
----
-
-# Summary
-
-To create a ReAct agent with tool calling using `langgraph-swarm-py`:
-
-- Define your agents with `create_react_agent`.
-- Create handoff tools with `create_handoff_tool` to enable agent-to-agent transfer.
-- Compose agents into a swarm with `create_swarm`.
-- Use `add_active_agent_router` internally to route based on the active agent.
-- Compile and invoke the swarm app to handle multi-agent conversations with dynamic handoff.
-
-This API design enables flexible multi-agent workflows with clear routing and tool-based handoff, leveraging LangGraph's graph-based state management.
-
----
-
-If you need further details or code snippets from specific files, please ask!
+This concludes the detailed guide on using the `langgraph-swarm-py` package to create Python ReAct agents with tool calling.

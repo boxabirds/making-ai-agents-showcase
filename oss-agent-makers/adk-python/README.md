@@ -1,252 +1,63 @@
-# How to Use the Google ADK Python API to Create a ReAct Agent with Tool Calling
+# Comprehensive Guide to Using the Google ADK Python Package to Create and Run Agents with Tool Calling (ReAct Style)
 
-This document provides an exhaustive guide on how to use the Google ADK Python package to create a ReAct (Reasoning and Acting) agent that can call tools. The guide is based on the analysis of the package's source code and sample agents.
-
----
-
-## Overview
-
-The Google ADK Python package provides a framework to build AI agents that can reason, act, and interact with external tools. The core class for creating an LLM-based agent is `LlmAgent` (aliased as `Agent`), which supports:
-
-- Specifying an LLM model
-- Providing instructions to guide the agent's behavior
-- Registering tools (functions, toolsets, or tool wrappers)
-- Handling agent transfer and multi-agent coordination
-- Executing code blocks via code executors
-- Using callbacks before/after model calls and tool calls
+This document provides an exhaustive, detailed guide on how to use the Google ADK Python package to create an agent that can be run directly in Python (e.g., `python agent.py`). It also answers the question: "How can I use this API to create a Python ReAct agent with tool calling?" The guide includes references to source code files and explanations of key components, highlighting specialist tools and scaffolding utilities provided by the package.
 
 ---
 
-## Key Concepts
+## Table of Contents
 
-### Agent
-
-- The main class to instantiate is `Agent` (which is an alias for `LlmAgent`).
-- You specify the model, instructions, and tools when creating an agent.
-- Tools can be simple Python functions, `BaseTool` instances, or `BaseToolset` instances.
-- The agent can call these tools as part of its reasoning and acting process.
-
-### Tools
-
-- Tools are callable entities that the agent can invoke.
-- They can be raw Python functions wrapped automatically by the framework.
-- The package provides various tool wrappers, e.g., `LangchainTool`, `ToolboxToolset`.
-- Tools can be grouped into toolsets for better organization.
-
-### Instructions
-
-- Instructions guide the agent's behavior.
-- They can be static strings or async callables that return strings.
-- There is support for both local instructions and global instructions (for root agents).
-
-### Callbacks
-
-- Callbacks can be registered to hook into the lifecycle of model calls and tool calls.
-- These include before/after model callbacks and before/after tool callbacks.
+1. [Overview of the Package and Agent Concept](#overview)
+2. [Creating a Basic Agent](#basic-agent)
+3. [Using Tools with Agents](#tools-with-agents)
+4. [Creating a Python ReAct Agent with Tool Calling](#react-agent)
+5. [Running the Agent Directly in Python](#running-agent)
+6. [References to Source Code and Documentation](#references)
 
 ---
 
-## How to Create a ReAct Agent with Tool Calling
+## 1. Overview of the Package and Agent Concept <a name="overview"></a>
 
-### Step 1: Import the Agent Class
+The Google ADK Python package provides a framework to build AI agents that can interact with language models and tools. The core abstraction is the `Agent` class, which represents an AI assistant capable of processing instructions, using tools, and generating responses.
 
-```python
-from google.adk.agents import Agent
-```
-
-The `Agent` class is the main entry point for creating an LLM-based agent.
-
-### Step 2: Define or Import Tools
-
-You can define simple Python functions as tools or use existing tool wrappers.
-
-Example of a simple function tool:
-
-```python
-def get_weather(city: str) -> dict:
-    if city.lower() == "new york":
-        return {
-            "status": "success",
-            "report": "The weather in New York is sunny with a temperature of 25 degrees Celsius.",
-        }
-    else:
-        return {
-            "status": "error",
-            "error_message": f"Weather information for '{city}' is not available.",
-        }
-```
-
-Example of a function tool wrapped automatically by the agent:
-
-```python
-tools=[get_weather]
-```
-
-Alternatively, you can use more complex tool wrappers like `LangchainTool` or `ToolboxToolset`:
-
-```python
-from google.adk.tools.langchain_tool import LangchainTool
-from langchain_core.tools.structured import StructuredTool
-from pydantic import BaseModel
-
-def add(x, y) -> int:
-    return x + y
-
-class AddSchema(BaseModel):
-    x: int
-    y: int
-
-test_langchain_tool = StructuredTool.from_function(
-    add,
-    name="add",
-    description="Adds two numbers",
-    args_schema=AddSchema,
-)
-
-tools=[LangchainTool(tool=test_langchain_tool)]
-```
-
-Or using a toolbox toolset:
-
-```python
-from google.adk.tools.toolbox_toolset import ToolboxToolset
-
-tools=[
-    ToolboxToolset(
-        server_url="http://127.0.0.1:5000",
-        toolset_name="my-toolset"
-    )
-]
-```
-
-### Step 3: Create the Agent Instance
-
-Create an agent by specifying the model, name, instructions, and tools:
-
-```python
-root_agent = Agent(
-    model="gemini-2.0-flash",
-    name="root_agent",
-    instruction="You are a helpful assistant",
-    tools=[
-        # List your tools or toolsets here
-    ],
-)
-```
-
-Example with tools:
-
-```python
-root_agent = Agent(
-    model="gemini-2.0-flash",
-    name="weather_time_agent",
-    description="Agent to answer questions about the time and weather in a city.",
-    instruction="I can answer your questions about the time and weather in a city.",
-    tools=[get_weather, get_current_time],
-)
-```
-
-### Step 4: Use the Agent
-
-Once created, the agent can be invoked to process inputs, reason, and call tools as needed. The exact invocation method depends on your application context (e.g., synchronous or asynchronous calls, streaming, etc.).
+- The main agent class is `LlmAgent` (alias `Agent`), defined in:
+  - `src/google/adk/agents/llm_agent.py`
+- Tools are modular components that the agent can call to perform specific functions.
+- The package supports advanced features like toolsets, function tools, and integration with Langchain tools.
 
 ---
 
-## Additional Features
+## 2. Creating a Basic Agent <a name="basic-agent"></a>
 
-### Code Execution
+A minimal agent can be created by instantiating the `Agent` class with a model, name, description, instructions, and optionally tools.
 
-You can enable code execution within the agent by providing a `code_executor`:
-
-```python
-from google.adk.code_executors.built_in_code_executor import BuiltInCodeExecutor
-
-agent = Agent(
-    model="gemini-2.0-flash",
-    code_executor=BuiltInCodeExecutor(),
-    # other params...
-)
-```
-
-### Callbacks
-
-You can register callbacks to hook into the model and tool call lifecycle:
-
-```python
-def before_model_callback(ctx, request):
-    # Modify request or short-circuit response
-    return None
-
-def after_tool_callback(tool, args, ctx, response):
-    # Process tool response
-    return None
-
-agent = Agent(
-    model="gemini-2.0-flash",
-    before_model_callback=before_model_callback,
-    after_tool_callback=after_tool_callback,
-    # other params...
-)
-```
-
----
-
-## Summary of Example Agents from the Package
-
-### Quickstart Agent Example
-
-- Defines two simple function tools: `get_weather` and `get_current_time`.
-- Creates an agent with these tools and a simple instruction.
-- Shows how to register plain Python functions as tools.
-
-### Langchain Structured Tool Agent Example
-
-- Defines a function `add` with a Pydantic schema for arguments.
-- Wraps it as a Langchain `StructuredTool`.
-- Uses `LangchainTool` wrapper to add it to the agent.
-- Demonstrates integration with Langchain structured tools.
-
-### Toolbox Toolset Agent Example
-
-- Uses `ToolboxToolset` to add a set of tools served from a remote server.
-- Shows how to add a toolset to the agent's tools list.
-
----
-
-## Code Snippets from Examples
-
-### Quickstart Agent (from `contributing/samples/quickstart/agent.py`)
+Example from `contributing/samples/quickstart/agent.py`:
 
 ```python
 from google.adk.agents import Agent
 
 def get_weather(city: str) -> dict:
+    """Returns weather info for a city."""
     if city.lower() == "new york":
         return {
             "status": "success",
-            "report": "The weather in New York is sunny with a temperature of 25 degrees Celsius.",
+            "report": "The weather in New York is sunny with a temperature of 25 degrees Celsius."
         }
     else:
-        return {
-            "status": "error",
-            "error_message": f"Weather information for '{city}' is not available.",
-        }
+        return {"status": "error", "error_message": f"Weather info for '{city}' not available."}
 
 def get_current_time(city: str) -> dict:
+    """Returns current time in a city."""
     import datetime
     from zoneinfo import ZoneInfo
 
     if city.lower() == "new york":
         tz_identifier = "America/New_York"
     else:
-        return {
-            "status": "error",
-            "error_message": f"Sorry, I don't have timezone information for {city}.",
-        }
+        return {"status": "error", "error_message": f"Timezone info for {city} not available."}
 
     tz = ZoneInfo(tz_identifier)
     now = datetime.datetime.now(tz)
-    report = f'The current time in {city} is {now.strftime("%Y-%m-%d %H:%M:%S %Z%z")}'
+    report = f"The current time in {city} is {now.strftime('%Y-%m-%d %H:%M:%S %Z%z')}"
     return {"status": "success", "report": report}
 
 root_agent = Agent(
@@ -258,7 +69,38 @@ root_agent = Agent(
 )
 ```
 
-### Langchain Structured Tool Agent (from `contributing/samples/langchain_structured_tool_agent/agent.py`)
+- The `tools` parameter accepts Python functions directly, which are wrapped internally as tools.
+- The `Agent` class automatically converts these functions into callable tools.
+
+---
+
+## 3. Using Tools with Agents <a name="tools-with-agents"></a>
+
+### FunctionTool: Wrapping Python Functions as Tools
+
+The package provides a `FunctionTool` class to wrap Python functions as tools with metadata and automatic function calling support.
+
+- Defined in `src/google/adk/tools/function_tool.py`
+- Automatically extracts function signature and docstring.
+- Supports async functions and streaming.
+- Validates mandatory arguments before invocation.
+
+Example usage (internal, but you can pass functions directly to `Agent` which wraps them):
+
+```python
+from google.adk.tools.function_tool import FunctionTool
+
+def add(x: int, y: int) -> int:
+    return x + y
+
+add_tool = FunctionTool(add)
+```
+
+### LangchainTool: Using Langchain Structured Tools
+
+The package supports integration with Langchain's `StructuredTool` for advanced tool definitions.
+
+Example from `contributing/samples/langchain_structured_tool_agent/agent.py`:
 
 ```python
 from google.adk.agents import Agent
@@ -292,39 +134,144 @@ root_agent = Agent(
 )
 ```
 
-### Toolbox Toolset Agent (from `contributing/samples/toolbox_agent/agent.py`)
+- This example shows how to create a ReAct-style agent with tool calling using Langchain's structured tools wrapped by `LangchainTool`.
+- The `StructuredTool.from_function` method creates a tool with argument schema validation.
+- The agent is instantiated with the tool wrapped in `LangchainTool`.
+
+---
+
+## 4. Creating a Python ReAct Agent with Tool Calling <a name="react-agent"></a>
+
+To create a ReAct agent with tool calling:
+
+1. Define your tool functions or use Langchain structured tools.
+2. Wrap them using `FunctionTool` or `LangchainTool`.
+3. Instantiate an `Agent` with the model, instructions, and tools.
+4. Use the agent's API to run it interactively or programmatically.
+
+Example (combining above concepts):
 
 ```python
 from google.adk.agents import Agent
-from google.adk.tools.toolbox_toolset import ToolboxToolset
+from google.adk.tools.langchain_tool import LangchainTool
+from langchain_core.tools.structured import StructuredTool
+from pydantic import BaseModel
 
-root_agent = Agent(
-    model="gemini-2.0-flash",
-    name="root_agent",
-    instruction="You are a helpful assistant",
-    tools=[
-        ToolboxToolset(
-            server_url="http://127.0.0.1:5000",
-            toolset_name="my-toolset"
-        )
-    ],
+# Define a tool function
+def add(x, y) -> int:
+    return x + y
+
+# Define argument schema
+class AddSchema(BaseModel):
+    x: int
+    y: int
+
+# Create a Langchain structured tool
+add_tool = StructuredTool.from_function(
+    add,
+    name="add",
+    description="Adds two numbers",
+    args_schema=AddSchema,
 )
+
+# Wrap the Langchain tool for ADK
+wrapped_tool = LangchainTool(tool=add_tool)
+
+# Create the agent
+agent = Agent(
+    model="gemini-2.0-flash-001",
+    name="react_agent",
+    description="A ReAct agent with tool calling.",
+    instruction="You are a helpful assistant that can call tools to add numbers.",
+    tools=[wrapped_tool],
+)
+
+# Now you can run the agent in your Python script
 ```
 
 ---
 
-## Summary
+## 5. Running the Agent Directly in Python <a name="running-agent"></a>
 
-To create a ReAct agent with tool calling using the Google ADK Python package:
+To run the agent directly, create a Python script (e.g., `agent.py`) with the agent definition and add a main entry point to interact with it.
 
-1. Import the `Agent` class.
-2. Define or import tools (functions, tool wrappers, or toolsets).
-3. Instantiate the `Agent` with a model, instructions, and the tools.
-4. Optionally configure advanced features like code execution and callbacks.
-5. Use the agent instance to process inputs and perform reasoning with tool calls.
+Example `agent.py`:
 
-The package provides flexible ways to integrate tools, including simple Python functions, Langchain structured tools, and remote toolsets, enabling powerful ReAct agent capabilities.
+```python
+from google.adk.agents import Agent
+from google.adk.tools.langchain_tool import LangchainTool
+from langchain_core.tools.structured import StructuredTool
+from pydantic import BaseModel
+
+def add(x, y) -> int:
+    return x + y
+
+class AddSchema(BaseModel):
+    x: int
+    y: int
+
+add_tool = StructuredTool.from_function(
+    add,
+    name="add",
+    description="Adds two numbers",
+    args_schema=AddSchema,
+)
+
+agent = Agent(
+    model="gemini-2.0-flash-001",
+    name="react_agent",
+    description="A ReAct agent with tool calling.",
+    instruction="You are a helpful assistant that can call tools to add numbers.",
+    tools=[LangchainTool(tool=add_tool)],
+)
+
+def main():
+    # Example interaction loop
+    while True:
+        user_input = input("User: ")
+        if user_input.lower() in ("exit", "quit"):
+            break
+        # Here you would call the agent's run method or equivalent
+        # For example (pseudo-code):
+        # response = agent.run(user_input)
+        # print("Agent:", response)
+        print("Agent would process:", user_input)
+
+if __name__ == "__main__":
+    main()
+```
+
+- Replace the pseudo-code with actual agent invocation methods as per your integration.
+- This script can be run with `python agent.py`.
 
 ---
 
-This concludes the detailed guide on using the Google ADK Python package to create a ReAct agent with tool calling.
+## 6. References to Source Code and Documentation <a name="references"></a>
+
+- **Agent class and core logic:**
+  - `src/google/adk/agents/llm_agent.py` (implements `LlmAgent` which is aliased as `Agent`)
+- **FunctionTool for wrapping Python functions:**
+  - `src/google/adk/tools/function_tool.py`
+- **LangchainTool integration:**
+  - `contributing/samples/langchain_structured_tool_agent/agent.py`
+- **Basic agent example with function tools:**
+  - `contributing/samples/quickstart/agent.py`
+- **ToolboxToolset example (toolset usage):**
+  - `contributing/samples/toolbox_agent/agent.py`
+- **Langchain StructuredTool usage:**
+  - `langchain_core.tools.structured.StructuredTool` (external Langchain library)
+- **Agent instantiation and usage pattern:**
+  - See multiple sample agents in `contributing/samples/`
+
+---
+
+# Summary
+
+- The Google ADK Python package provides a flexible `Agent` class to create AI agents.
+- Tools can be simple Python functions wrapped automatically or explicitly wrapped using `FunctionTool`.
+- For ReAct-style agents with tool calling, Langchain's `StructuredTool` can be wrapped with `LangchainTool`.
+- Sample agents in the `contributing/samples/langchain_structured_tool_agent` directory demonstrate this pattern.
+- Running the agent directly in Python involves defining the agent and adding a main loop or script entry point.
+- The package includes advanced features like callbacks, code execution, and planning, but the basic usage is straightforward.
+
+This guide should enable you to create, customize, and run agents with tool calling using the Google ADK Python package efficiently.

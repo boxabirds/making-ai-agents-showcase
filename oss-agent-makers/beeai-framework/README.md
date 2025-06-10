@@ -1,235 +1,256 @@
-# BeeAI Framework: How to Use the API to Create a ReAct Agent with Tool Calling
+```markdown
+# Comprehensive Guide to Using the BeeAI Framework API to Create Python Agents
 
-This document provides an exhaustive guide on how to use the BeeAI Framework API to create a ReAct (Reasoning and Acting) agent that can call tools dynamically during its operation. The guide is based on the analysis of the BeeAI Framework codebase, focusing on the `ToolCallingAgent` class and related components.
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Key Components](#key-components)
-- [Creating a ToolCallingAgent](#creating-a-toolcallingagent)
-- [Running the Agent with Tool Calling](#running-the-agent-with-tool-calling)
-- [Observing Agent Events](#observing-agent-events)
-- [Example Usage](#example-usage)
-- [Detailed API Explanation](#detailed-api-explanation)
-- [Additional Notes](#additional-notes)
+This document provides an exhaustive, detailed guide on how to use the BeeAI Framework API to create and run agents directly in Python, with a focus on creating a Python ReAct agent with tool calling capabilities. It includes references to source code files and examples within the package to ground the explanations.
 
 ---
 
-## Overview
+## 1. Creating and Running a Tool Calling Agent in Python
 
-The BeeAI Framework provides a `ToolCallingAgent` class designed to create agents capable of reasoning and acting by calling external tools. This agent integrates a language model (LLM), memory management, and a set of tools that it can invoke to accomplish tasks.
+### Overview
 
-The agent operates by maintaining a conversation memory, sending prompts to the LLM, interpreting tool calls from the LLM's responses, executing those tools, and incorporating the results back into the conversation. This loop continues until the agent produces a final answer.
+The BeeAI Framework provides a `ToolCallingAgent` class designed to create agents that can call external tools during their reasoning process. This agent can be run directly in Python, for example via a script like `agent.py`.
+
+### Key Example: `examples/agents/tool_calling.py`
+
+- This example script demonstrates how to instantiate and run a `ToolCallingAgent` with a chat model, memory, and tools.
+- It uses asynchronous programming (`asyncio`) to run the agent in an interactive loop.
+- It includes event handling to process and log agent events such as start and success.
+
+#### Example snippet from `tool_calling.py`:
+
+```python
+from beeai_framework.agents.tool_calling import ToolCallingAgent
+from beeai_framework.backend import ChatModel
+from beeai_framework.memory import UnconstrainedMemory
+from beeai_framework.tools.weather import OpenMeteoTool
+from examples.helpers.io import ConsoleReader
+
+async def main():
+    agent = ToolCallingAgent(
+        llm=ChatModel.from_name("ollama:llama3.1"),
+        memory=UnconstrainedMemory(),
+        tools=[OpenMeteoTool()]
+    )
+
+    reader = ConsoleReader()
+    for prompt in reader:
+        response = await agent.run(prompt).on("*", process_agent_events)
+        reader.write("Agent 🤖 : ", response.result.text)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+- The agent is created with:
+  - A chat model (`ChatModel.from_name`).
+  - An unconstrained memory instance.
+  - A list of tools (e.g., `OpenMeteoTool` for weather).
+- The agent's `run` method is called with user input prompts.
+- Events are handled via `.on("*", process_agent_events)` to log or react to agent lifecycle events.
 
 ---
 
-## Key Components
+## 2. Creating a Python ReAct Agent with Tool Calling
 
-- **ToolCallingAgent**: The main agent class that orchestrates the interaction between the LLM, memory, and tools.
-- **ChatModel**: The language model interface used by the agent to generate responses.
-- **Tools**: External functionalities the agent can call, e.g., weather tools, search tools.
-- **Memory**: Stores conversation history and intermediate states.
-- **Emitter**: Event system to observe agent lifecycle events.
-- **Prompts**: Templates guiding the system and task instructions.
+### What is a ReAct Agent?
+
+- ReAct (Reasoning + Acting) agents combine reasoning steps with actions (tool calls).
+- The BeeAI Framework provides a `ReActAgent` class for this purpose.
+
+### Key Example: `examples/agents/react.py`
+
+- This example shows how to create a ReAct agent with multiple tools and memory.
+- It supports advanced tools like Wikipedia search, DuckDuckGo search, weather, and optionally a code interpreter.
+- It uses `ChatModel` with parameters and asynchronous event-driven interaction.
+
+#### Example snippet from `react.py`:
+
+```python
+from beeai_framework.agents.react import ReActAgent
+from beeai_framework.backend import ChatModel, ChatModelParameters
+from beeai_framework.memory import TokenMemory
+from beeai_framework.tools.search.duckduckgo import DuckDuckGoSearchTool
+from beeai_framework.tools.search.wikipedia import WikipediaTool
+from beeai_framework.tools.weather import OpenMeteoTool
+from beeai_framework.tools.code import PythonTool, LocalPythonStorage
+import os
+import tempfile
+
+def create_agent() -> ReActAgent:
+    llm = ChatModel.from_name("ollama:granite3.3:8b", ChatModelParameters(temperature=0))
+    tools = [WikipediaTool(), OpenMeteoTool(), DuckDuckGoSearchTool()]
+
+    code_interpreter_url = os.getenv("CODE_INTERPRETER_URL")
+    if code_interpreter_url:
+        tools.append(
+            PythonTool(
+                code_interpreter_url,
+                LocalPythonStorage(
+                    local_working_dir=tempfile.mkdtemp("code_interpreter_source"),
+                    interpreter_working_dir=os.getenv("CODE_INTERPRETER_TMPDIR", "./tmp/code_interpreter_target"),
+                ),
+            )
+        )
+
+    agent = ReActAgent(llm=llm, tools=tools, memory=TokenMemory(llm))
+    return agent
+```
+
+- The agent is created with:
+  - A chat model with specific parameters.
+  - Multiple tools including search and weather.
+  - Optional code interpreter tool if environment variable is set.
+  - Token-based memory for efficient context management.
+
+### Running the ReAct Agent
+
+- The example includes an async main loop that reads user input and runs the agent.
+- Events such as errors, retries, updates, start, and success are logged.
 
 ---
 
-## Creating a ToolCallingAgent
+## 3. Using Specialist Scaffold Tools for Agent Creation
 
-To create a `ToolCallingAgent`, you need to provide:
+### ToolCallingAgent Class (Core API)
 
-- An instance of a `ChatModel` (LLM).
-- A memory instance (e.g., `TokenMemory`).
-- An array of tools the agent can use.
+- Located at `beeai_framework/agents/tool_calling/agent.py`.
+- This class extends `BaseAgent` and provides:
+  - Initialization with LLM, memory, tools, templates, and configuration.
+  - The `run` method which handles the agent's reasoning and tool calling loop.
+  - Tool call cycle detection to avoid infinite loops.
+  - Final answer handling as a tool call.
+  - Event emission for lifecycle hooks (`start`, `success`).
+  - Cloning support for agent instances.
 
-Optionally, you can provide metadata, custom prompt templates, execution configuration, and control whether to save intermediate steps.
+### Highlights from `ToolCallingAgent`:
 
-### Example Initialization
+- The `run` method is asynchronous and manages iterations, retries, and tool calls.
+- Tools are dynamically called based on the LLM's output.
+- Tool call checker prevents cycles in tool calls.
+- Final answers can be returned as tool calls or plain text.
+- Memory is updated with all messages and tool results.
 
-```typescript
-import { ToolCallingAgent } from "beeai-framework/agents/toolCalling/agent";
-import { OllamaChatModel } from "beeai-framework/adapters/ollama/backend/chat";
-import { TokenMemory } from "beeai-framework/memory/tokenMemory";
-import { OpenMeteoTool } from "beeai-framework/tools/weather/openMeteo";
+### Using `ToolCallingAgent` in Your Code
 
-const llm = new OllamaChatModel("llama3.1");
-const memory = new TokenMemory();
-const tools = [new OpenMeteoTool()];
+- Instantiate with your LLM, memory, and tools.
+- Optionally override prompt templates.
+- Call `await agent.run(prompt)` to execute.
+- Listen to events for debugging or UI updates.
 
-const agent = new ToolCallingAgent({
-  llm,
-  memory,
-  tools,
-  saveIntermediateSteps: true, // optional, defaults to true
-});
+---
+
+## 4. Example: Structured Tool Calling with Typed Output
+
+### Example: `examples/agents/tool_calling_structured.py`
+
+- Demonstrates how to use `ToolCallingAgent` with Pydantic models for structured output.
+- Shows how to customize system prompt templates.
+- Uses a `WeatherForecastModel` Pydantic class to parse and validate the agent's final output.
+
+#### Key snippet:
+
+```python
+from pydantic import BaseModel
+
+class WeatherForecatModel(BaseModel):
+    location_name: str
+    temperature_current_celsius: str
+    temperature_max_celsius: str
+    temperature_min_celsius: str
+    relative_humidity_percent: str
+    wind_speed_kmh: str
+    explanation: str
+
+agent = ToolCallingAgent(
+    llm=ChatModel.from_name("ollama:granite3.3:8b"),
+    memory=UnconstrainedMemory(),
+    tools=[OpenMeteoTool()],
+    templates={
+        "system": lambda template: template.update(
+            defaults={
+                "role": "a weather forecast agent",
+                "instructions": "- If user only provides a location, assume they want to know the weather forecast for it.",
+            }
+        ),
+    },
+)
+
+response = await agent.run(prompt, expected_output=WeatherForecatModel)
+```
+
+- This approach ensures the agent's output is validated and structured.
+- The example also logs intermediate steps for debugging.
+
+---
+
+## 5. Summary of Key Files and Their Roles
+
+| File Path | Description |
+|-----------|-------------|
+| `examples/agents/tool_calling.py` | Simple example to create and run a ToolCallingAgent with weather tool. |
+| `beeai_framework/agents/tool_calling/agent.py` | Core implementation of the ToolCallingAgent class with tool calling logic. |
+| `examples/agents/react.py` | Example of creating a ReAct agent with multiple tools and memory. |
+| `examples/agents/tool_calling_structured.py` | Example showing structured output with Pydantic models and tool calling. |
+| `beeai_framework/agents/react/agent.py` | (Not shown here but relevant) Implementation of ReActAgent class. |
+| `beeai_framework/backend/chat.py` | ChatModel class used to interface with LLMs. |
+| `beeai_framework/tools/weather/openmeteo.py` | Example tool providing weather data. |
+| `examples/helpers/io.py` | ConsoleReader utility for interactive input/output. |
+
+---
+
+## 6. How to Run Your Agent Script
+
+1. Ensure environment variables are set (e.g., API keys, model names) - `.env` file supported via `dotenv`.
+2. Install dependencies for BeeAI Framework and any backend LLM providers.
+3. Create a Python script (or use provided examples) that:
+   - Imports the agent class (`ToolCallingAgent` or `ReActAgent`).
+   - Instantiates the agent with desired LLM, memory, and tools.
+   - Runs an async main loop to read user input and call `agent.run()`.
+4. Run the script with Python:
+
+```bash
+python agent.py
 ```
 
 ---
 
-## Running the Agent with Tool Calling
+## 7. Additional Notes
 
-The agent is run by calling its `run` method with a prompt and optional context or expected output schema.
-
-The agent internally:
-
-- Initializes conversation memory with system and user messages.
-- Iteratively calls the LLM to get responses.
-- Detects tool calls in the LLM response.
-- Executes the corresponding tools and adds tool results to memory.
-- Handles retries and errors.
-- Produces a final answer wrapped in a special tool call.
-
-### Running Example
-
-```typescript
-const response = await agent.run({ prompt: "What's the weather like in Paris?" });
-console.log("Agent response:", response.result.text);
-```
+- The framework supports event-driven programming with an `Emitter` system to hook into agent lifecycle events.
+- Memory management is flexible with multiple implementations (e.g., `UnconstrainedMemory`, `TokenMemory`).
+- Tools are modular and can be custom-built or imported from the framework's toolsets.
+- The framework supports advanced features like tool call cycle detection and final answer as a tool call.
+- For advanced use, you can customize prompt templates and tool call checking behavior.
 
 ---
 
-## Observing Agent Events
+## References to Source Code and Docs
 
-The `run` method returns an observable that emits events during the agent's lifecycle. You can listen to events such as `start` and `success` to track progress and intermediate states.
-
-### Example of Observing Events
-
-```typescript
-const response = await agent.run({ prompt: "Tell me the weather." }).observe((emitter) => {
-  emitter.on("success", ({ state }) => {
-    const newMessages = state.memory.messages.slice(previousCount);
-    previousCount += newMessages.length;
-    console.log("New messages:", newMessages.map(msg => msg.toPlain()));
-  });
-});
-```
-
----
-
-## Example Usage: Interactive Console Agent
-
-The following example demonstrates a complete interactive console application using the `ToolCallingAgent` with a weather tool and an Ollama LLM model.
-
-```typescript
-import "dotenv/config.js";
-import { createConsoleReader } from "../../helpers/io.js";
-import { Logger } from "beeai-framework/logger/logger";
-import { TokenMemory } from "beeai-framework/memory/tokenMemory";
-import { OpenMeteoTool } from "beeai-framework/tools/weather/openMeteo";
-import { OllamaChatModel } from "beeai-framework/adapters/ollama/backend/chat";
-import { ToolCallingAgent } from "beeai-framework/agents/toolCalling/agent";
-
-Logger.root.level = "silent"; // disable internal logs
-const logger = new Logger({ name: "app", level: "trace" });
-
-const llm = new OllamaChatModel("llama3.1");
-const agent = new ToolCallingAgent({
-  llm,
-  memory: new TokenMemory(),
-  tools: [new OpenMeteoTool()],
-});
-
-const reader = createConsoleReader();
-
-try {
-  for await (const { prompt } of reader) {
-    let messagesCount = agent.memory.messages.length + 1;
-
-    const response = await agent.run({ prompt }).observe((emitter) => {
-      emitter.on("success", async ({ state }) => {
-        const newMessages = state.memory.messages.slice(messagesCount);
-        messagesCount += newMessages.length;
-
-        reader.write(
-          `Agent (${newMessages.length} new messages) 🤖 :\n`,
-          newMessages.map((msg) => `-> ${JSON.stringify(msg.toPlain())}`).join("\n"),
-        );
-      });
-    });
-
-    reader.write(`Agent 🤖 : `, response.result.text);
-  }
-} catch (error) {
-  logger.error(error);
-} finally {
-  reader.close();
-}
-```
-
-This example uses a console reader helper to interactively read user input and display agent responses and intermediate messages.
-
----
-
-## Detailed API Explanation
-
-### ToolCallingAgent Class
-
-- **Constructor Input (`ToolCallingAgentInput`)**:
-  - `llm: ChatModel` - The language model instance.
-  - `memory: BaseMemory` - Memory instance to store conversation.
-  - `tools: AnyTool[]` - Array of tools the agent can call.
-  - `meta?: AgentMeta` - Optional metadata about the agent.
-  - `templates?: Partial<ToolCallingAgentTemplates>` - Optional prompt template overrides.
-  - `execution?: ToolCallingAgentExecutionConfig` - Execution parameters like max retries.
-  - `saveIntermediateSteps?: boolean` - Whether to save all intermediate messages (default true).
-
-- **Run Method (`_run`)**:
-  - Accepts `ToolCallingAgentRunInput` with:
-    - `prompt?: string` - User prompt.
-    - `context?: string` - Additional context.
-    - `expectedOutput?: string | ZodSchema` - Expected output format or schema.
-  - Accepts `ToolCallingAgentRunOptions` with:
-    - `signal?: AbortSignal` - For cancellation.
-    - `execution?: ToolCallingAgentExecutionConfig` - Override execution config.
-  - Returns `ToolCallingAgentRunOutput`:
-    - `result: AssistantMessage` - Final answer message.
-    - `memory: BaseMemory` - Final memory state.
-
-- **Execution Flow**:
-  - Initializes memory with system prompt and previous messages.
-  - Adds user prompt as a task message.
-  - Iteratively calls LLM to generate responses.
-  - Detects tool calls and executes them, adding results to memory.
-  - Handles retries and errors with counters.
-  - Supports fallback to plain text final answer if structured tool calls are unsupported.
-  - Emits lifecycle events (`start`, `success`) via an `Emitter`.
-  - Saves intermediate steps to memory if enabled.
-
-- **Meta Information**:
-  - Provides agent metadata including tool descriptions.
-
-- **Templates**:
-  - Uses default or overridden prompt templates for system and task instructions.
-
----
-
-## Additional Notes
-
-- The agent supports dynamic tool calling with error handling and retries.
-- Tools must implement the `AnyTool` interface and provide a `run` method.
-- The framework supports observing detailed events for debugging or UI updates.
-- The example uses `OllamaChatModel` but other models can be used.
-- Memory implementations like `TokenMemory` or `UnconstrainedMemory` can be swapped.
-- The console reader helper (`createConsoleReader`) facilitates interactive CLI usage.
+- `examples/agents/tool_calling.py` (lines 1-50): Basic ToolCallingAgent usage with event handling.
+- `beeai_framework/agents/tool_calling/agent.py` (lines 1-250): Full implementation of ToolCallingAgent.
+- `examples/agents/react.py` (lines 1-100): ReActAgent creation with multiple tools and memory.
+- `examples/agents/tool_calling_structured.py` (lines 1-80): Structured output example with Pydantic.
+- `beeai_framework/tools/weather/openmeteo.py`: Weather tool used in examples.
+- `beeai_framework/backend/chat.py`: ChatModel class for LLM integration.
+- `examples/helpers/io.py`: ConsoleReader for interactive CLI input/output.
 
 ---
 
 # Summary
 
-To create a ReAct agent with tool calling using the BeeAI Framework:
+This guide has shown how to use the BeeAI Framework API to create Python agents that can be run directly, focusing on:
 
-1. Instantiate a language model (`ChatModel`).
-2. Prepare a memory instance.
-3. Create or select tools implementing the `AnyTool` interface.
-4. Instantiate `ToolCallingAgent` with the above.
-5. Use the `run` method with a prompt to execute the agent.
-6. Optionally observe events for intermediate states.
-7. Integrate into your application or CLI as needed.
+- Creating a ToolCallingAgent with asynchronous event-driven interaction.
+- Creating a ReAct agent with tool calling and multiple tools.
+- Using scaffold tools and classes provided by the framework to avoid hand-coding everything.
+- Structuring agent output with Pydantic models for validation.
+- Running the agent interactively from the command line.
 
-This approach enables building powerful agents that can reason, call external tools, and provide informed responses dynamically.
+By following the examples and referencing the core agent implementation, you can build powerful AI agents with tool integration using the BeeAI Framework.
 
 ---
 
-If you need further details on specific classes or methods, please ask!
+If you want me to generate a ready-to-run minimal example script or further details on any part, please ask!
+```

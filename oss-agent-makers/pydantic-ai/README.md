@@ -1,45 +1,44 @@
-# pydantic-ai API Usage for Creating a ReAct Agent with Tool Calling
+# Comprehensive Guide to Using the `pydantic-ai` Package to Create and Run Agents in Python
 
-This document provides an exhaustive guide on how to use the `pydantic-ai` package API to create a ReAct (Reasoning and Acting) agent with tool calling capabilities. It is based on the analysis of the package source code, focusing on the core `Agent` class and related tooling support.
+This document provides an exhaustive explanation of how to use the `pydantic-ai` package API to create an agent that can be run directly in Python (e.g., `python agent.py`). It also explains how to create a Python ReAct agent with tool calling, referencing source code and examples from the package.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Creating an Agent](#creating-an-agent)
-- [Registering Tools](#registering-tools)
-- [Running the Agent](#running-the-agent)
-- [Iterating Over Agent Execution (ReAct style)](#iterating-over-agent-execution-react-style)
-- [Using Dependencies and Output Types](#using-dependencies-and-output-types)
-- [Advanced Features](#advanced-features)
-- [Example: Time Range Inference Agent](#example-time-range-inference-agent)
-- [Example: Chat Application](#example-chat-application)
-- [Summary](#summary)
+- [1. Overview of the `pydantic-ai` Agent API](#1-overview-of-the-pydantic-ai-agent-api)
+- [2. Creating and Running a Basic Agent](#2-creating-and-running-a-basic-agent)
+- [3. Creating a Python ReAct Agent with Tool Calling](#3-creating-a-python-react-agent-with-tool-calling)
+- [4. Using Decorators to Register Tools and Validators](#4-using-decorators-to-register-tools-and-validators)
+- [5. Running the Agent: Async, Sync, Streaming, and CLI](#5-running-the-agent-async-sync-streaming-and-cli)
+- [6. Advanced Features: Instrumentation, MCP Servers, and Overrides](#6-advanced-features-instrumentation-mcp-servers-and-overrides)
+- [7. Example: Weather Agent with Multiple Tools](#7-example-weather-agent-with-multiple-tools)
+- [8. References and Further Reading](#8-references-and-further-reading)
 
 ---
 
-## Overview
+## 1. Overview of the `pydantic-ai` Agent API
 
-The core abstraction is the `Agent` class, which represents a conversational agent powered by an LLM model. The agent supports:
+The core class for creating agents is `Agent`, defined in `pydantic_ai_slim/pydantic_ai/agent.py`. An `Agent` represents a conversational entity that interacts with a language model (LLM) and optionally calls tools during the conversation.
 
-- Defining tools (functions) that the agent can call during reasoning.
-- Running the agent asynchronously or synchronously.
-- Streaming results or iterating over the internal execution graph nodes.
-- Customizing system prompts, instructions, and output validation.
-- Dependency injection for passing contextual data to tools.
-- Integration with MCP servers and instrumentation for observability.
+### Key Features of `Agent`:
+
+- Generic over dependency injection type (`AgentDepsT`) and output data type (`OutputDataT`).
+- Supports specifying the underlying LLM model (e.g., `"openai:gpt-4o"`).
+- Supports registering tools (functions) that the agent can call during conversation.
+- Supports system prompts and instructions to guide the agent's behavior.
+- Supports output validation and retries.
+- Supports synchronous, asynchronous, and streaming execution.
+- Supports instrumentation with OpenTelemetry.
+- Supports converting the agent to a CLI or ASGI app.
 
 ---
 
-## Creating an Agent
+## 2. Creating and Running a Basic Agent
 
-The `Agent` class is generic over two type parameters:
+### Creating an Agent
 
-- `AgentDepsT`: The type of dependencies passed to tools.
-- `OutputDataT`: The type of the output data returned by the agent.
-
-### Basic Initialization
+You create an agent by instantiating the `Agent` class with parameters such as the model name, instructions, tools, and dependency types.
 
 ```python
 from pydantic_ai import Agent
@@ -47,251 +46,290 @@ from pydantic_ai import Agent
 agent = Agent('openai:gpt-4o')
 ```
 
-- `model`: The model name or instance (e.g., `'openai:gpt-4o'`).
-- `output_type`: The expected output type (default is `str`).
-- `instructions`: Optional instructions for the agent.
-- `system_prompt`: Static or dynamic system prompts.
-- `deps_type`: Type of dependencies for tools.
-- `tools`: Sequence of tools to register.
-- `prepare_tools`: Optional function to customize tool definitions per step.
-- `end_strategy`: Strategy for handling tool calls with final results (default `'early'`).
-- `instrument`: Enable OpenTelemetry instrumentation.
+### Running the Agent
+
+You can run the agent asynchronously or synchronously:
+
+- **Async run:**
+
+```python
+result = await agent.run('What is the capital of France?')
+print(result.output)  # Output: Paris
+```
+
+- **Sync run:**
+
+```python
+result_sync = agent.run_sync('What is the capital of France?')
+print(result_sync.output)  # Output: Paris
+```
+
+### Streaming run (async):
+
+```python
+async with agent.run_stream('What is the capital of France?') as streamed_result:
+    print(await streamed_result.get_output())
+```
 
 ---
 
-## Registering Tools
+## 3. Creating a Python ReAct Agent with Tool Calling
 
-Tools are Python functions that the agent can call during execution. There are two main decorators to register tools:
+ReAct (Reasoning + Acting) agents use tools to augment their reasoning capabilities. The `pydantic-ai` package supports this pattern by allowing you to register tools that the agent can call during conversation.
 
-### 1. `@agent.tool`
+### Steps to Create a ReAct Agent:
 
-Registers a tool function that **takes a `RunContext` as the first argument**.
-
-Example:
+1. **Define your dependencies (optional):**
 
 ```python
-from pydantic_ai import Agent, RunContext
+from dataclasses import dataclass
 
-agent = Agent('test', deps_type=int)
+@dataclass
+class Deps:
+    # Define any dependencies your tools need, e.g., API clients, keys
+    api_key: str
+```
+
+2. **Create the agent with instructions and dependency type:**
+
+```python
+agent = Agent(
+    'openai:gpt-4o',
+    instructions='Use the tools to answer the user queries.',
+    deps_type=Deps,
+    retries=2,
+)
+```
+
+3. **Register tools using the `@agent.tool` decorator:**
+
+```python
+from pydantic_ai import RunContext
 
 @agent.tool
-def add(ctx: RunContext[int], x: int, y: int) -> int:
-    return ctx.deps + x + y
+async def get_lat_lng(ctx: RunContext[Deps], location: str) -> dict[str, float]:
+    # Tool implementation to get latitude and longitude
+    return {'lat': 51.1, 'lng': -0.1}
+
+@agent.tool
+async def get_weather(ctx: RunContext[Deps], lat: float, lng: float) -> dict[str, str]:
+    # Tool implementation to get weather
+    return {'temperature': '21 °C', 'description': 'Sunny'}
 ```
 
-### 2. `@agent.tool_plain`
-
-Registers a tool function that **does NOT take a `RunContext` argument**.
-
-Example:
+4. **Run the agent with dependencies:**
 
 ```python
-@agent.tool_plain
-def multiply(x: int, y: int) -> int:
-    return x * y
-```
-
-### Tool Options
-
-Both decorators accept parameters such as:
-
-- `name`: Tool name (defaults to function name).
-- `retries`: Number of retries allowed for the tool.
-- `prepare`: Custom function to prepare the tool definition dynamically.
-- `docstring_format`: Format of the docstring for schema extraction (`'auto'` by default).
-- `require_parameter_descriptions`: Whether to enforce parameter descriptions.
-- `schema_generator`: JSON schema generator class.
-- `strict`: Enforce strict JSON schema compliance (OpenAI only).
-
----
-
-## Running the Agent
-
-The agent supports multiple run modes:
-
-### 1. `run`
-
-Asynchronously run the agent with a user prompt and return the final result.
-
-```python
-result = await agent.run("What is the capital of France?")
-print(result.output)  # e.g., "Paris"
-```
-
-### 2. `run_sync`
-
-Synchronously run the agent (blocking call).
-
-```python
-result = agent.run_sync("What is the capital of France?")
+deps = Deps(api_key='your_api_key_here')
+result = await agent.run('What is the weather in London?', deps=deps)
 print(result.output)
 ```
 
-### 3. `run_stream`
+### How Tool Calling Works Internally
 
-Asynchronously run the agent and get a streamed response.
+- The agent builds an internal graph of nodes representing user prompts, model requests, and tool calls (`UserPromptNode`, `ModelRequestNode`, `CallToolsNode`).
+- When the model response includes a tool call, the agent executes the corresponding tool function.
+- The agent supports retries and validation of tool outputs.
+- Tool calls can be processed in parallel asynchronously.
+
+---
+
+## 4. Using Decorators to Register Tools and Validators
+
+The `Agent` class provides decorators to register tools and output validators easily:
+
+- `@agent.tool`: Register a tool function that takes a `RunContext` as the first argument.
+- `@agent.tool_plain`: Register a tool function that does **not** take a `RunContext`.
+- `@agent.output_validator`: Register a function to validate the output of the agent.
+
+Example:
 
 ```python
-async with agent.run_stream("What is the capital of France?") as streamed_result:
-    async for chunk in streamed_result.stream():
+@agent.tool
+async def example_tool(ctx: RunContext[Deps], param: int) -> int:
+    return param + 1
+
+@agent.output_validator
+def validate_output(output: str) -> str:
+    if 'error' in output:
+        raise ModelRetry('Invalid output')
+    return output
+```
+
+---
+
+## 5. Running the Agent: Async, Sync, Streaming, and CLI
+
+### Async Run
+
+```python
+result = await agent.run('Hello')
+print(result.output)
+```
+
+### Sync Run
+
+```python
+result = agent.run_sync('Hello')
+print(result.output)
+```
+
+### Streaming Run (Async)
+
+```python
+async with agent.run_stream('Hello') as stream:
+    async for chunk in stream:
         print(chunk)
 ```
 
-### 4. `iter`
+### CLI Interface
 
-Get an async context manager that yields an `AgentRun` instance, which can be iterated over to get each node of the internal execution graph. This is the core API for ReAct style interaction.
+You can run the agent in a CLI chat interface:
 
 ```python
-async with agent.iter("What is the capital of France?") as agent_run:
-    async for node in agent_run:
-        # Inspect or modify nodes here
-        print(node)
+await agent.to_cli(deps=deps)
+```
+
+Or synchronously:
+
+```python
+agent.to_cli_sync(deps=deps)
+```
+
+This launches an interactive CLI chat session.
+
+---
+
+## 6. Advanced Features: Instrumentation, MCP Servers, and Overrides
+
+- **Instrumentation:** Enable OpenTelemetry instrumentation for monitoring.
+
+```python
+agent = Agent('openai:gpt-4o', instrument=True)
+```
+
+- **MCP Servers:** Register MCP servers to provide additional tools remotely.
+
+- **Override Context Manager:** Temporarily override dependencies or model for testing.
+
+```python
+with agent.override(deps=my_deps, model='openai:gpt-4o'):
+    result = agent.run_sync('Hello')
+```
+
+- **System Prompts and Instructions:** Use decorators to register dynamic or static system prompts and instructions.
+
+```python
+@agent.instructions
+def my_instructions(ctx: RunContext[Deps]) -> str:
+    return "You are a helpful assistant."
+
+@agent.system_prompt(dynamic=True)
+async def dynamic_prompt(ctx: RunContext[Deps]) -> str:
+    return f"Current time is {ctx.deps.now}"
 ```
 
 ---
 
-## Iterating Over Agent Execution (ReAct style)
+## 7. Example: Weather Agent with Multiple Tools
 
-The `AgentRun` class represents a stateful run of the agent. It supports:
+The package includes an example agent that demonstrates a ReAct agent with multiple tools:
 
-- Async iteration over nodes (`UserPromptNode`, `ModelRequestNode`, `CallToolsNode`, `End`).
-- Manual driving of execution via `next(node)` method.
-- Access to the final result via `result` property.
-- Access to usage statistics.
+- **File:** `examples/pydantic_ai_examples/weather_agent.py`
 
-Example driving the run manually:
+### Summary:
 
-```python
-from pydantic_graph import End
+- Defines a `Deps` dataclass with HTTP client and API keys.
+- Creates an `Agent` with instructions to use two tools: `get_lat_lng` and `get_weather`.
+- Registers two async tools using `@weather_agent.tool`.
+- Runs the agent asynchronously with dependencies.
 
-async with agent.iter("What is the capital of France?") as agent_run:
-    next_node = agent_run.next_node
-    while not isinstance(next_node, End):
-        # Optionally inspect or modify next_node here
-        next_node = await agent_run.next(next_node)
-    print("Final result:", agent_run.result.output)
-```
-
----
-
-## Using Dependencies and Output Types
-
-- You can specify a dependencies type (`deps_type`) when creating the agent. This type is passed to tools via the `RunContext`.
-- You can specify a custom output type (`output_type`) for the agent's result, which will be validated.
-- You can override dependencies and model temporarily using the `override` context manager.
-
-Example with dependencies and output type:
+### Example snippet from `weather_agent.py`:
 
 ```python
-from pydantic_ai import Agent
-from my_types import MyDeps, MyOutput
-
-agent = Agent[MyDeps, MyOutput](
-    'openai:gpt-4o',
-    deps_type=MyDeps,
-    output_type=MyOutput,
-)
-
-result = await agent.run("Some prompt", deps=MyDeps(...))
-```
-
----
-
-## Advanced Features
-
-- **Instructions and System Prompts**: Use `@agent.instructions` and `@agent.system_prompt` decorators to register functions that provide dynamic instructions or system prompts.
-- **Output Validators**: Use `@agent.output_validator` to register functions that validate or transform the output.
-- **MCP Servers**: Register MCP servers for multi-agent communication.
-- **Instrumentation**: Enable OpenTelemetry instrumentation for observability.
-- **Convert to ASGI app**: Use `agent.to_a2a()` to convert the agent into a FastA2A ASGI application.
-- **CLI Interface**: Use `agent.to_cli()` or `agent.to_cli_sync()` to run the agent in a CLI chat interface.
-
----
-
-## Example: Time Range Inference Agent
-
-This example shows an agent with dependencies and a tool:
-
-```python
-from dataclasses import dataclass, field
-from datetime import datetime
 from pydantic_ai import Agent, RunContext
-from .models import TimeRangeInputs, TimeRangeResponse
+from httpx import AsyncClient
+from dataclasses import dataclass
 
 @dataclass
-class TimeRangeDeps:
-    now: datetime = field(default_factory=lambda: datetime.now().astimezone())
+class Deps:
+    client: AsyncClient
+    weather_api_key: str | None
+    geo_api_key: str | None
 
-time_range_agent = Agent[TimeRangeDeps, TimeRangeResponse](
-    'gpt-4o',
-    output_type=TimeRangeResponse,
-    deps_type=TimeRangeDeps,
-    system_prompt="Convert the user's request into a structured time range.",
-    retries=1,
-    instrument=True,
+weather_agent = Agent(
+    'openai:gpt-4o',
+    instructions=(
+        'Be concise, reply with one sentence.'
+        'Use the `get_lat_lng` tool to get the latitude and longitude of the locations, '
+        'then use the `get_weather` tool to get the weather.'
+    ),
+    deps_type=Deps,
+    retries=2,
 )
 
-@time_range_agent.tool
-def get_current_time(ctx: RunContext[TimeRangeDeps]) -> str:
-    now_str = ctx.deps.now.strftime('%A, %B %d, %Y %H:%M:%S %Z')
-    return f"The user's current time is {now_str}."
+@weather_agent.tool
+async def get_lat_lng(ctx: RunContext[Deps], location_description: str) -> dict[str, float]:
+    # Implementation...
 
-async def infer_time_range(inputs: TimeRangeInputs) -> TimeRangeResponse:
-    deps = TimeRangeDeps(now=inputs['now'])
-    return (await time_range_agent.run(inputs['prompt'], deps=deps)).output
+@weather_agent.tool
+async def get_weather(ctx: RunContext[Deps], lat: float, lng: float) -> dict[str, Any]:
+    # Implementation...
+
+async def main():
+    async with AsyncClient() as client:
+        deps = Deps(client=client, weather_api_key='...', geo_api_key='...')
+        result = await weather_agent.run('What is the weather like in London?', deps=deps)
+        print(result.output)
+
+if __name__ == '__main__':
+    import asyncio
+    asyncio.run(main())
 ```
 
----
-
-## Example: Chat Application
-
-A simple chat app using FastAPI and the agent's streaming API:
-
-- The agent is created with a model.
-- The chat history is passed as message history.
-- The agent is run with `run_stream` to stream responses.
-- Messages are stored in a SQLite database asynchronously.
-
-Key snippet:
-
-```python
-from pydantic_ai import Agent
-agent = Agent('openai:gpt-4o')
-
-@app.post('/chat/')
-async def post_chat(prompt: str, database: Database):
-    async def stream_messages():
-        yield json.dumps({'role': 'user', 'content': prompt}).encode() + b'\n'
-        messages = await database.get_messages()
-        async with agent.run_stream(prompt, message_history=messages) as result:
-            async for text in result.stream(debounce_by=0.01):
-                yield json.dumps({'role': 'model', 'content': text}).encode() + b'\n'
-        await database.add_messages(result.new_messages_json())
-    return StreamingResponse(stream_messages(), media_type='text/plain')
-```
+This example can be run directly with Python and demonstrates how to create a ReAct agent with tool calling.
 
 ---
 
-## Summary
+## 8. References and Further Reading
 
-To create a ReAct agent with tool calling using `pydantic-ai`:
+- **Source Code:**
 
-1. **Create an `Agent` instance**, specifying the model, output type, and optionally dependencies.
-2. **Register tools** using `@agent.tool` or `@agent.tool_plain` decorators.
-3. **Run the agent** asynchronously with `run`, synchronously with `run_sync`, or stream with `run_stream`.
-4. **For ReAct style interaction**, use the `iter` method to get an `AgentRun` instance and iterate over execution nodes.
-5. **Use system prompts, instructions, and output validators** to customize agent behavior.
-6. **Optionally integrate with MCP servers, instrumentation, or convert to ASGI or CLI apps.**
+  - `pydantic_ai_slim/pydantic_ai/agent.py` — Core `Agent` class and API.
+  - `pydantic_ai_slim/pydantic_ai/_agent_graph.py` — Internal graph nodes and execution logic.
+  - `examples/pydantic_ai_examples/weather_agent.py` — Example ReAct agent with tools.
+  - `examples/pydantic_ai_examples/weather_agent_gradio.py` — Example integrating the agent with Gradio UI.
 
-This API design provides a powerful and flexible way to build agents that reason and act by calling tools, with strong typing, validation, and observability.
+- **Online Documentation:**
+
+  - [Pydantic AI Documentation](https://ai.pydantic.dev/)
+  - [Debugging and Monitoring Guide](https://ai.pydantic.dev/logfire/)
+  - [Tools Documentation](../tools.md#function-tools-and-schema) (referenced in code comments)
+
+- **Usage Patterns:**
+
+  - Use `Agent` to create agents with optional dependency injection.
+  - Register tools with `@agent.tool` or `@agent.tool_plain`.
+  - Use `agent.run()`, `agent.run_sync()`, or `agent.run_stream()` to execute.
+  - Use `agent.to_cli()` or `agent.to_cli_sync()` for CLI interaction.
+  - Use `agent.override()` context manager for testing with different deps or models.
 
 ---
 
-# References
+# Summary
 
-- `Agent` class: `pydantic_ai_slim/pydantic_ai/agent.py` (lines 1-1000+)
-- `Tool` class and decorators: `pydantic_ai_slim/pydantic_ai/tools.py`
-- Example agent with tools: `examples/pydantic_ai_examples/evals/agent.py`
-- Chat app example: `examples/pydantic_ai_examples/chat_app.py`
+The `pydantic-ai` package provides a powerful, flexible API to create conversational agents backed by LLMs with integrated tool calling capabilities. The `Agent` class is the main entry point, supporting rich features like dependency injection, output validation, retries, instrumentation, and multiple execution modes.
 
-If you want me to extract usage examples or specific API details from other files or focus on particular features, please let me know!
+To create a Python ReAct agent with tool calling:
+
+- Instantiate `Agent` with your model and instructions.
+- Define your dependencies as a dataclass.
+- Register tools using `@agent.tool` decorators.
+- Run the agent asynchronously or synchronously with dependencies.
+- Optionally use streaming or CLI interfaces.
+
+The package includes scaffold tools and examples (e.g., the weather agent) that make it straightforward to build complex agents without hand-coding all the internals.
+
+---
+
+If you want, I can also generate a minimal runnable example script (`agent.py`) based on this API to run directly with `python agent.py`. Just ask!

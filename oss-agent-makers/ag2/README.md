@@ -1,265 +1,278 @@
-# API Usage Guide for Creating a ReAct Agent with Tool Calling Using the `ag2` Package
+# Comprehensive Guide to Using the AG2 API to Create a Python ReAct Agent with Tool Calling
 
-This document provides an exhaustive and detailed guide on how to use the API provided by the `ag2` package to create a ReAct (Reasoning and Acting) agent capable of tool calling. The guide is based on the analysis of the core agent implementation in the package, particularly focusing on the `ConversableAgent` class, which is the main class for creating agents that can converse, reason, and call tools or functions.
+This document provides an exhaustive, detailed guide on how to use the AG2 API (from the package located at `output/cache/ag2ai/ag2`) to create an agent that can be run directly in Python (e.g., `python agent.py`). It specifically addresses how to create a Python ReAct agent with tool calling capabilities, leveraging the provided scaffold tools and APIs.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Key Classes and Concepts](#key-classes-and-concepts)
-  - [Agent Protocol](#agent-protocol)
-  - [LLMAgent Protocol](#llmagent-protocol)
-  - [ConversableAgent Class](#conversableagent-class)
-- [Creating a ReAct Agent](#creating-a-react-agent)
-  - [Initialization](#initialization)
-  - [Registering Tools and Functions](#registering-tools-and-functions)
-  - [Sending and Receiving Messages](#sending-and-receiving-messages)
-  - [Generating Replies with Tool Calling](#generating-replies-with-tool-calling)
-- [Advanced Features](#advanced-features)
-  - [Code Execution](#code-execution)
-  - [Human Input Modes](#human-input-modes)
-  - [Nested Chats and Group Chats](#nested-chats-and-group-chats)
-  - [Hooks and Agent State Updates](#hooks-and-agent-state-updates)
-- [Example Usage](#example-usage)
-- [Summary](#summary)
+1. [Overview of the AG2 API and Key Components](#overview)
+2. [Creating an Agent That Can Run Directly in Python](#create-agent)
+3. [Creating a Python ReAct Agent with Tool Calling](#react-agent-tool-calling)
+4. [Using Scaffold Tools: AgentBuilder and CaptainAgent](#scaffold-tools)
+5. [Code Examples and Usage Patterns](#code-examples)
+6. [References to Source Code and Documentation](#references)
 
 ---
 
-## Overview
+<a name="overview"></a>
+## 1. Overview of the AG2 API and Key Components
 
-The `ag2` package provides a flexible and extensible framework for building conversational agents that can reason, act, and interact with tools or functions. The core abstraction is the `Agent` protocol, with the `ConversableAgent` class implementing a powerful LLM-based agent that supports:
+The AG2 API provides a modular framework for building conversational AI agents, including multi-agent systems, user proxy agents, and tools integration. The key components relevant to building a ReAct agent with tool calling are:
 
-- Conversational interaction with other agents.
-- Tool and function calling integrated with LLM responses.
-- Code execution capabilities.
-- Human-in-the-loop interaction modes.
-- Nested and group chat management.
-- Extensible hooks for custom behaviors.
-
----
-
-## Key Classes and Concepts
-
-### Agent Protocol
-
-Defined in `autogen/agentchat/agent.py`, the `Agent` protocol specifies the interface for any agent:
-
-- Properties:
-  - `name`: The agent's name.
-  - `description`: A description used for introductions or group chat context.
-- Methods:
-  - `send(message, recipient, request_reply)`: Send a message to another agent.
-  - `receive(message, sender, request_reply)`: Receive a message from another agent.
-  - `generate_reply(messages, sender)`: Generate a reply based on conversation history.
-- Async variants of send, receive, and generate_reply are also defined.
-
-### LLMAgent Protocol
-
-Extends `Agent` with LLM-specific features:
-
-- Property:
-  - `system_message`: The system prompt/message for the agent.
-- Method:
-  - `update_system_message(system_message)`: Update the system message.
-
-### ConversableAgent Class
-
-Located in `autogen/agentchat/conversable_agent.py`, this is the main class to create a ReAct agent with tool calling capabilities.
-
-- Implements `LLMAgent` protocol.
-- Supports:
-  - Registering functions and tools for LLM use and execution.
-  - Sending and receiving messages with automatic reply generation.
-  - Handling function calls and tool calls embedded in LLM messages.
-  - Code execution with optional Docker support.
-  - Human input modes (`ALWAYS`, `NEVER`, `TERMINATE`).
-  - Nested chats and group chat support.
-  - Hooks for extending agent behavior.
-- Manages conversation history and usage summaries.
-- Supports both synchronous and asynchronous operation.
+- **ConversableAgent**: Base class for agents that can converse.
+- **AssistantAgent**: A typical AI assistant agent.
+- **UserProxyAgent**: Acts as a proxy for user input or code execution.
+- **AgentBuilder**: A scaffold tool to automatically build multi-agent systems based on a task.
+- **CaptainAgent**: A high-level agent that manages a group of experts (agents) and can orchestrate tool usage.
+- **ToolBuilder**: Helps retrieve and bind tools to agents, enabling tool calling.
+- **CodeExecutor**: Executes code blocks, supporting tool integration.
 
 ---
 
-## Creating a ReAct Agent
+<a name="create-agent"></a>
+## 2. Creating an Agent That Can Run Directly in Python
 
-### Initialization
+To create an agent that can be run directly in Python (e.g., `python agent.py`), you typically:
 
-To create a ReAct agent, instantiate `ConversableAgent` with appropriate parameters:
+1. Import the necessary classes from the AG2 package.
+2. Configure the LLM (language model) settings.
+3. Instantiate an agent (e.g., `AssistantAgent` or `CaptainAgent`).
+4. Optionally add tools or user proxy agents.
+5. Run the agent's chat or task loop.
+
+### Minimal Example (from `test_agent_usage.py`):
 
 ```python
-from autogen.agentchat.conversable_agent import ConversableAgent
+from autogen import AssistantAgent, UserProxyAgent
 
-agent = ConversableAgent(
-    name="MyAgent",
-    system_message="You are a helpful AI assistant.",
-    llm_config={  # LLM configuration dict or LLMConfig instance
-        "model": "gpt-4o-mini",
-        "temperature": 0.7,
-    },
-    function_map=None,  # Optional dict mapping function names to callables
-    code_execution_config=False,  # or dict to enable code execution
-    human_input_mode="NEVER",  # or "ALWAYS", "TERMINATE"
+# Configure your LLM credentials/config (example placeholder)
+llm_config = {
+    "config_list": [
+        # Your LLM config here
+    ]
+}
+
+# Create an assistant agent
+assistant = AssistantAgent(
+    "assistant",
+    system_message="You are a helpful assistant.",
+    llm_config=llm_config,
 )
-```
 
-- `name`: Unique name for the agent (no whitespace allowed).
-- `system_message`: System prompt for the LLM.
-- `llm_config`: Configuration for the LLM client (OpenAIWrapper).
-- `function_map`: Optional mapping of function names to Python callables for execution.
-- `code_execution_config`: Enable or disable code execution.
-- `human_input_mode`: Controls when human input is requested.
-
-### Registering Tools and Functions
-
-Tools and functions can be registered for two purposes:
-
-- **LLM Tool Registration**: To expose functions/tools to the LLM for function/tool calling.
-- **Execution Registration**: To enable the agent to execute the functions/tools when called.
-
-Use the decorators provided by `ConversableAgent`:
-
-```python
-@agent.register_for_llm(description="Calculate the sum of two numbers")
-@agent.register_for_execution()
-def add_numbers(a: int, b: int) -> int:
-    return a + b
-```
-
-Or register functions programmatically:
-
-```python
-agent.register_function({"add_numbers": add_numbers})
-```
-
-- `register_for_llm`: Decorator to register a function/tool for LLM function calling.
-- `register_for_execution`: Decorator to register a function/tool for execution by the agent.
-- Functions must have valid names (letters, numbers, `_`, `-` only).
-
-### Sending and Receiving Messages
-
-Agents communicate by sending and receiving messages:
-
-```python
-agent.send(message={"content": "Hello, how can I help you?"}, recipient=other_agent)
-```
-
-- Messages can be strings or dicts following OpenAI ChatCompletion schema.
-- The agent automatically appends messages to conversation history.
-- Receiving a message triggers reply generation unless suppressed.
-
-Async variants are available:
-
-```python
-await agent.a_send(message, recipient)
-await agent.a_receive(message, sender)
-```
-
-### Generating Replies with Tool Calling
-
-The agent generates replies by checking registered reply functions in order:
-
-1. Check termination and human reply conditions.
-2. Generate function call reply (deprecated, replaced by tool calls).
-3. Generate tool calls reply.
-4. Generate code execution reply.
-5. Generate LLM-based reply.
-
-Example of generating a reply explicitly:
-
-```python
-reply = agent.generate_reply(messages=agent.chat_messages[sender], sender=sender)
-```
-
-- Tool calls embedded in the LLM response are executed automatically.
-- Tool call results are returned as part of the reply message.
-- Async variants are supported.
-
----
-
-## Advanced Features
-
-### Code Execution
-
-- Enable code execution by passing a config dict to `code_execution_config` during initialization.
-- Supports Docker-based execution or local execution.
-- The agent scans recent messages for code blocks and executes them.
-- Execution results are included in replies.
-
-### Human Input Modes
-
-- `ALWAYS`: Prompt human input every message.
-- `NEVER`: Never prompt human input; auto-reply only.
-- `TERMINATE`: Prompt human input only on termination messages or max auto-replies.
-
-Human input can be customized by overriding `get_human_input` and `a_get_human_input`.
-
-### Nested Chats and Group Chats
-
-- Supports initiating nested chats with multiple agents.
-- Can register nested chat reply functions.
-- Supports carryover of context and summaries between nested chats.
-
-### Hooks and Agent State Updates
-
-- Hooks can be registered to extend agent behavior at various points:
-  - `update_agent_state`
-  - `process_last_received_message`
-  - `process_all_messages_before_reply`
-  - `process_message_before_send`
-- Useful for custom context updates, message processing, or logging.
-
----
-
-## Example Usage
-
-```python
-from autogen.agentchat.conversable_agent import ConversableAgent
-
-# Create the agent
-agent = ConversableAgent(
-    name="ReActAgent",
-    system_message="You are a helpful assistant that can call tools.",
-    llm_config={"model": "gpt-4o-mini"},
+# Create a user proxy agent (e.g., for code execution)
+user_proxy = UserProxyAgent(
+    name="ai_user",
     human_input_mode="NEVER",
+    max_consecutive_auto_reply=1,
+    code_execution_config=False,
+    llm_config=llm_config,
+    system_message="You ask a user for help. You check the answer from the user and provide feedback.",
 )
 
-# Define a tool function
-@agent.register_for_llm(description="Add two numbers")
-@agent.register_for_execution()
-def add(a: int, b: int) -> int:
-    return a + b
+# Example interaction
+math_problem = "$x^3=125$. What is x?"
+response = user_proxy.initiate_chat(
+    assistant,
+    message=math_problem,
+    summary_method="reflection_with_llm",
+)
+print("Result summary:", response.summary)
+```
 
-# Start a conversation with another agent or self
-response = agent.initiate_chat(
-    recipient=agent,
-    message="What is the sum of 5 and 7?",
-    max_turns=3,
+Run this script with `python agent.py` after saving it.
+
+---
+
+<a name="react-agent-tool-calling"></a>
+## 3. Creating a Python ReAct Agent with Tool Calling
+
+ReAct (Reasoning + Acting) agents combine reasoning with the ability to call external tools or functions during their operation.
+
+### Key Steps:
+
+- Use **CaptainAgent** as the orchestrator agent that can manage multiple expert agents.
+- Use **ToolBuilder** to retrieve and bind tools to agents, enabling tool calling.
+- Use **UserProxyAgent** with a code executor that supports tool execution.
+- Configure the nested chat system where the CaptainAgent manages a group chat of agents.
+
+### CaptainAgent Highlights (from `captainagent.py`):
+
+- `CaptainAgent` is a subclass of `ConversableAgent` designed to solve tasks by building and managing a group of expert agents.
+- It has a built-in tool called `"seek_experts_help"` which builds a group of experts and lets them chat to solve a task.
+- It supports tool libraries and retrieval to bind relevant tools to agents.
+- It uses nested chats and group chat managers to coordinate multi-agent conversations.
+
+### ToolBuilder Highlights (from `tool_retriever.py`):
+
+- `ToolBuilder` loads tool descriptions and uses semantic search (via Sentence Transformers) to retrieve relevant tools based on skills or task descriptions.
+- It can bind tool function signatures to agents' system messages, enabling the agent to call these tools.
+- It supports binding tools to `UserProxyAgent` with a specialized code executor (`LocalExecutorWithTools`) that injects tools into the execution environment.
+
+### Code Executor with Tools:
+
+- `LocalExecutorWithTools` executes Python code blocks with injected tools, allowing direct function calls to tools without explicit imports.
+- This is essential for ReAct style tool calling.
+
+---
+
+<a name="scaffold-tools"></a>
+## 4. Using Scaffold Tools: AgentBuilder and CaptainAgent
+
+### AgentBuilder (`agent_builder.py`)
+
+- Helps automatically build a multi-agent system based on a task description.
+- Uses a builder LLM model to generate expert agent names, system messages, and descriptions.
+- Supports building agents from a library or from scratch.
+- Manages agent lifecycle, including creation, clearing, saving, and loading configurations.
+- Supports adding a user proxy agent for code execution automatically if coding is required.
+
+**Usage:**
+
+```python
+from autogen.agentchat.contrib.captainagent import AgentBuilder
+
+builder = AgentBuilder(
+    config_file_or_env="OAI_CONFIG_LIST",
+    builder_model="gpt-4o",
+    agent_model="gpt-4o",
+    max_agents=3,
 )
 
-print("Chat summary:", response.summary)
-print("Chat history:", response.chat_history)
+agents, cached_configs = builder.build(
+    building_task="Solve a math problem using Python and reasoning.",
+    default_llm_config={"temperature": 0.7, "max_tokens": 1024},
+    coding=True,
+)
+```
+
+### CaptainAgent (`captainagent.py`)
+
+- High-level agent that manages a group of experts and tool usage.
+- Automatically builds nested chats and manages conversation flow.
+- Supports loading tool libraries and binding tools to agents.
+- Provides a proxy agent (`CaptainUserProxyAgent`) that executes code and provides feedback.
+- Designed for ReAct style multi-agent collaboration with tool calling.
+
+**Usage:**
+
+```python
+from autogen.agentchat.contrib.captainagent import CaptainAgent
+
+captain = CaptainAgent(
+    name="CaptainAgent",
+    llm_config={"config_list": [...]},
+    agent_lib="path/to/agent_library.json",
+    tool_lib="path/to/tool_library",
+)
+
+# Use the seek_experts_help tool to build and run a group chat solving a task
+response = captain.call_function(
+    "seek_experts_help",
+    group_name="expert_group_1",
+    building_task="Build a group of experts for math and coding.",
+    execution_task="Solve the integral of x^2.",
+)
+print(response)
 ```
 
 ---
 
-## Summary
+<a name="code-examples"></a>
+## 5. Code Examples and Usage Patterns
 
-- Use `ConversableAgent` to create a ReAct agent with tool calling.
-- Register functions/tools with `register_for_llm` and `register_for_execution`.
-- Send and receive messages using `send` and `receive` methods.
-- Replies are generated automatically, supporting tool calls and code execution.
-- Supports synchronous and asynchronous usage.
-- Human input modes and hooks provide customization.
-- Nested chats and group chat features enable complex multi-agent interactions.
+### Example: Creating a Python ReAct Agent with Tool Calling
 
-This API provides a comprehensive framework to build intelligent agents that can reason, act, and interact with external tools seamlessly.
+```python
+from autogen.agentchat.contrib.captainagent import CaptainAgent
+
+def main():
+    # Initialize the CaptainAgent with default or custom LLM config
+    captain = CaptainAgent(
+        name="CaptainAgent",
+        llm_config={
+            "config_list": [
+                # Your LLM config here
+            ],
+            "temperature": 0.7,
+            "max_tokens": 2048,
+        },
+        agent_lib="path/to/agent_library.json",  # Optional: agent library JSON or path
+        tool_lib="path/to/tool_library",         # Optional: tool library directory or list
+    )
+
+    # Define the building task and execution task
+    building_task = """
+    - Math_Expert: Expert in advanced mathematics and symbolic computation.
+    - Python_Expert: Skilled in Python programming and code execution.
+    - Verifier: Expert in verifying correctness of solutions.
+    """
+
+    execution_task = "Calculate the derivative of sin(x^2) and provide Python code to verify."
+
+    # Call the tool to build experts and solve the task
+    response = captain.call_function(
+        "seek_experts_help",
+        group_name="math_coding_group",
+        building_task=building_task,
+        execution_task=execution_task,
+    )
+
+    print("Response from CaptainAgent:")
+    print(response)
+
+if __name__ == "__main__":
+    main()
+```
+
+### Running the Agent
+
+Save the above code as `agent.py` and run:
+
+```bash
+python agent.py
+```
+
+This will instantiate the CaptainAgent, build a group of expert agents, bind relevant tools, and run the multi-agent conversation to solve the task with tool calling.
 
 ---
 
-# References
+<a name="references"></a>
+## 6. References to Source Code and Documentation
 
-- `autogen/agentchat/agent.py` — Defines the `Agent` and `LLMAgent` protocols.
-- `autogen/agentchat/conversable_agent.py` — Implements the `ConversableAgent` class with detailed methods for tool calling, message handling, and chat management.
+- **AgentBuilder**: `autogen/agentchat/contrib/captainagent/agent_builder.py`  
+  - Core class to build multi-agent systems automatically.  
+  - Methods: `build()`, `build_from_library()`, `_create_agent()`, `clear_agent()`, `load()`, `save()`.  
+  - See lines ~20-400 for full implementation.
 
-If you need further examples or specific usage scenarios, please ask!
+- **CaptainAgent**: `autogen/agentchat/contrib/captainagent/captainagent.py`  
+  - High-level orchestrator agent with tool calling.  
+  - Implements `seek_experts_help` tool for multi-agent collaboration.  
+  - See lines ~20-400 for full implementation.
+
+- **ToolBuilder**: `autogen/agentchat/contrib/captainagent/tool_retriever.py`  
+  - Retrieves and binds tools to agents.  
+  - Supports semantic search with Sentence Transformers.  
+  - Implements `bind()`, `bind_user_proxy()`, and `LocalExecutorWithTools` for tool-enabled code execution.
+
+- **Test Example**: `test/agentchat/test_agent_usage.py`  
+  - Shows usage of `AssistantAgent` and `UserProxyAgent`.  
+  - Demonstrates how to initiate chat and print usage summaries.
+
+- **Documentation URLs**:  
+  - [OpenAIWrapper.create API](https://docs.ag2.ai/latest/docs/api-reference/autogen/OpenAIWrapper/#autogen.OpenAIWrapper.create) (referenced in code comments)  
+  - [CaptainAgent User Guide](https://docs.ag2.ai/latest/docs/user-guide/reference-agents/captainagent) (mentioned in code comments)
+
+---
+
+# Summary
+
+- To create a Python ReAct agent with tool calling using this package, the recommended approach is to use the **CaptainAgent** class combined with the **AgentBuilder** and **ToolBuilder** scaffold tools.
+- The CaptainAgent manages a group of expert agents and can dynamically build and bind tools for execution.
+- The UserProxyAgent with a specialized code executor enables running code blocks that call tools directly.
+- The package provides extensive support for multi-agent collaboration, tool retrieval, and code execution, making it straightforward to build complex ReAct agents.
+- The provided test files and source code offer practical examples and detailed implementations to guide usage.
+
+---
+
+If you want, I can help generate a ready-to-run example script (`agent.py`) based on this analysis. Would you like me to do that?

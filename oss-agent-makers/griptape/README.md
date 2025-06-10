@@ -1,218 +1,233 @@
-# Griptape API Usage Guide: Creating a ReAct Agent with Tool Calling
+# Griptape AI Package: Comprehensive Guide to Creating and Running a Python ReAct Agent with Tool Calling
 
-This document provides an exhaustive and detailed guide on how to use the Griptape API to create a ReAct (Reasoning and Acting) agent that can call tools. It explains the core components, their relationships, and step-by-step instructions to build and run such an agent.
+This document provides an exhaustive guide on how to use the Griptape AI package API to create an agent that can be run directly in Python (e.g., `python agent.py`). It also answers the question: "How can I use this API to create a Python ReAct agent with tool calling?" The guide includes detailed references to the source code and highlights useful components and patterns for building such agents.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Core Concepts](#core-concepts)
-  - [Agent](#agent)
-  - [PromptTask](#prompttask)
-  - [BaseTool and Tool Activities](#basetool-and-tool-activities)
-  - [RagTool (Example Tool)](#ragtool-example-tool)
-- [Creating a ReAct Agent with Tool Calling](#creating-a-react-agent-with-tool-calling)
-  - [Step 1: Define Tools](#step-1-define-tools)
-  - [Step 2: Create an Agent](#step-2-create-an-agent)
-  - [Step 3: Configure the Agent's PromptTask](#step-3-configure-the-agents-prompttask)
-  - [Step 4: Run the Agent](#step-4-run-the-agent)
-- [Detailed Code Examples](#detailed-code-examples)
-- [Additional Notes](#additional-notes)
+1. [Overview of the Griptape AI Package](#overview-of-the-griptape-ai-package)
+2. [Creating and Running an Agent in Python](#creating-and-running-an-agent-in-python)
+3. [Building a Python ReAct Agent with Tool Calling](#building-a-python-react-agent-with-tool-calling)
+4. [Key Classes and Components](#key-classes-and-components)
+5. [Example: Minimal Python Agent Script](#example-minimal-python-agent-script)
+6. [Additional Notes and References](#additional-notes-and-references)
 
 ---
 
-## Overview
+## Overview of the Griptape AI Package
 
-Griptape provides a flexible framework to build AI agents that can reason and act by calling external tools. The core abstraction is the `Agent` structure, which internally manages a `PromptTask` that interacts with a language model (via a prompt driver) and a set of tools. Tools encapsulate external capabilities or APIs that the agent can invoke during its reasoning process.
+Griptape AI is a framework designed to build AI agents with modular components such as tasks, tools, drivers, and memory. It supports advanced agent architectures like ReAct (Reasoning + Acting) with tool calling capabilities.
+
+- The core agent abstraction is provided by the `Agent` class in `griptape.structures.agent`.
+- Tasks, especially `PromptTask`, drive the agent's behavior and interaction with language models and tools.
+- Tools encapsulate external capabilities or APIs that the agent can call.
+- Drivers handle communication with language models and other services.
+- The package uses `attrs` for declarative class definitions and validation.
 
 ---
 
-## Core Concepts
+## Creating and Running an Agent in Python
 
-### Agent
+### The `Agent` Class
 
-- Defined in `griptape.structures.agent.Agent` (see `structures/agent.py`).
-- Represents a high-level AI agent structure.
-- Holds a single `PromptTask` internally (only one task allowed).
-- Accepts:
-  - `input`: The initial input to the agent (string, artifact, or callable).
-  - `tools`: A list of tools the agent can call.
-  - `prompt_driver`: The driver that interfaces with the language model.
-  - `output_schema`: Optional schema to validate output.
-  - `stream`: Whether to stream output.
-- The agent runs by invoking its internal `PromptTask`.
+The `Agent` class is the main entry point for creating an agent. It is defined in:
 
-Key methods and properties:
-- `add_task(task)`: Adds the single task (usually a `PromptTask`).
-- `try_run()`: Runs the agent's task.
-- `task`: Property to access the internal task.
+- **File:** `griptape/structures/agent.py`
 
-Example snippet from `Agent` class:
+Key points from the `Agent` class:
+
+- It inherits from `Structure`.
+- It accepts an `input` which can be a string, list, tuple, artifact, or callable returning an artifact.
+- It supports a `prompt_driver` (language model driver) and a list of `tools`.
+- It manages a single `PromptTask` internally.
+- The `try_run()` method runs the agent's task and returns the agent instance.
+
+Excerpt from `Agent` class initialization and run:
+
 ```python
-task = PromptTask(
-    self.input,
-    prompt_driver=prompt_driver,
-    tools=self.tools,
-    output_schema=self.output_schema,
-    max_meta_memory_entries=self.max_meta_memory_entries,
-)
-self.add_task(task)
+@define
+class Agent(Structure):
+    input: Union[str, list, tuple, BaseArtifact, Callable[[BaseTask], BaseArtifact]] = field(
+        default=lambda task: task.full_context["args"][0] if task.full_context["args"] else TextArtifact(value=""),
+    )
+    stream: Optional[bool] = field(default=None, kw_only=True)
+    prompt_driver: Optional[BasePromptDriver] = field(default=None, kw_only=True)
+    tools: list[BaseTool] = field(factory=list, kw_only=True)
+    # ... other fields ...
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        if len(self.tasks) == 0:
+            self._init_task()
+
+    @observable
+    def try_run(self, *args) -> Agent:
+        self.task.run()
+        return self
+
+    def _init_task(self) -> None:
+        # Initialize prompt driver if not set
+        if self.stream is None:
+            with validators.disabled():
+                self.stream = Defaults.drivers_config.prompt_driver.stream
+
+        if self.prompt_driver is None:
+            with validators.disabled():
+                prompt_driver = evolve(Defaults.drivers_config.prompt_driver, stream=self.stream)
+                self.prompt_driver = prompt_driver
+        else:
+            prompt_driver = self.prompt_driver
+
+        task = PromptTask(
+            self.input,
+            prompt_driver=prompt_driver,
+            tools=self.tools,
+            output_schema=self.output_schema,
+            max_meta_memory_entries=self.max_meta_memory_entries,
+        )
+        self.add_task(task)
+```
+
+### Running the Agent
+
+To run the agent, instantiate it with the desired input, tools, and optionally a prompt driver, then call `try_run()`:
+
+```python
+agent = Agent(input="Hello, world!", tools=[...])
+agent.try_run()
 ```
 
 ---
 
-### PromptTask
+## Building a Python ReAct Agent with Tool Calling
 
-- Defined in `griptape.tasks.prompt_task.PromptTask` (see `tasks/prompt_task.py`).
-- Represents the core task that manages prompt construction, tool calling, and response handling.
-- Uses a `prompt_driver` to interact with the language model.
-- Maintains a list of `tools` that it can invoke.
-- Supports subtasks representing individual tool calls or output schema validations.
-- Supports streaming and conversation memory integration.
-- Has customizable templates for system, user, and assistant messages.
-- Runs by building a prompt stack, sending it to the LLM, and processing the output including tool calls.
+### The `PromptTask` Class
+
+The `PromptTask` class is the core task that drives the agent's prompt-based reasoning and tool usage.
+
+- **File:** `griptape/tasks/prompt_task.py`
 
 Key features:
-- `tools`: List of tools available for the task.
-- `prompt_stack`: Builds the prompt including system, user, assistant messages, and memory.
-- `try_run()`: Runs the prompt driver and processes subtasks (tool calls).
-- `default_run_actions_subtasks()`: Runs subtasks that represent tool calls.
-- `default_run_output_schema_validation_subtasks()`: Validates output against schema if provided.
 
----
+- Supports tools and tool calling.
+- Manages subtasks representing reasoning steps and tool invocations.
+- Uses a prompt driver to generate outputs.
+- Supports output schema validation.
+- Implements ReAct style reasoning with subtasks and tool calls.
 
-### BaseTool and Tool Activities
+Excerpt from `PromptTask`:
 
-- Defined in `griptape.tools.base_tool.BaseTool` (see `tools/base_tool.py`).
-- Abstract base class for all tools.
-- Tools define activities (methods decorated with `@activity`) that can be called by the agent.
-- Supports input and output memory for stateful interactions.
-- Supports automatic dependency installation from `requirements.txt`.
-- Provides schema for tool activities to enable structured tool calling.
-- Handles running activities and converting results to artifacts.
-
-Key methods:
-- `run(activity, subtask, action)`: Runs a specific activity.
-- `try_run(activity, subtask, action, value)`: Executes the activity and returns an artifact.
-- `activity_schemas()`: Returns schemas for all activities for integration with LLM.
-
----
-
-### RagTool (Example Tool)
-
-- Defined in `griptape.tools.rag.tool.RagTool` (see `tools/rag/tool.py`).
-- A concrete tool example that queries a Retrieval-Augmented Generation (RAG) engine.
-- Has a single activity `search` that accepts a query and returns a list of artifacts or an error artifact.
-- Demonstrates how to define a tool with an activity and schema for tool calling.
-
-Example activity definition:
 ```python
-@activity(
-    config={
-        "description": "{{ _self.description }}",
-        "schema": Schema({Literal("query", description="A natural language search query"): str}),
-    },
-)
-def search(self, params: dict) -> ListArtifact | ErrorArtifact:
-    query = params["values"]["query"]
-    try:
-        artifacts = self.rag_engine.process_query(query).outputs
-        # Process and return artifacts...
-    except Exception as e:
-        return ErrorArtifact(f"error querying: {e}")
+@define
+class PromptTask(BaseTask, RuleMixin, ActionsSubtaskOriginMixin):
+    prompt_driver: BasePromptDriver = field(default=Factory(lambda: Defaults.drivers_config.prompt_driver), kw_only=True)
+    tools: list[BaseTool] = field(factory=list, kw_only=True)
+    max_subtasks: int = field(default=20, kw_only=True)
+    response_stop_sequence: str = field(default="<|Response|>", kw_only=True)
+    reflect_on_tool_use: bool = field(default=True, kw_only=True)
+
+    def try_run(self) -> BaseArtifact:
+        self.subtasks.clear()
+        if self.response_stop_sequence not in self.prompt_driver.tokenizer.stop_sequences:
+            self.prompt_driver.tokenizer.stop_sequences.append(self.response_stop_sequence)
+
+        output = self.prompt_driver.run(self.prompt_stack).to_artifact(
+            meta={"is_react_prompt": not self.prompt_driver.use_native_tools}
+        )
+        for subtask_runner in self.subtask_runners:
+            output = subtask_runner(output)
+
+        return output
 ```
 
----
+### Using Tools
 
-## Creating a ReAct Agent with Tool Calling
+Tools are defined as subclasses of `BaseTool` and provide specific capabilities. The agent can call these tools during its reasoning process.
 
-### Step 1: Define Tools
+- Tools are passed to the `Agent` or `PromptTask` via the `tools` parameter.
+- The `PromptTask` manages tool calling via subtasks (`ActionsSubtask`).
 
-- Create or use existing tools inheriting from `BaseTool`.
-- Define activities decorated with `@activity` that the agent can call.
-- Example: Use `RagTool` or other official tools like `CalculatorTool`, `WebSearchTool`, etc.
+Example tools include:
 
-### Step 2: Create an Agent
-
-- Instantiate an `Agent` object.
-- Provide the initial input (string or artifact).
-- Provide a list of tools the agent can use.
-- Optionally specify a `prompt_driver` or use the default.
-
-Example:
-```python
-from griptape.structures import Agent
-from griptape.tools.rag.tool import RagTool
-
-rag_tool = RagTool(description="RAG search tool", rag_engine=my_rag_engine)
-
-agent = Agent(
-    input="What is the capital of France?",
-    tools=[rag_tool],
-)
-```
-
-### Step 3: Configure the Agent's PromptTask
-
-- The agent internally creates a `PromptTask` with the tools and prompt driver.
-- You can customize the prompt driver or output schema if needed.
-- The `PromptTask` manages the prompt stack, tool calling, and subtasks.
-
-### Step 4: Run the Agent
-
-- Call `agent.try_run()` to execute the agent.
-- The agent will process the input, call tools as needed, and produce output.
-- The output is an artifact (e.g., `TextArtifact`) representing the final response.
-
-Example:
-```python
-result = agent.try_run()
-print(result.output.to_text())
-```
+- `ComputerTool` (executes Python code or shell commands in Docker containers)
+- `CalculatorTool`
+- `WebSearchTool`
+- `RestApiTool`
+- And many others (see `griptape/tools/__init__.py` for the full list)
 
 ---
 
-## Detailed Code Examples
+## Key Classes and Components
 
-### Example: Creating a ReAct Agent with a RAG Tool
+| Component               | Location                                  | Description                                                                                   |
+|------------------------|-------------------------------------------|-----------------------------------------------------------------------------------------------|
+| `Agent`                | `griptape/structures/agent.py`            | Main agent class, manages a single `PromptTask` and tools.                                   |
+| `PromptTask`           | `griptape/tasks/prompt_task.py`           | Task that handles prompt generation, tool calling, and ReAct subtasks.                       |
+| `BaseTool`             | `griptape/tools/base_tool.py`              | Base class for all tools.                                                                     |
+| `ComputerTool`         | `griptape/tools/computer/tool.py`          | Tool to execute Python code or shell commands inside Docker containers.                       |
+| `PromptDriver` (default) | Configured via `Defaults.drivers_config` | Driver that interfaces with language models for prompt generation.                            |
+| `TextArtifact`         | `griptape/artifacts/text_artifact.py`      | Represents text data passed between components.                                              |
+
+---
+
+## Example: Minimal Python Agent Script
+
+Below is a minimal example of how to create and run an agent with tool calling using the Griptape API:
 
 ```python
 from griptape.structures import Agent
-from griptape.tools.rag.tool import RagTool
-from griptape.engines.rag import RagEngine  # hypothetical import
+from griptape.tools.computer.tool import ComputerTool
 
-# Initialize your RAG engine (implementation specific)
-my_rag_engine = RagEngine(...)
+def main():
+    # Instantiate tools
+    computer_tool = ComputerTool()
 
-# Create the RAG tool
-rag_tool = RagTool(description="RAG search tool", rag_engine=my_rag_engine)
+    # Create an agent with input, tools, and default prompt driver
+    agent = Agent(
+        input="Calculate the factorial of 5 using Python code.",
+        tools=[computer_tool]
+    )
 
-# Create the agent with input and tools
-agent = Agent(
-    input="Find information about the Eiffel Tower.",
-    tools=[rag_tool],
-)
+    # Run the agent
+    agent.try_run()
 
-# Run the agent
-result = agent.try_run()
+    # Access the output of the agent's task
+    print(agent.task.output.to_text())
 
-# Output the result text
-print(result.output.to_text())
+if __name__ == "__main__":
+    main()
+```
+
+Save this as `agent.py` and run it with:
+
+```bash
+python agent.py
 ```
 
 ---
 
-## Additional Notes
+## Additional Notes and References
 
 - The `Agent` class only supports a single task internally, which is typically a `PromptTask`.
-- Tools must have unique names within the agent.
-- The `PromptTask` supports subtasks for tool calls and output validation.
-- The prompt driver can be customized or defaulted from configuration.
-- The framework supports streaming output and conversation memory for context.
-- Tools can automatically install dependencies if a `requirements.txt` is present.
-- The `@activity` decorator on tool methods defines callable activities with schemas for LLM integration.
+- The `PromptTask` manages subtasks that represent reasoning steps and tool calls, enabling ReAct style behavior.
+- Tools must have unique names when passed to the agent or task.
+- The `ComputerTool` is a powerful example of a tool that can execute arbitrary Python code or shell commands inside Docker containers, enabling complex programmatic reasoning.
+- The prompt driver can be customized or replaced by passing a different `prompt_driver` to the `Agent` or `PromptTask`.
+- The package uses `attrs` for declarative class definitions and validation, and `pydantic` or `schema` for output schema validation.
+- The `try_run()` method on the `Agent` or `PromptTask` triggers the execution of the agent's reasoning and tool calling.
 
 ---
 
-This guide should enable you to understand and use the Griptape API to create a ReAct agent capable of calling tools effectively. For more advanced usage, explore the `PromptTask` customization, tool development, and memory management features in the codebase.
+## References to Source Code
+
+- Agent class: [`griptape/structures/agent.py`](output/cache/griptape-ai/griptape/griptape/structures/agent.py) (lines 1-120)
+- PromptTask class: [`griptape/tasks/prompt_task.py`](output/cache/griptape-ai/griptape/griptape/tasks/prompt_task.py) (lines 1-300 approx)
+- ComputerTool example: [`griptape/tools/computer/tool.py`](output/cache/griptape-ai/griptape/griptape/tools/computer/tool.py) (lines 1-150 approx)
+- Tools package init: [`griptape/tools/__init__.py`](output/cache/griptape-ai/griptape/griptape/tools/__init__.py)
+- Artifacts (e.g., TextArtifact): [`griptape/artifacts/text_artifact.py`]
+- Defaults and config: [`griptape/configs/defaults_config.py`]
+
+---
+
+This guide should enable you to create, customize, and run a Python ReAct agent with tool calling using the Griptape AI package efficiently and effectively.

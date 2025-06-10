@@ -1,66 +1,148 @@
-# Langflow API Usage for Creating a ReAct Agent with Tool Calling
+# Langflow Agent API Usage Guide
 
-This document provides an exhaustive guide on how to use the Langflow API to create a ReAct agent with tool calling capabilities. The Langflow package integrates with LangChain and provides components to build agents that can utilize tools dynamically during their operation.
-
----
-
-## Overview
-
-The key class for creating a ReAct agent with tool calling in Langflow is the `ToolCallingAgentComponent`, which extends `LCToolsAgentComponent`. The `AgentComponent` class further extends `ToolCallingAgentComponent` to provide a more complete agent implementation with memory, model provider selection, and tool management.
+This document provides an exhaustive guide on how to use the Langflow package API to create and run an agent directly in Python, specifically focusing on creating a Python ReAct agent with tool calling capabilities. It includes detailed references to the source code and highlights specialized tools provided by the package to simplify agent creation.
 
 ---
 
-## Key Classes and Their Roles
+## 1. Creating and Running an Agent Directly in Python
 
-### 1. `ToolCallingAgentComponent`
+### Overview
 
+The Langflow package provides a modular and extensible API to create agents that can interact with language models and tools. The core agent class is `AgentComponent` located in:
+
+- `src/backend/base/langflow/components/agents/agent.py`
+
+This class extends `ToolCallingAgentComponent` (from `tool_calling.py`), which itself extends `LCToolsAgentComponent` (LangChain Tools Agent Component).
+
+### Key Class: `AgentComponent`
+
+- **Location:** `src/backend/base/langflow/components/agents/agent.py`
+- **Description:** Defines an agent that can be configured with a language model, tools, memory, and system prompts. It supports running asynchronously and integrates tool calling.
+- **Main method to run:** `message_response()` — asynchronously runs the agent and returns a response message.
+
+### How to Use `AgentComponent`
+
+1. **Instantiate the Agent:**
+
+   ```python
+   from langflow.components.agents.agent import AgentComponent
+
+   agent = AgentComponent()
+   ```
+
+2. **Configure Inputs:**
+
+   The agent expects inputs such as:
+   - `agent_llm`: Model provider (e.g., "OpenAI")
+   - Model-specific parameters (API keys, model names, etc.)
+   - `system_prompt`: Instructions for the agent
+   - `tools`: List of tools the agent can use
+   - `memory` inputs (optional)
+   - `add_current_date_tool`: Boolean to add a current date tool
+
+3. **Set Inputs:**
+
+   You can set these inputs as attributes on the agent instance, e.g.:
+
+   ```python
+   agent.agent_llm = "OpenAI"
+   agent.system_prompt = "You are a helpful assistant that can use tools."
+   agent.tools = [...]  # List of tools (StructuredTool instances)
+   agent.add_current_date_tool = True
+   ```
+
+4. **Run the Agent:**
+
+   The agent runs asynchronously:
+
+   ```python
+   import asyncio
+
+   async def run_agent():
+       response = await agent.message_response()
+       print(response)
+
+   asyncio.run(run_agent())
+   ```
+
+5. **Create a Python Script to Run the Agent:**
+
+   Example `agent.py`:
+
+   ```python
+   import asyncio
+   from langflow.components.agents.agent import AgentComponent
+   from langflow.components.helpers.memory import MemoryComponent
+   from langchain_core.tools import StructuredTool
+
+   async def main():
+       agent = AgentComponent()
+       agent.agent_llm = "OpenAI"
+       agent.system_prompt = "You are a helpful assistant that can use tools."
+       # Add tools here, e.g., from LangChain or Langflow toolkits
+       agent.tools = [/* StructuredTool instances */]
+       agent.add_current_date_tool = True
+       # Optionally set memory inputs
+       # agent.memory_inputs = ...
+       response = await agent.message_response()
+       print(response)
+
+   if __name__ == "__main__":
+       asyncio.run(main())
+   ```
+
+---
+
+## 2. Creating a Python ReAct Agent with Tool Calling
+
+### What is a ReAct Agent?
+
+ReAct (Reasoning + Acting) agents combine reasoning with tool usage, allowing the agent to decide when and how to call external tools during interaction.
+
+### Langflow Support for Tool Calling Agents
+
+Langflow provides a specialized agent component for tool calling:
+
+- **Class:** `ToolCallingAgentComponent`
 - **Location:** `src/backend/base/langflow/components/langchain_utilities/tool_calling.py`
-- **Description:** This component is designed to create an agent that can seamlessly utilize various tools within workflows.
-- **Inheritance:** Extends `LCToolsAgentComponent`.
-- **Key Features:**
-  - Accepts a language model (`llm`) input.
-  - Accepts a system prompt to guide agent behavior.
-  - Supports chat history input for memory.
-  - Uses LangChain's `create_tool_calling_agent` to create the underlying agent runnable.
-- **Important Methods:**
-  - `create_agent_runnable()`: Constructs the LangChain agent runnable using a chat prompt template and the provided tools and language model.
-  - `get_chat_history_data()`: Returns the chat history data for the agent.
+- **Description:** Extends `LCToolsAgentComponent` and uses LangChain's `create_tool_calling_agent` to create an agent that supports tool calling.
 
-**Code snippet:**
+### How to Create a ReAct Agent with Tool Calling
+
+1. **Use `ToolCallingAgentComponent` or `AgentComponent` (which extends it):**
+
+   The `AgentComponent` class inherits from `ToolCallingAgentComponent`, so it already supports tool calling.
+
+2. **Set Up Language Model and Tools:**
+
+   - Provide a language model instance (must be compatible with tool calling).
+   - Provide a list of tools (instances of `StructuredTool` or compatible).
+
+3. **Create the Agent Runnable:**
+
+   The `create_agent_runnable()` method in `ToolCallingAgentComponent` creates the LangChain tool calling agent:
+
+   ```python
+   from langflow.components.langchain_utilities.tool_calling import ToolCallingAgentComponent
+
+   agent_component = ToolCallingAgentComponent()
+   agent_component.llm = your_llm_instance
+   agent_component.tools = your_tools_list
+   agent = agent_component.create_agent_runnable()
+   ```
+
+4. **Run the Agent:**
+
+   Use the `run_agent()` method or your own async runner to execute the agent with input.
+
+### Example Snippet from `tool_calling.py`:
 
 ```python
+from langchain.agents import create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+
 class ToolCallingAgentComponent(LCToolsAgentComponent):
-    display_name: str = "Tool Calling Agent"
-    description: str = "An agent designed to utilize various tools seamlessly within workflows."
-    icon = "LangChain"
-    name = "ToolCallingAgent"
-
-    inputs = [
-        *LCToolsAgentComponent._base_inputs,
-        HandleInput(
-            name="llm",
-            display_name="Language Model",
-            input_types=["LanguageModel"],
-            required=True,
-            info="Language model that the agent utilizes to perform tasks effectively.",
-        ),
-        MessageTextInput(
-            name="system_prompt",
-            display_name="System Prompt",
-            info="System prompt to guide the agent's behavior.",
-            value="You are a helpful assistant that can use tools to answer questions and perform tasks.",
-        ),
-        DataInput(
-            name="chat_history",
-            display_name="Chat Memory",
-            is_list=True,
-            advanced=True,
-            info="This input stores the chat history, allowing the agent to remember previous conversations.",
-        ),
-    ]
-
-    def get_chat_history_data(self) -> list[Data] | None:
-        return self.chat_history
+    # ...
 
     def create_agent_runnable(self):
         messages = [
@@ -71,132 +153,96 @@ class ToolCallingAgentComponent(LCToolsAgentComponent):
         ]
         prompt = ChatPromptTemplate.from_messages(messages)
         self.validate_tool_names()
-        try:
-            return create_tool_calling_agent(self.llm, self.tools or [], prompt)
-        except NotImplementedError as e:
-            message = f"{self.display_name} does not support tool calling. Please try using a compatible model."
-            raise NotImplementedError(message) from e
+        return create_tool_calling_agent(self.llm, self.tools or [], prompt)
 ```
+
+This method creates a prompt template and uses LangChain's `create_tool_calling_agent` to instantiate the agent.
 
 ---
 
-### 2. `LCToolsAgentComponent`
+## 3. Grounding and References
 
-- **Location:** `src/backend/base/langflow/base/agents/agent.py`
-- **Description:** Base class for agents that use tools. Provides inputs for tools and language model, and methods to build and run the agent.
-- **Key Methods:**
-  - `build_agent()`: Validates tool names and creates an `AgentExecutor` from the agent runnable and tools.
-  - `create_agent_runnable()`: Abstract method to be implemented by subclasses to create the actual agent runnable.
-  - `run_agent()`: Runs the agent with the given input and returns the response message.
-  - `validate_tool_names()`: Ensures tool names conform to allowed patterns.
+### Source Code References
 
----
+- **AgentComponent (main agent class):**  
+  `src/backend/base/langflow/components/agents/agent.py`  
+  - Implements agent setup, memory integration, tool addition (including current date tool), and running the agent asynchronously.  
+  - Handles model provider selection and dynamic build config updates.
 
-### 3. `AgentComponent`
+- **ToolCallingAgentComponent (tool calling agent base):**  
+  `src/backend/base/langflow/components/langchain_utilities/tool_calling.py`  
+  - Uses LangChain's `create_tool_calling_agent` to create a tool calling agent.  
+  - Defines inputs for LLM, system prompt, and chat history.
 
-- **Location:** `src/backend/base/langflow/components/agents/agent.py`
-- **Description:** A concrete implementation of `ToolCallingAgentComponent` that adds:
-  - Model provider selection (e.g., OpenAI, Custom).
-  - Memory integration for chat history.
-  - Option to add a current date tool.
-  - Tool validation and setup.
-- **Inputs:**
-  - Model provider dropdown.
-  - System prompt for agent instructions.
-  - Tools list.
-  - Memory inputs.
-  - Boolean to add current date tool.
-- **Outputs:**
-  - Response message from the agent.
-- **Key Methods:**
-  - `message_response()`: Main async method to run the agent and get the response.
-  - `get_memory_data()`: Retrieves chat history from memory component.
-  - `get_llm()`: Builds the language model based on selected provider.
-  - `_get_tools()`: Retrieves the list of tools available to the agent.
-  - `update_build_config()`: Updates the build configuration dynamically based on model provider changes.
+- **Starter Projects (example agent graphs):**  
+  `src/backend/base/langflow/initial_setup/starter_projects/complex_agent.py`  
+  `src/backend/base/langflow/initial_setup/starter_projects/sequential_tasks_agent.py`  
+  - These files show example complex agents built using Langflow components, including tool usage and multi-agent orchestration.
 
-**Usage flow in `message_response`:**
+### Online Documentation
 
-1. Get and validate the language model.
-2. Retrieve chat history from memory.
-3. Optionally add a current date tool.
-4. Validate that tools are present.
-5. Set internal state with LLM, tools, chat history, input, and system prompt.
-6. Create the agent runnable.
-7. Run the agent and return the response.
+- Langflow GitHub or official docs (if available) for API references and examples.
+- LangChain documentation for `create_tool_calling_agent`:  
+  https://python.langchain.com/en/latest/modules/agents/tool_calling.html
 
 ---
 
-## How to Use the API to Create a ReAct Agent with Tool Calling
+## 4. Using Specialist Tools and Scaffold Tools
 
-### Step 1: Instantiate the `AgentComponent`
+Langflow provides scaffold components and starter projects that simplify agent creation:
 
-This component is the recommended entry point for creating a ReAct agent with tool calling.
+- **Component Toolkit:**  
+  The agent uses `_get_component_toolkit()` to fetch tools and update metadata dynamically. This toolkit helps build tools from components without hand-coding each tool.
 
-```python
-agent_component = AgentComponent()
-```
+- **MemoryComponent:**  
+  Provides chat memory integration for agents, allowing stateful conversations.
 
-### Step 2: Configure Inputs
+- **CurrentDateComponent:**  
+  Adds a tool that returns the current date, useful for agents needing temporal context.
 
-- **Select a language model provider** (e.g., "OpenAI").
-- **Set the system prompt** to guide the agent's behavior.
-- **Add tools** that the agent can use (must be instances of `Tool`).
-- **Optionally configure memory** inputs for chat history.
-- **Optionally enable the current date tool**.
+- **Starter Projects:**  
+  Predefined agent graphs like `complex_agent_graph()` and `sequential_tasks_agent_graph()` demonstrate how to compose agents with tools, prompts, and tasks. These can be used as templates or starting points.
 
-Example:
+---
 
-```python
-agent_component.agent_llm = "OpenAI"
-agent_component.system_prompt = "You are a helpful assistant that can use tools to answer questions and perform tasks."
-agent_component.tools = [tool1, tool2]  # List of Tool instances
-agent_component.add_current_date_tool = True
-```
-
-### Step 3: Provide User Input
-
-Set the input value that the agent will process:
-
-```python
-agent_component.input_value = "What is the weather like today?"
-```
-
-### Step 4: Run the Agent
-
-Call the async method `message_response()` to run the agent and get the response message:
+## Summary Example: Creating and Running a Simple Tool Calling Agent
 
 ```python
 import asyncio
+from langflow.components.agents.agent import AgentComponent
+from langflow.components.helpers.memory import MemoryComponent
+from langchain_core.tools import StructuredTool
 
-response_message = asyncio.run(agent_component.message_response())
-print(response_message.content)
+async def main():
+    agent = AgentComponent()
+    agent.agent_llm = "OpenAI"  # or another supported provider
+    agent.system_prompt = "You are a helpful assistant that can use tools."
+    
+    # Example: Add a current date tool (automatically added if add_current_date_tool=True)
+    agent.add_current_date_tool = True
+    
+    # Add your tools here (must be StructuredTool instances)
+    # For example, tools = [some_tool1, some_tool2]
+    agent.tools = []  # Add actual tools
+    
+    # Optionally set memory inputs
+    # agent.memory_inputs = ...
+    
+    response = await agent.message_response()
+    print(response)
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ---
 
-## Important Notes
+# Conclusion
 
-- The agent uses LangChain's `create_tool_calling_agent` internally to support tool calling.
-- Tools must have valid names (alphanumeric, underscores, dashes, no spaces).
-- The system prompt and chat history are used to build the chat prompt template for the agent.
-- The agent supports asynchronous execution and event streaming.
-- The `AgentComponent` supports dynamic model provider configuration and memory integration.
-- If the selected language model does not support tool calling, a `NotImplementedError` is raised with a helpful message.
+The Langflow package provides a powerful and flexible API to create agents with tool calling capabilities in Python. The `AgentComponent` class is the primary interface for creating agents that can be run directly. It leverages the `ToolCallingAgentComponent` for tool calling support, which internally uses LangChain's `create_tool_calling_agent`.
+
+Specialized components and starter projects provide scaffolding to build complex agents with minimal hand-coding. This guide, grounded in the source code and LangChain documentation, should enable you to create, customize, and run your own Python ReAct agents with tool calling using Langflow.
 
 ---
 
-## Summary
-
-| Step | Action | Class/Method |
-|-------|--------|--------------|
-| 1 | Instantiate agent | `AgentComponent()` |
-| 2 | Configure language model, tools, system prompt, memory | Set properties on `AgentComponent` |
-| 3 | Provide user input | Set `input_value` on `AgentComponent` |
-| 4 | Run agent and get response | `await AgentComponent.message_response()` |
-| 5 | Internally creates runnable agent | `ToolCallingAgentComponent.create_agent_runnable()` |
-| 6 | Uses LangChain's tool calling agent | `create_tool_calling_agent()` |
-
----
-
-This detailed guide should enable you to effectively use the Langflow API to create and run a ReAct agent with tool calling capabilities. The `AgentComponent` class is the main interface, leveraging the underlying LangChain integration and Langflow's component system for tools, memory, and language models.
+If you need further examples or help with specific tools or configurations, please ask!

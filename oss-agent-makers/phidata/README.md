@@ -1,74 +1,74 @@
-# How to Use the PhiData API to Create a ReAct Agent with Tool Calling
+# Guide to Creating a Python ReAct Agent with Tool Calling Using the `phidata` API
 
-This document provides an exhaustive guide on how to use the PhiData API to create a ReAct (Reasoning and Acting) agent that can call external tools during its reasoning process. The guide is based on the analysis of the PhiData codebase, specifically focusing on how agents are constructed with tools and how tool calls are integrated into the agent's workflow.
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Key Concepts](#key-concepts)
-- [Creating an Agent with Tools](#creating-an-agent-with-tools)
-- [Example: AI News Reporter Agent](#example-ai-news-reporter-agent)
-- [Agent Configuration Parameters](#agent-configuration-parameters)
-- [Using Tools in the Agent](#using-tools-in-the-agent)
-- [Running the Agent](#running-the-agent)
-- [Additional Notes](#additional-notes)
-- [Summary](#summary)
+This document provides an exhaustive, detailed guide on how to use the `phidata` package API to create an agent that can be run directly in Python (e.g., `python agent.py`). It specifically addresses how to create a Python ReAct agent with tool calling capabilities, leveraging the package's built-in scaffolding and tools.
 
 ---
 
-## Overview
+## 1. Overview of the API and Key Concepts
 
-The PhiData API provides a flexible framework to create AI agents that can reason and act by calling external tools. These agents are built on top of language models and can be enhanced with various tools to extend their capabilities, such as web search, database queries, or custom APIs.
+The `phidata` package (imported as `agno` in code) provides a modular framework to create AI agents with integrated tool usage. The core components relevant to agent creation are:
 
-The ReAct pattern involves the agent reasoning about a problem, deciding to call a tool to gather information or perform an action, and then using the tool's output to continue reasoning or produce a final response.
-
----
-
-## Key Concepts
-
-- **Agent**: The core AI entity that uses a language model to process instructions and interact with tools.
-- **Model**: The underlying language model used by the agent (e.g., OpenAI GPT-4).
-- **Tools**: External capabilities or APIs that the agent can call to perform specific tasks or fetch information.
-- **Instructions**: The prompt or guidelines that shape the agent's behavior and personality.
-- **Tool Calls**: The mechanism by which the agent invokes tools during its reasoning process.
+- **Agent**: The main class representing an AI agent that can interact with models and tools.
+- **Models**: Language models (e.g., OpenAIChat, Claude) that power the agent's reasoning and responses.
+- **Tools**: External capabilities or APIs the agent can call to fetch information or perform actions.
+- **Instructions**: Text prompts or guidelines that shape the agent's behavior and personality.
+- **Tool Calling**: The ability for the agent to invoke tools dynamically during interaction.
 
 ---
 
-## Creating an Agent with Tools
+## 2. Creating and Running an Agent in Python
 
-To create a ReAct agent with tool calling using the PhiData API, you typically:
+### Minimal Example: Agent with Tools
 
-1. **Import the necessary classes** from the PhiData API:
-   - `Agent` class to create the agent.
-   - A language model class (e.g., `OpenAIChat`).
-   - Tool classes that provide external capabilities.
+The simplest way to create an agent with tool calling is to instantiate the `Agent` class with a model and a list of tools. Then, you can call the agent's method to get responses.
 
-2. **Instantiate the language model** with the desired model ID.
+Example from `cookbook/examples/agents/agent_with_tools.py`:
 
-3. **Define the agent's instructions** to guide its behavior and how it should use tools.
+```python
+from agno.agent import Agent
+from agno.models.anthropic import Claude
+from agno.tools.yfinance import YFinanceTools
 
-4. **Create instances of the tools** you want the agent to use.
+agent = Agent(
+    model=Claude(id="claude-3-7-sonnet-latest"),
+    tools=[YFinanceTools(stock_price=True)],
+    markdown=True,
+)
 
-5. **Create the agent** by passing the model, instructions, and tools.
+agent.print_response("What is the stock price of Apple?", stream=True)
+```
 
-6. **Use the agent to process queries**, optionally streaming the response and showing tool calls.
+- **Model**: Here, `Claude` is used with a specific model ID.
+- **Tools**: `YFinanceTools` is included to enable stock price queries.
+- **Output**: The agent prints a markdown-formatted response, streaming output.
+
+To run this example, save it as `agent.py` and execute:
+
+```bash
+python agent.py
+```
 
 ---
 
-## Example: AI News Reporter Agent
+## 3. Creating a ReAct Agent with Tool Calling
 
-The following example is adapted from the file `cookbook/getting_started/02_agent_with_tools.py` and demonstrates how to create an AI news reporter agent that uses a web search tool (DuckDuckGo) to fetch real-time news and respond with a distinctive personality.
+ReAct (Reasoning + Acting) agents combine reasoning with the ability to call external tools dynamically during the conversation. The `phidata` API supports this pattern by allowing you to:
+
+- Define an agent with a language model.
+- Provide a set of tools the agent can call.
+- Supply instructions that guide the agent's reasoning and tool usage.
+- Enable tool call visibility and markdown formatting for clarity.
+
+### Detailed Example: AI News Reporter Agent
+
+From `cookbook/getting_started/02_agent_with_tools.py`:
 
 ```python
 from textwrap import dedent
-
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.tools.duckduckgo import DuckDuckGoTools
 
-# Create a News Reporter Agent with a fun personality
 agent = Agent(
     model=OpenAIChat(id="gpt-4o"),
     instructions=dedent("""
@@ -100,79 +100,188 @@ agent = Agent(
     markdown=True,
 )
 
-# Example usage
 agent.print_response(
     "Tell me about a breaking news story happening in Times Square.", stream=True
 )
 ```
 
-### Explanation
+**Key points:**
 
-- The agent uses the `OpenAIChat` model with the ID `"gpt-4o"`.
-- The instructions define the agent's personality and how it should use the search tool.
-- The `DuckDuckGoTools` is passed as the tool, enabling the agent to perform web searches.
-- `show_tool_calls=True` enables logging or displaying the tool calls made by the agent.
-- `markdown=True` formats the output in markdown for better readability.
-- The `print_response` method is used to send a query to the agent and stream the response.
-
----
-
-## Agent Configuration Parameters
-
-When creating an `Agent` instance, the following parameters are commonly used:
-
-- `model`: The language model instance (e.g., `OpenAIChat`).
-- `instructions`: A string with detailed instructions or prompt for the agent.
-- `tools`: A list of tool instances that the agent can call.
-- `show_tool_calls`: Boolean to enable showing tool call details.
-- `markdown`: Boolean to enable markdown formatting in responses.
-- Other optional parameters may exist depending on the API version.
+- The agent uses the `OpenAIChat` model with a GPT-4 variant.
+- The `DuckDuckGoTools` tool is provided for web search capabilities.
+- Instructions explicitly guide the agent's reasoning and tool usage.
+- `show_tool_calls=True` enables logging of tool invocations.
+- `markdown=True` formats the output nicely.
+- The agent's `print_response` method supports streaming output.
 
 ---
 
-## Using Tools in the Agent
+## 4. Using Custom Tool Functions with Agents
 
-Tools are external capabilities that the agent can invoke during its reasoning process. The PhiData API provides many pre-built tools (e.g., DuckDuckGo search, SQL tools, Python execution tools) and supports custom tools.
+You can also define custom tool functions that the agent can call. These functions can access the agent's context and perform arbitrary logic.
 
-- Tools are passed as a list to the `Agent` constructor.
-- The agent's instructions should guide when and how to use these tools.
-- The agent internally manages tool calling and integrates tool outputs into its reasoning.
-- Tool calls can be shown or logged for transparency and debugging.
+Example from `cookbook/tools/tool_calls_accesing_agent.py`:
+
+```python
+import json
+import httpx
+from agno.agent import Agent
+
+def get_top_hackernews_stories(agent: Agent) -> str:
+    num_stories = agent.context.get("num_stories", 5) if agent.context else 5
+
+    # Fetch top story IDs
+    response = httpx.get("https://hacker-news.firebaseio.com/v0/topstories.json")
+    story_ids = response.json()
+
+    # Fetch story details
+    stories = []
+    for story_id in story_ids[:num_stories]:
+        story_response = httpx.get(
+            f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
+        )
+        story = story_response.json()
+        if "text" in story:
+            story.pop("text", None)
+        stories.append(story)
+    return json.dumps(stories)
+
+agent = Agent(
+    context={
+        "num_stories": 3,
+    },
+    tools=[get_top_hackernews_stories],
+    markdown=True,
+    show_tool_calls=True,
+)
+
+agent.print_response("What are the top hackernews stories?", stream=True)
+```
+
+- The tool function `get_top_hackernews_stories` is passed as a callable in the `tools` list.
+- The agent can call this function dynamically during interaction.
+- The agent context can be used to pass parameters to the tool.
 
 ---
 
-## Running the Agent
+## 5. Summary of Steps to Create a Python ReAct Agent with Tool Calling
 
-To run the agent:
+1. **Install dependencies** (if not already installed):
 
-1. Instantiate the agent as shown above.
-2. Use methods like `agent.print_response()` or `agent.run()` to send queries.
-3. Optionally enable streaming to get partial outputs as the agent generates them.
-4. Observe tool calls if enabled to understand how the agent interacts with tools.
+   ```bash
+   pip install openai duckduckgo-search agno httpx
+   ```
+
+2. **Import necessary classes and tools**:
+
+   - `Agent` from `agno.agent`
+   - Language model class (e.g., `OpenAIChat`, `Claude`) from `agno.models`
+   - Tools from `agno.tools` or custom tool functions
+
+3. **Define instructions** (optional but recommended) to guide agent behavior.
+
+4. **Create the agent instance** with:
+
+   - `model`: The language model instance.
+   - `tools`: List of tool instances or callable functions.
+   - `instructions`: Text prompt guiding the agent.
+   - `show_tool_calls`: Boolean to enable tool call logging.
+   - `markdown`: Boolean to enable markdown output formatting.
+
+5. **Invoke the agent** using `agent.print_response()` or similar methods, optionally with streaming.
+
+6. **Run the script** directly with Python:
+
+   ```bash
+   python agent.py
+   ```
 
 ---
 
-## Additional Notes
+## 6. Additional References and Resources
 
-- The PhiData API supports many models and tools; you can swap out the model or add multiple tools as needed.
-- The agent can be customized with different instructions to change its behavior and personality.
-- The API supports advanced features like memory, knowledge bases, and multi-agent teams, but the basic ReAct with tool calling is as shown.
-- For asynchronous or more complex workflows, explore other examples in the `cookbook` directory.
+- **Source code examples:**
+
+  - Agent with tools example:  
+    `cookbook/getting_started/02_agent_with_tools.py`  
+    (Shows a ReAct style agent with web search tool)
+
+  - Custom tool function example:  
+    `cookbook/tools/tool_calls_accesing_agent.py`  
+    (Shows how to define and use custom tool functions)
+
+  - Minimal agent with tools example:  
+    `cookbook/examples/agents/agent_with_tools.py`
+
+- **API classes:**
+
+  - `Agent` class: `agno.agent.Agent`  
+    (Core agent class to instantiate and run agents)
+
+  - Models: e.g., `agno.models.openai.OpenAIChat`, `agno.models.anthropic.Claude`  
+    (Language model wrappers)
+
+  - Tools: e.g., `agno.tools.duckduckgo.DuckDuckGoTools`, `agno.tools.yfinance.YFinanceTools`  
+    (Prebuilt tools for external API calls)
+
+- **Online documentation:**  
+  The package likely has online docs at [https://phidata.ai](https://phidata.ai) or GitHub repository (not provided here). Check for README and docs for more detailed usage.
 
 ---
 
-## Summary
+## 7. Example Agent Script for ReAct with Tool Calling
 
-Using the PhiData API, you can create a ReAct agent with tool calling by:
+Save the following as `agent.py` and run with `python agent.py`:
 
-- Importing the `Agent` class and a language model.
-- Defining clear instructions that include how to use tools.
-- Passing a list of tool instances to the agent.
-- Running the agent with queries and optionally streaming responses.
-- Enabling tool call visibility for debugging and transparency.
+```python
+from textwrap import dedent
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.tools.duckduckgo import DuckDuckGoTools
 
-The example in `cookbook/getting_started/02_agent_with_tools.py` provides a concrete, ready-to-run demonstration of an AI news reporter agent that uses the DuckDuckGo search tool to fetch real-time information and respond with a lively personality.
+def main():
+    agent = Agent(
+        model=OpenAIChat(id="gpt-4o"),
+        instructions=dedent("""
+            You are an enthusiastic news reporter with a flair for storytelling! 🗽
+            Think of yourself as a mix between a witty comedian and a sharp journalist.
+
+            Follow these guidelines for every report:
+            1. Start with an attention-grabbing headline using relevant emoji
+            2. Use the search tool to find current, accurate information
+            3. Present news with authentic NYC enthusiasm and local flavor
+            4. Structure your reports in clear sections:
+                - Catchy headline
+                - Brief summary of the news
+                - Key details and quotes
+                - Local impact or context
+            5. Keep responses concise but informative (2-3 paragraphs max)
+            6. Include NYC-style commentary and local references
+            7. End with a signature sign-off phrase
+
+            Remember: Always verify facts through web searches and maintain that authentic NYC energy!
+        """),
+        tools=[DuckDuckGoTools()],
+        show_tool_calls=True,
+        markdown=True,
+    )
+
+    agent.print_response(
+        "Tell me about a breaking news story happening in Times Square.", stream=True
+    )
+
+if __name__ == "__main__":
+    main()
+```
 
 ---
 
-If you need further details on specific tools or advanced agent configurations, the PhiData codebase contains many examples and tool implementations under the `cookbook/tools` and `cookbook/agents_from_scratch` directories.
+# Conclusion
+
+The `phidata` package provides a straightforward and powerful API to create Python agents with ReAct capabilities and tool calling. By combining language models, tools, and clear instructions, you can build agents that reason and act dynamically. The package also supports custom tool functions and streaming responses, making it flexible for various use cases.
+
+Use the provided example scripts as scaffolds to quickly build your own agents and extend them with custom tools as needed.
+
+---
+
+If you need further exploration or examples, please ask!

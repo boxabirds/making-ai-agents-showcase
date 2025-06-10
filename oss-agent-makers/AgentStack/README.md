@@ -1,211 +1,134 @@
-# AgentStack API Usage Guide: Creating a ReAct Agent with Tool Calling
+# AgentStack API Usage Guide for Creating and Running Agents in Python
 
-This document provides an exhaustive guide on how to use the AgentStack API to create a ReAct agent with tool calling capabilities. It explains the core concepts, key classes, and methods, and provides a step-by-step example based on the provided codebase.
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Core Concepts](#core-concepts)
-  - [Agent](#agent)
-  - [Task](#task)
-  - [Tools](#tools)
-  - [Frameworks](#frameworks)
-- [Key API Components](#key-api-components)
-  - [`agentstack` Package](#agentstack-package)
-  - `AgentConfig` Class (Agent Configuration)
-  - Framework Interface and Entrypoint
-  - ToolLoader and Tool Callables
-- [How to Create a ReAct Agent with Tool Calling](#how-to-create-a-react-agent-with-tool-calling)
-  - Step 1: Define Agent Configuration
-  - Step 2: Define Tasks
-  - Step 3: Use Tools
-  - Step 4: Create Agent and Crew Classes
-  - Step 5: Run the Agent
-- [Example: Research Assistant Crew](#example-research-assistant-crew)
-- [Additional Utilities](#additional-utilities)
-- [Summary](#summary)
+This document provides an exhaustive guide on how to use the AgentStack API to create an agent that can be run directly in Python (e.g., `python agent.py`), with a focus on creating a Python ReAct agent with tool calling. The guide includes detailed references to the source code and explains the use of scaffold tools provided by the package.
 
 ---
 
-## Overview
+## 1. Overview of AgentStack Agent Configuration
 
-AgentStack is a Python package designed to facilitate the creation and management of AI agents, tasks, and tools within a project. It supports multiple frameworks and provides utilities to define agents, tasks, and tools declaratively and programmatically.
+### AgentConfig Class (`agentstack/agents.py`)
 
-The API supports the ReAct (Reasoning + Acting) agent pattern, allowing agents to call tools as part of their reasoning process.
+- **Purpose**: Represents an agent configuration stored in a YAML file (`src/config/agents.yaml`).
+- **Usage**: Use as a context manager to load, modify, and save agent configurations.
+- **Key Attributes**:
+  - `name`: Agent's unique name.
+  - `role`: The role of the agent.
+  - `goal`: The agent's goal.
+  - `backstory`: Background story for the agent.
+  - `llm`: The language model identifier (e.g., `openai/gpt-4o`).
 
----
-
-## Core Concepts
-
-### Agent
-
-An **Agent** represents an autonomous AI entity with a defined role, goal, and backstory. Agents can use tools to perform actions and complete tasks.
-
-- Agents are configured via YAML files (`src/config/agents.yaml`).
-- The `AgentConfig` class provides an interface to read, write, and manage agent configurations.
-- Agents are implemented as methods decorated with `@agentstack.agent` or framework-specific decorators.
-
-### Task
-
-A **Task** represents a unit of work or action that an agent can perform.
-
-- Tasks are also configured via YAML files (`src/config/tasks.yaml`).
-- Tasks are implemented as methods decorated with `@agentstack.task`.
-
-### Tools
-
-**Tools** are callable functions or modules that agents can invoke to perform specific actions (e.g., web scraping, querying databases).
-
-- Tools are accessed via the `agentstack.tools` interface.
-- Tools are wrapped with framework-specific decorators and optionally with `agentops` event recording.
-- Tools can be added or removed from agents programmatically.
-
-### Frameworks
-
-AgentStack supports multiple frameworks (e.g., `crewai`, `langgraph`, `openai_swarm`, `llamaindex`).
-
-- Frameworks define how agents, tasks, and tools are integrated into the user's project.
-- The framework module handles code generation, validation, and wrapping of tools.
-- The active framework is determined by the project configuration.
-
----
-
-## Key API Components
-
-### `agentstack` Package
-
-The `agentstack` package exposes the public API for interacting with agents, tasks, tools, and frameworks.
-
-- Decorators: `@agent` and `@task` mark methods as agents or tasks.
-- Functions to get agents, tasks, and their names.
-- `tools` object to access tool callables by name.
-
-**Example from `agentstack/__init__.py`:**
+### Example Usage
 
 ```python
-from agentstack.agents import get_agent, get_all_agents, get_all_agent_names
-from agentstack.tasks import get_task, get_all_tasks, get_all_task_names
-from agentstack.utils import get_framework
-from agentstack import conf, frameworks
+from agentstack.agents import AgentConfig
 
-def agent(func):
-    def wrap(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrap
-
-def task(func):
-    def wrap(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrap
-
-class ToolLoader:
-    def __getitem__(self, tool_name: str) -> list[Callable]:
-        return frameworks.get_tool_callables(tool_name)
-
-tools = ToolLoader()
-```
-
-### `AgentConfig` Class (Agent Configuration)
-
-Located in `agentstack/agents.py`, this class manages agent configurations stored in YAML.
-
-- Load agent config by name.
-- Properties: `provider`, `model`, `prompt`.
-- Context manager support for editing and saving.
-- Example usage:
-
-```python
-with AgentConfig('researcher') as config:
+with AgentConfig('agent_name') as config:
     config.llm = "openai/gpt-4o"
+    config.role = "Research Assistant"
+    config.goal = "Help with AI research"
+    config.backstory = "Experienced AI researcher"
 ```
 
-### Framework Interface and Entrypoint
+- The agent configurations are persisted automatically on exiting the context manager.
+- The class also provides properties to parse the LLM provider and model.
 
-Located in `agentstack/frameworks/__init__.py`, this module defines the interface for framework modules.
+---
 
-- Framework modules implement methods to add agents, tasks, tools.
-- They provide entrypoint file handling, validation, and tool wrapping.
-- Tools are wrapped with `agentops` event recording and framework-specific decorators.
+## 2. Creating and Adding an Agent Programmatically
 
-### ToolLoader and Tool Callables
+### `add_agent` Function (`agentstack/generation/agent_generation.py`)
 
-- Tools are accessed via `agentstack.tools[tool_name]`.
-- Returns a list of callable functions wrapped for the active framework.
-- Example:
+- **Purpose**: Adds a new agent to the user's project.
+- **Parameters**:
+  - `name`: Agent name.
+  - `role`, `goal`, `backstory`: Optional descriptive fields.
+  - `llm`: Optional LLM model string.
+  - `allow_delegation`: Currently not implemented.
+  - `position`: Optional insertion point in the codebase.
+
+### How it Works
+
+- Validates the project.
+- Loads or creates an `AgentConfig`.
+- Sets the agent's properties.
+- Delegates to the framework-specific `add_agent` method to update the codebase.
+- Logs success or raises validation errors.
+
+### Example Usage
 
 ```python
-tool_funcs = agentstack.tools["firecrawl"]
-for func in tool_funcs:
-    result = func(...)
+from agentstack.generation.agent_generation import add_agent
+
+add_agent(
+    name="research_agent",
+    role="Research Assistant",
+    goal="Assist with research tasks",
+    backstory="Experienced in AI and ML",
+    llm="openai/gpt-4o"
+)
 ```
 
 ---
 
-## How to Create a ReAct Agent with Tool Calling
+## 3. Framework Abstraction and Code Generation
 
-### Step 1: Define Agent Configuration
+### Framework Modules (`agentstack/frameworks/__init__.py`)
 
-Create or update an agent configuration in `src/config/agents.yaml` with fields:
+- AgentStack supports multiple frameworks (e.g., `crewai`, `langgraph`, `openai_swarm`, `llamaindex`).
+- Each framework module implements:
+  - Validation of the project structure.
+  - Adding agents, tasks, and tools.
+  - Wrapping tool functions for integration.
+  - Managing the codebase's entrypoint file (usually a Python file with a base class defining agents and tasks).
 
-- `name`: Agent name (e.g., "researcher")
-- `role`: Agent role description
-- `goal`: Agent goal
-- `backstory`: Agent backstory
-- `llm`: Language model identifier (e.g., "openai/gpt-4o")
+### Entrypoint File Handling
 
-Use `AgentConfig` to programmatically manage this config.
+- The base class in the entrypoint file (e.g., `UserStack`) contains:
+  - Methods decorated with `@agentstack.agent` (agents).
+  - Methods decorated with `@agentstack.task` (tasks).
+  - A `run` method accepting `inputs`.
 
-### Step 2: Define Tasks
+- The framework module can:
+  - Add new agent methods.
+  - Add new task methods.
+  - Modify the list of tools an agent uses.
 
-Define tasks similarly in `src/config/tasks.yaml` and manage via `TaskConfig` (not shown in detail here but analogous to `AgentConfig`).
+---
 
-### Step 3: Use Tools
+## 4. Creating a Python ReAct Agent with Tool Calling
 
-Add tools to your agent by referencing them via `agentstack.tools[tool_name]`.
+### Using Scaffold Tools (`examples/howards_agent/src/crew.py`)
 
-Tools are callable functions that the agent can invoke during execution.
+- The `crewai` framework is used as an example.
+- Define a crew class decorated with `@CrewBase`.
+- Define agents with the `@agent` decorator.
+- Define tasks with the `@task` decorator.
+- Define the crew with the `@crew` decorator, specifying agents, tasks, and process type.
 
-### Step 4: Create Agent and Crew Classes
-
-Define your agent and tasks as methods decorated with `@agent` and `@task` inside a class decorated with `@CrewBase` (from the framework, e.g., `crewai`).
-
-Example from `examples/research_assistant/src/crew.py`:
+### Example Crew Definition
 
 ```python
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
-import agentstack
+import tools
 
 @CrewBase
-class ResearchassistantCrew:
-
+class HowardsagentCrew():
     @agent
-    def researcher(self) -> Agent:
+    def agent1(self) -> Agent:
         return Agent(
-            config=self.agents_config["researcher"],
-            tools=[
-                *agentstack.tools["firecrawl"],
-            ],
-            verbose=True,
-        )
-
-    @agent
-    def web_scraper(self) -> Agent:
-        return Agent(
-            config=self.agents_config["web_scraper"],
-            tools=[
-                *agentstack.tools["agentql"],
-            ],
-            verbose=True,
+            config=self.agents_config['agent1'],
+            tools=[*tools.composio_tools],  # Tools for the agent
+            verbose=True
         )
 
     @task
-    def research(self) -> Task:
-        return Task(
-            config=self.tasks_config["research"],
-        )
+    def new_task(self) -> Task:
+        return Task(config=self.tasks_config['new_task'])
+
+    @task
+    def task1(self) -> Task:
+        return Task(config=self.tasks_config['task1'])
 
     @crew
     def crew(self) -> Crew:
@@ -217,64 +140,90 @@ class ResearchassistantCrew:
         )
 ```
 
-### Step 5: Run the Agent
+### Tools Integration (`examples/howards_agent/src/tools/composio_tool.py`)
 
-Use the entrypoint script to initialize and run the crew.
+- Tools are imported and passed to agents.
+- Example uses `ComposioToolSet` with `App.CODEINTERPRETER`.
+- Tools enable the agent to perform actions beyond text generation.
 
-Example from `examples/research_assistant/src/main.py`:
+---
+
+## 5. Running the Agent Locally
+
+### Example Main Script (`examples/howards_agent/src/main.py`)
+
+- Initialize the environment and AgentOps.
+- Create an instance of the crew.
+- Kick off the crew with input parameters.
 
 ```python
-import agentstack
+#!/usr/bin/env python
+import sys
+from crew import HowardsagentCrew
 import agentops
-from crew import ResearchassistantCrew
+from dotenv import load_dotenv
 
-agentops.init(default_tags=agentstack.get_tags())
-
-instance = ResearchassistantCrew().crew()
+load_dotenv()
+agentops.init(default_tags=['howards_agent', 'agentstack'])
 
 def run():
-    instance.kickoff(inputs=agentstack.get_inputs())
+    inputs = {'topic': 'AI LLMs'}
+    HowardsagentCrew().crew().kickoff(inputs=inputs)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()
 ```
 
----
-
-## Example: Research Assistant Crew
-
-- Defines three agents: `researcher`, `web_scraper`, and `analyst`.
-- Each agent is configured with specific tools (e.g., `"firecrawl"`, `"agentql"`).
-- Defines tasks: `research`, `scrape_site`, `analyze`.
-- Creates a crew that runs agents and tasks sequentially.
-
-This example demonstrates how to combine agents, tasks, and tools into a working ReAct agent system.
+- Run the agent with `python main.py`.
 
 ---
 
-## Additional Utilities
+## 6. Summary of Key API Components
 
-- `agentstack.get_tags()`: Returns tags relevant to the project and framework.
-- `agentstack.get_agent(name)`: Load an agent configuration by name.
-- `agentstack.get_all_agents()`: List all agent configurations.
-- `agentstack.add_tool(tool, agent_name)`: Add a tool to an agent programmatically.
-- `agentstack.remove_tool(tool, agent_name)`: Remove a tool from an agent.
-- `agentstack.validate_project()`: Validate the project setup for the active framework.
-
----
-
-## Summary
-
-To create a ReAct agent with tool calling using AgentStack:
-
-1. Define your agents and tasks in YAML config files or programmatically using `AgentConfig` and `TaskConfig`.
-2. Use the `@agent` and `@task` decorators to define agent and task methods inside a `@CrewBase` class.
-3. Assign tools to agents by accessing them via `agentstack.tools[tool_name]`.
-4. Create a crew that orchestrates agents and tasks.
-5. Run the crew using the provided entrypoint script, initializing `agentops` and passing inputs.
-
-This approach leverages AgentStack's framework abstraction, tool wrapping, and configuration management to build powerful ReAct agents capable of tool calling.
+| Component               | Location                                   | Description                                                                                   |
+|------------------------|--------------------------------------------|-----------------------------------------------------------------------------------------------|
+| `AgentConfig`          | `agentstack/agents.py`                      | Load, edit, and save agent configurations stored in YAML.                                    |
+| `add_agent`            | `agentstack/generation/agent_generation.py`| Add a new agent to the project, updating config and codebase.                                |
+| Framework modules      | `agentstack/frameworks/`                    | Handle framework-specific code generation and validation.                                    |
+| Crew and Agent classes | `examples/howards_agent/src/crew.py`        | Define agents, tasks, and crew using decorators for easy scaffolding.                        |
+| Tools                  | `examples/howards_agent/src/tools/`          | Define and import tools to extend agent capabilities.                                        |
+| Main script            | `examples/howards_agent/src/main.py`         | Run the agent locally with input parameters.                                                 |
 
 ---
 
-If you need further details on any specific part of the API or example code, please ask!
+## 7. Additional Notes
+
+- The framework abstraction allows switching between different agent execution frameworks with minimal code changes.
+- The `agentstack` CLI provides commands to generate agents and tasks, which internally use the same API (`add_agent` etc.).
+- Tools are wrapped with `agentops` events for telemetry and integrated with the framework's decorators.
+- The project expects a certain structure in the entrypoint file, including a base class with decorated methods for agents and tasks.
+
+---
+
+## 8. References to Source Code
+
+- Agent configuration and persistence: [`agentstack/agents.py`](output/cache/AgentOps-AI/AgentStack/agentstack/agents.py) (lines 1-150)
+- Adding agents programmatically: [`agentstack/generation/agent_generation.py`](output/cache/AgentOps-AI/AgentStack/agentstack/generation/agent_generation.py) (lines 1-50)
+- Framework abstraction and code generation: [`agentstack/frameworks/__init__.py`](output/cache/AgentOps-AI/AgentStack/agentstack/frameworks/__init__.py) (lines 1-300+)
+- Example crew and agent definition: [`examples/howards_agent/src/crew.py`](output/cache/AgentOps-AI/AgentStack/examples/howards_agent/src/crew.py) (lines 1-60)
+- Example tools integration: [`examples/howards_agent/src/tools/composio_tool.py`](output/cache/AgentOps-AI/AgentStack/examples/howards_agent/src/tools/composio_tool.py) (lines 1-10)
+- Example main script to run agent: [`examples/howards_agent/src/main.py`](output/cache/AgentOps-AI/AgentStack/examples/howards_agent/src/main.py) (lines 1-50)
+
+---
+
+# Conclusion
+
+To create and run an agent directly in Python using AgentStack:
+
+1. Define your agent configuration using `AgentConfig` or the `add_agent` API.
+2. Use the framework abstraction to scaffold agent and task methods in your project.
+3. Define a crew class with agents and tasks using decorators (`@agent`, `@task`, `@crew`).
+4. Integrate tools to enable tool calling within your agent.
+5. Use a main script to instantiate and run your crew with input parameters.
+6. Run the script with `python agent.py` or equivalent.
+
+This approach leverages scaffold tools and framework abstractions to minimize hand-coding and ensure consistency across projects.
+
+If you want to create a Python ReAct agent with tool calling, the `crewai` framework example (`examples/howards_agent`) is a practical starting point, demonstrating how to define agents with tools and run them locally.
+
+For more detailed usage, refer to the source files and the inline comments provided in the codebase.

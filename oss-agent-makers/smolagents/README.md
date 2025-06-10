@@ -1,200 +1,214 @@
-# smolagents API Usage for Creating a ReAct Agent with Tool Calling
+# Comprehensive Guide to Using the `smolagents` API for Creating and Running Agents in Python
 
-This document provides an exhaustive guide on how to use the `smolagents` package API to create a ReAct agent with tool calling capabilities. It explains the relevant classes, their usage, and provides example code snippets to help you get started quickly.
+This document provides an exhaustive, detailed guide on how to use the `smolagents` package API to create agents that can be run directly in Python, including how to create a Python ReAct agent with tool calling. It includes references to source code and example scripts found in the package, as well as explanations of key classes and methods.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Key Classes for ReAct Agents](#key-classes-for-react-agents)
-  - [MultiStepAgent (Base Class)](#multistepagent-base-class)
-  - [ToolCallingAgent](#toolcallingagent)
-  - [CodeAgent](#codeagent)
-- [Creating Tools](#creating-tools)
-- [Using ToolCallingAgent to Create a ReAct Agent with Tool Calling](#using-toolcallingagent-to-create-a-react-agent-with-tool-calling)
-- [Example: Creating and Running a ToolCallingAgent](#example-creating-and-running-a-toolcallingagent)
-- [Additional Features](#additional-features)
-- [Summary](#summary)
+1. [Overview of the `smolagents` Package](#overview)
+2. [Creating and Running an Agent in Python](#creating-running-agent)
+3. [Creating a Python ReAct Agent with Tool Calling](#react-agent-tool-calling)
+4. [Key Classes and Components](#key-classes)
+5. [Example Scripts and Usage](#examples)
+6. [Saving and Sharing Agents](#saving-sharing)
+7. [References to Source Code and Documentation](#references)
 
 ---
 
-## Overview
+<a name="overview"></a>
+## 1. Overview of the `smolagents` Package
 
-The `smolagents` package provides a framework to build multi-step agents that follow the ReAct (Reasoning + Acting) paradigm. These agents can interact with external tools or managed agents to perform complex tasks by iteratively generating actions and observing results.
+`smolagents` is a Python package designed to facilitate the creation of intelligent agents that interact with language models (LLMs) and tools in a ReAct (Reasoning + Acting) framework. It supports multiple agent types, including:
 
-Two main agent classes support tool calling:
+- **MultiStepAgent**: Base class for agents that solve tasks step-by-step.
+- **ToolCallingAgent**: Agent that uses JSON-like tool calls leveraging LLM tool calling capabilities.
+- **CodeAgent**: Agent that formulates tool calls as code snippets, parses, and executes them.
 
-- **ToolCallingAgent**: Uses JSON-like tool calls leveraging the LLM's native tool calling capabilities.
-- **CodeAgent**: Uses code-formatted tool calls parsed and executed by a Python executor.
-
-This document focuses on how to create a ReAct agent with tool calling using the `ToolCallingAgent` class.
-
----
-
-## Key Classes for ReAct Agents
-
-### MultiStepAgent (Base Class)
-
-- Abstract base class for agents that solve tasks step-by-step using the ReAct framework.
-- Manages tools, models, prompt templates, memory, logging, and execution flow.
-- Supports streaming outputs and planning steps.
-- Defines the core interface and lifecycle for agent execution.
-
-**Key methods:**
-
-- `run(task: str, stream: bool = False, ...)`: Run the agent on a given task.
-- `write_memory_to_messages()`: Convert agent memory to messages for LLM input.
-- `initialize_system_prompt()`: Abstract method to define the system prompt.
-- `_step_stream()`: Abstract method to perform one step of the agent (to be implemented by subclasses).
-- `execute_tool_call(tool_name, arguments)`: Execute a tool or managed agent call with arguments.
-
-### ToolCallingAgent
-
-- Subclass of `MultiStepAgent`.
-- Uses the LLM's tool calling API (`model.get_tool_call`) to generate JSON-like tool calls.
-- Supports streaming outputs if the model supports `generate_stream`.
-- Automatically parses tool calls from the model output and executes the corresponding tool.
-- Handles final answers via a special `final_answer` tool call.
-
-**Constructor arguments:**
-
-- `tools`: List of `Tool` instances the agent can use.
-- `model`: The LLM model instance.
-- `prompt_templates`: Optional prompt templates (defaults to `toolcalling_agent.yaml`).
-- `planning_interval`: Optional interval for planning steps.
-- `stream_outputs`: Whether to stream outputs during execution (default `False`).
-- Additional keyword arguments passed to `MultiStepAgent`.
-
-**Key methods:**
-
-- `initialize_system_prompt()`: Populates the system prompt with tools and managed agents.
-- `_step_stream(memory_step)`: Implements the ReAct step with tool calling and streaming.
-- `execute_tool_call(tool_name, arguments)`: Executes the tool or managed agent with argument substitution.
-
-### CodeAgent
-
-- Another subclass of `MultiStepAgent`.
-- Uses code-formatted tool calls generated by the LLM.
-- Parses and executes code snippets using a Python executor (local, Docker, or remote).
-- Supports structured outputs and streaming.
-- More complex but flexible for code-based tool calls.
+The package also provides utilities for tools, memory management, monitoring, and integration with various LLM backends.
 
 ---
 
-## Creating Tools
+<a name="creating-running-agent"></a>
+## 2. Creating and Running an Agent in Python
 
-Tools are Python functions decorated with `@tool` from `smolagents`. These functions define the interface and logic for external capabilities the agent can call.
+### Basic Steps to Create and Run an Agent
 
-Example tool definition:
+1. **Import the necessary classes and tools** from `smolagents`.
+2. **Define or import tools** that the agent can use.
+3. **Instantiate a model** compatible with `smolagents` (e.g., `InferenceClientModel`, `TransformersModel`, `OpenAIServerModel`).
+4. **Create an agent instance** (e.g., `CodeAgent` or `ToolCallingAgent`) with the model and tools.
+5. **Run the agent** on a task using the `.run()` method.
+
+### Example (from `examples/agent_from_any_llm.py`):
 
 ```python
-from smolagents import tool
+from smolagents import CodeAgent, ToolCallingAgent, InferenceClientModel, tool
 
+# Define a simple tool
 @tool
 def get_weather(location: str, celsius: bool | None = False) -> str:
-    """
-    Get the current weather at the given location.
+    return "The weather is UNGODLY with torrential rains and temperatures below -10°C"
 
-    Args:
-        location: City name.
-        celsius: Return temperature in Celsius if True, Fahrenheit otherwise.
+# Instantiate a model (choose your inference backend)
+model = InferenceClientModel(model_id="meta-llama/Llama-3.3-70B-Instruct", provider="nebius")
 
-    Returns:
-        A string describing the current weather.
-    """
-    # Implementation here...
-    return "Sunny, 25°C"
+# Create a ToolCallingAgent
+agent = ToolCallingAgent(tools=[get_weather], model=model, verbosity_level=2)
+
+# Run the agent on a task
+print("ToolCallingAgent:", agent.run("What's the weather like in Paris?"))
+
+# Create a CodeAgent with streaming output enabled
+agent = CodeAgent(tools=[get_weather], model=model, verbosity_level=2, stream_outputs=True)
+
+print("CodeAgent:", agent.run("What's the weather like in Paris?"))
 ```
 
-Tools must be passed as a list to the agent constructor.
+- Save this script as `agent.py`.
+- Run it directly with `python agent.py`.
 
 ---
 
-## Using ToolCallingAgent to Create a ReAct Agent with Tool Calling
+<a name="react-agent-tool-calling"></a>
+## 3. How to Create a Python ReAct Agent with Tool Calling
 
-1. **Import necessary classes:**
+The `ToolCallingAgent` class is designed to leverage LLMs' tool calling capabilities using JSON-like calls. This is the recommended way to create a ReAct agent with tool calling.
 
-```python
-from smolagents import ToolCallingAgent, tool, InferenceClientModel
-```
+### Key Points:
 
-2. **Define your tools using the `@tool` decorator.**
+- The agent uses the model's `get_tool_call` method to parse tool calls.
+- Tools are passed as a list of `Tool` instances decorated with `@tool`.
+- The agent supports streaming outputs if the model supports `generate_stream`.
+- The system prompt and planning prompts are loaded from a YAML template (`toolcalling_agent.yaml`).
 
-3. **Instantiate your LLM model:**
-
-```python
-model = InferenceClientModel()
-```
-
-4. **Create the agent with the tools and model:**
+### Minimal Example:
 
 ```python
-agent = ToolCallingAgent(
-    tools=[get_weather, other_tools...],
-    model=model,
-    stream_outputs=True,  # Optional: enable streaming if supported
-    planning_interval=5,  # Optional: run planning every 5 steps
-)
-```
+from smolagents import ToolCallingAgent, InferenceClientModel, tool
 
-5. **Run the agent on a task:**
+@tool
+def get_weather(location: str) -> str:
+    return f"Weather at {location} is sunny."
 
-```python
-result = agent.run("What's the weather like in Paris?")
+model = InferenceClientModel(model_id="your-model-id")
+
+agent = ToolCallingAgent(tools=[get_weather], model=model)
+
+result = agent.run("What's the weather in New York?")
 print(result)
 ```
 
----
+### How It Works Internally (Reference: `src/smolagents/agents.py` lines ~400-600):
 
-## Example: Creating and Running a ToolCallingAgent
-
-Below is a minimal example adapted from the package's examples:
-
-```python
-from smolagents import ToolCallingAgent, tool, InferenceClientModel
-
-@tool
-def get_weather(location: str, celsius: bool | None = False) -> str:
-    return f"The weather in {location} is sunny and 25°C."
-
-# Instantiate the model
-model = InferenceClientModel()
-
-# Create the agent with the tool and model
-agent = ToolCallingAgent(
-    tools=[get_weather],
-    model=model,
-    stream_outputs=True,
-    verbosity_level=2,
-)
-
-# Run the agent on a query
-print(agent.run("What's the weather like in Paris?"))
-```
+- The `_step_stream` method sends the conversation history to the model.
+- The model returns a JSON-like tool call.
+- The agent parses the tool call and executes the corresponding tool.
+- Observations or final answers are yielded back to the caller.
 
 ---
 
-## Additional Features
+<a name="key-classes"></a>
+## 4. Key Classes and Components
 
-- **Streaming:** If the model supports `generate_stream`, the agent can stream intermediate outputs.
-- **Planning Steps:** The agent can run planning steps at intervals to update its plan.
-- **Managed Agents:** The agent can call other managed agents as tools.
-- **Saving and Loading:** Agents can be saved to disk or loaded from the HuggingFace Hub.
-- **Logging and Visualization:** Rich logging and visualization of agent steps and memory.
-- **Final Answer Validation:** Custom validation functions can be provided to check final answers.
+### 4.1 `MultiStepAgent` (Base Class)
+
+- Abstract base class for agents that solve tasks step-by-step.
+- Manages tools, memory, planning, and execution steps.
+- Implements `.run()` method to execute the agent on a task.
+- Supports streaming and non-streaming modes.
+- Reference: `src/smolagents/agents.py` lines 50-350.
+
+### 4.2 `ToolCallingAgent`
+
+- Subclass of `MultiStepAgent`.
+- Uses LLM tool calling capabilities with JSON-like calls.
+- Loads prompt templates from `toolcalling_agent.yaml`.
+- Supports streaming outputs.
+- Reference: `src/smolagents/agents.py` lines 400-600.
+
+### 4.3 `CodeAgent`
+
+- Subclass of `MultiStepAgent`.
+- Tool calls are formulated as code snippets by the LLM.
+- Parses and executes code using a Python executor (local, Docker, or remote).
+- Supports structured outputs and streaming.
+- Reference: `src/smolagents/agents.py` lines 600-900.
+
+### 4.4 `Tool` and `@tool` Decorator
+
+- Tools are Python functions decorated with `@tool`.
+- They define the interface and logic for callable tools.
+- Tools are passed to agents to enable tool usage.
+- Reference: `src/smolagents/tools.py` (not fully shown here).
 
 ---
 
-## Summary
+<a name="examples"></a>
+## 5. Example Scripts and Usage
 
-- Use `ToolCallingAgent` to create a ReAct agent that leverages LLM tool calling.
-- Define tools as Python functions decorated with `@tool`.
-- Provide a compatible LLM model instance.
-- Instantiate the agent with tools and model, optionally enabling streaming and planning.
-- Run the agent with `agent.run(task)` to get the final answer.
-- The agent handles parsing tool calls, executing tools, and managing memory internally.
+### 5.1 `examples/agent_from_any_llm.py`
+
+- Demonstrates creating agents from various LLM backends.
+- Shows usage of `ToolCallingAgent` and `CodeAgent`.
+- Defines a simple `get_weather` tool.
+- Shows how to run agents and print results.
+
+### 5.2 `examples/multiple_tools.py`
+
+- Shows how to define multiple tools (weather, currency conversion, news, jokes, etc.).
+- Demonstrates creating a `CodeAgent` with multiple tools.
+- Example usage of `.run()` with different queries.
+- Shows commented-out example for `ToolCallingAgent` usage.
 
 ---
 
-This concludes the detailed guide on using the `smolagents` API to create a ReAct agent with tool calling. For more advanced usage, refer to the `CodeAgent` class and the examples provided in the package.
+<a name="saving-sharing"></a>
+## 6. Saving and Sharing Agents
+
+The `MultiStepAgent` class supports saving and loading agents:
+
+- `.save(output_dir)` saves the agent's code, tools, managed agents, prompts, and requirements.
+- `.from_folder(folder)` loads an agent from a saved folder.
+- `.push_to_hub(repo_id, ...)` uploads the agent to the Hugging Face Hub as a Space.
+
+This enables easy sharing and deployment of agents.
+
+Reference: `src/smolagents/agents.py` lines 300-400.
+
+---
+
+<a name="references"></a>
+## 7. References to Source Code and Documentation
+
+- **Agent Base and Implementations**: `src/smolagents/agents.py`
+  - `MultiStepAgent` class: lines 50-350
+  - `ToolCallingAgent` class: lines 400-600
+  - `CodeAgent` class: lines 600-900
+- **Example Usage**:
+  - `examples/agent_from_any_llm.py`
+  - `examples/multiple_tools.py`
+- **Package Initialization**: `src/smolagents/__init__.py` (imports all key modules)
+- **Prompt Templates**: Loaded from YAML files in `smolagents.prompts` (e.g., `toolcalling_agent.yaml`)
+- **Tool Decorator and Tool Classes**: `src/smolagents/tools.py` (not fully shown here)
+- **Model Interfaces**: `src/smolagents/models.py` (not fully shown here)
+- **Memory and Monitoring**: `src/smolagents/memory.py`, `src/smolagents/monitoring.py`
+
+---
+
+# Summary
+
+To create and run an agent directly in Python:
+
+- Import `smolagents` classes and tools.
+- Define your tools with `@tool`.
+- Instantiate a compatible LLM model.
+- Create an agent instance (`ToolCallingAgent` for JSON tool calls or `CodeAgent` for code-based tool calls).
+- Call `.run()` on your task.
+- Optionally, save or push your agent for reuse or deployment.
+
+The `ToolCallingAgent` is the recommended approach for creating a Python ReAct agent with tool calling, leveraging modern LLM tool call capabilities.
+
+---
+
+If you want, I can help generate a minimal runnable `agent.py` script based on this package for your specific use case.

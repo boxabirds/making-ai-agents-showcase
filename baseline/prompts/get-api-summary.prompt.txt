@@ -1,4 +1,10 @@
 Prepare a markdown document that a language model can use that describes in 
-exhaustive detail precisely how to use the API this package provides. 
-It answers the question "How can I use this API to create a ReAct agent
-with tool calling?"
+exhaustive detail precisely how to 
+1. Use the API this package provides to 
+create an agent that can be run directly in python, e.g. "python agent.py". 
+2. Answering the question "How can I use this API to create a Python ReAct agent
+with tool calling?" 
+3. It must include extensive grounding in the form of references to either source code or URLs to docs online. 
+4. Use specialist tools when provided: some tools provide scaffold tools that make light work of creating a new
+agent, so they should definitely be chosen as part of the guide rather than
+necessarily hand-coding everything. 

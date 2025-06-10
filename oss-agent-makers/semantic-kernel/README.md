@@ -1,237 +1,413 @@
-# How to Use the Microsoft Semantic Kernel API to Create a ReAct Agent with Tool Calling
+# Comprehensive Guide to Creating and Running a Python ReAct Agent with Tool Calling Using Microsoft Semantic Kernel
 
-This document provides an exhaustive, detailed guide on how to use the Microsoft Semantic Kernel API to create a ReAct (Reasoning and Acting) agent with tool calling capabilities. The analysis is based on the official sample `Step04_KernelFunctionStrategies.cs` from the Semantic Kernel repository, which demonstrates advanced agent orchestration using kernel function strategies.
-
----
-
-## Overview
-
-The Semantic Kernel API allows you to create intelligent agents that can reason and act by invoking tools (functions) dynamically during a conversation or task execution. The key components involved in creating a ReAct agent with tool calling are:
-
-- **Agents**: Represent AI personas or roles with specific instructions and capabilities.
-- **AgentGroupChat**: Manages multi-agent conversations and orchestrates turn-taking.
-- **KernelFunctionTerminationStrategy**: Defines when the agent conversation or task should terminate based on a kernel function.
-- **KernelFunctionSelectionStrategy**: Defines how to select the next agent to act based on a kernel function.
-- **KernelFunction**: Represents a prompt-based function that can be invoked by the kernel.
-- **ChatHistoryTruncationReducer**: Limits the chat history size to optimize token usage.
-- **ChatMessageContent**: Represents messages exchanged in the chat.
+This document provides an exhaustive, detailed guide on how to use the Microsoft Semantic Kernel Python package to create an agent that can be run directly in Python (e.g., `python agent.py`). It specifically addresses how to create a Python ReAct agent with tool calling capabilities, leveraging the Semantic Kernel API and its scaffolding tools.
 
 ---
 
-## Step-by-Step Guide to Create a ReAct Agent with Tool Calling
+## Table of Contents
 
-### 1. Define Agents with Instructions and Kernel
+1. [Overview of Semantic Kernel Agent API](#overview-of-semantic-kernel-agent-api)
+2. [Creating and Running a Basic Agent in Python](#creating-and-running-a-basic-agent-in-python)
+3. [Creating a Python ReAct Agent with Tool Calling](#creating-a-python-react-agent-with-tool-calling)
+4. [Using Scaffolding Tools and Declarative Agent Creation](#using-scaffolding-tools-and-declarative-agent-creation)
+5. [References to Source Code and Documentation](#references-to-source-code-and-documentation)
 
-Agents are defined with a name, instructions (persona), and a kernel instance that provides the AI capabilities (e.g., chat completion).
+---
 
-```csharp
-ChatCompletionAgent agentReviewer = new()
-{
-    Instructions = ReviewerInstructions,
-    Name = ReviewerName,
-    Kernel = this.CreateKernelWithChatCompletion(useChatClient, out var chatClient1),
-};
+## Overview of Semantic Kernel Agent API
 
-ChatCompletionAgent agentWriter = new()
-{
-    Instructions = CopyWriterInstructions,
-    Name = CopyWriterName,
-    Kernel = this.CreateKernelWithChatCompletion(useChatClient, out var chatClient2),
-};
+The Semantic Kernel Python package provides a rich API to create, manage, and run AI agents. The core runtime for in-process agent execution is implemented in:
+
+- `semantic_kernel/agents/runtime/in_process/in_process_runtime.py`
+
+This module defines the `InProcessRuntime` class, which manages message passing, agent instantiation, and message processing asynchronously using Python's `asyncio`.
+
+Key features of the runtime include:
+
+- Registering agent factories to create agents dynamically.
+- Sending and publishing messages to agents.
+- Managing subscriptions and message queues.
+- Handling agent lifecycle (start, stop, save/load state).
+- Support for intervention handlers to intercept messages.
+
+The runtime processes messages concurrently but ensures ordered delivery per message queue.
+
+---
+
+## Creating and Running a Basic Agent in Python
+
+The package provides sample code demonstrating how to create and run an agent using the Azure OpenAI assistant agent as an example.
+
+### Example: Basic OpenAI Assistant Agent
+
+File: `samples/getting_started_with_agents/openai_assistant/step1_assistant.py`
+
+This example shows how to:
+
+1. Create an Azure OpenAI client.
+2. Create an assistant definition on the Azure OpenAI service.
+3. Instantiate an `AzureAssistantAgent` with the client and definition.
+4. Interact with the agent by sending user inputs and receiving responses.
+5. Manage conversation threads automatically.
+
+```python
+import asyncio
+from semantic_kernel.agents import AssistantAgentThread, AzureAssistantAgent
+from semantic_kernel.connectors.ai.open_ai import AzureOpenAISettings
+
+USER_INPUTS = [
+    "Why is the sky blue?",
+    "What is the speed of light?",
+    "What have we been talking about?",
+]
+
+async def main():
+    client = AzureAssistantAgent.create_client()
+    definition = await client.beta.assistants.create(
+        model=AzureOpenAISettings().chat_deployment_name,
+        instructions="Answer questions about the world in one sentence.",
+        name="Assistant",
+    )
+    agent = AzureAssistantAgent(client=client, definition=definition)
+    thread = None
+
+    try:
+        for user_input in USER_INPUTS:
+            print(f"# User: '{user_input}'")
+            response = await agent.get_response(messages=user_input, thread=thread)
+            print(f"# {response.name}: {response}")
+            thread = response.thread
+    finally:
+        await thread.delete() if thread else None
+        await agent.client.beta.assistants.delete(assistant_id=agent.id)
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-- `ReviewerInstructions` and `CopyWriterInstructions` are prompt instructions defining the role and behavior of each agent.
-- `CreateKernelWithChatCompletion` is a helper method to create a kernel with chat completion capabilities, optionally returning a chat client.
+**How to run:** Save as `agent.py` and run `python agent.py`.
 
-### 2. Create Kernel Functions for Termination and Selection Strategies
+---
 
-Kernel functions are prompt-based functions used to decide when to terminate the conversation and which agent should act next.
+## Creating a Python ReAct Agent with Tool Calling
 
-```csharp
-KernelFunction terminationFunction = AgentGroupChat.CreatePromptFunctionForStrategy(
-    """
-    Determine if the copy has been approved.  If so, respond with a single word: yes
+ReAct (Reasoning + Acting) agents combine reasoning with tool usage (function calling). Semantic Kernel supports this pattern by allowing agents to call functions/plugins as tools during conversation.
 
-    History:
-    {{$history}}
-    """,
-    safeParameterNames: "history");
+### Key Concepts
 
-KernelFunction selectionFunction = AgentGroupChat.CreatePromptFunctionForStrategy(
-    $$$"""
-    Determine which participant takes the next turn in a conversation based on the most recent participant.
-    State only the name of the participant to take the next turn.
-    No participant should take more than one turn in a row.
+- **Plugins/Functions:** Python classes with methods decorated by `@kernel_function` to expose callable tools.
+- **Function Calling:** The agent can invoke these functions dynamically based on user input.
+- **Declarative Spec:** Agents can be created declaratively from YAML specs that define the agent's behavior, inputs, outputs, and tools.
 
-    Choose only from these participants:
-    - {{{ReviewerName}}}
-    - {{{CopyWriterName}}}
+### Example: OpenAI Assistant with Plugins (Tool Calling)
 
-    Always follow these rules when selecting the next participant:
-    - After {{{CopyWriterName}}}, it is {{{ReviewerName}}}'s turn.
-    - After {{{ReviewerName}}}, it is {{{CopyWriterName}}}'s turn.
+File: `samples/getting_started_with_agents/openai_assistant/step2_assistant_plugins.py`
 
-    History:
-    {{$history}}
-    """,
-    safeParameterNames: "history");
+This example demonstrates:
+
+- Defining a plugin class with kernel functions.
+- Creating an assistant agent with plugins.
+- Invoking the agent asynchronously and streaming responses.
+
+```python
+import asyncio
+from semantic_kernel.agents import AssistantAgentThread, AzureAssistantAgent
+from semantic_kernel.connectors.ai.open_ai import AzureOpenAISettings
+from semantic_kernel.functions import kernel_function
+
+class MenuPlugin:
+    @kernel_function(description="Provides a list of specials from the menu.")
+    def get_specials(self) -> str:
+        return """
+        Special Soup: Clam Chowder
+        Special Salad: Cobb Salad
+        Special Drink: Chai Tea
+        """
+
+    @kernel_function(description="Provides the price of the requested menu item.")
+    def get_item_price(self, menu_item: str) -> str:
+        return "$9.99"
+
+USER_INPUTS = [
+    "Hello",
+    "What is the special soup?",
+    "What is the special drink?",
+    "How much is it?",
+    "Thank you",
+]
+
+async def main():
+    client = AzureAssistantAgent.create_client()
+    definition = await client.beta.assistants.create(
+        model=AzureOpenAISettings().chat_deployment_name,
+        instructions="Answer questions about the menu.",
+        name="Host",
+    )
+    agent = AzureAssistantAgent(client=client, definition=definition, plugins=[MenuPlugin()])
+    thread = None
+
+    try:
+        for user_input in USER_INPUTS:
+            print(f"# User: '{user_input}'")
+            async for response in agent.invoke(messages=user_input, thread=thread):
+                print(f"# Agent: {response}")
+                thread = response.thread
+    finally:
+        await thread.delete() if thread else None
+        await agent.client.beta.assistants.delete(assistant_id=agent.id)
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-- The termination function checks if the conversation should end (e.g., if the copy is approved).
-- The selection function decides which agent should speak next based on the conversation history.
+**How this works:**
 
-### 3. Use a ChatHistoryTruncationReducer to Limit History Size
+- The `MenuPlugin` exposes two functions as tools.
+- The agent uses these tools to answer user queries.
+- The `invoke` method streams responses asynchronously.
 
-To optimize token usage and performance, limit the chat history used in the strategies to the most recent message.
+---
 
-```csharp
-ChatHistoryTruncationReducer strategyReducer = new(1);
+## Using Scaffolding Tools and Declarative Agent Creation
+
+Semantic Kernel supports declarative agent creation from YAML specs, which can define the agent type, model, instructions, inputs, outputs, and tools.
+
+### Example: Declarative Agent from YAML String
+
+File: `samples/concepts/agents/openai_assistant/openai_assistant_declarative_templating.py`
+
+```python
+import asyncio
+from semantic_kernel.agents import AgentRegistry, OpenAIAssistantAgent
+
+spec = """
+type: openai_assistant
+name: StoryAgent
+description: An agent that generates a story about a topic.
+instructions: Tell a story about {{$topic}} that is {{$length}} sentences long.
+model:
+  id: ${OpenAI:ChatModelId}
+inputs:
+  topic:
+    description: The topic of the story.
+    required: true
+    default: Cats
+  length:
+    description: The number of sentences in the story.
+    required: true
+    default: 2
+outputs:
+  output1:
+    description: The generated story.
+template:
+  format: semantic-kernel
+"""
+
+async def main():
+    client = OpenAIAssistantAgent.create_client()
+    agent = await AgentRegistry.create_from_yaml(yaml_str=spec, client=client)
+
+    async for response in agent.invoke(messages=None):
+        print(f"# {response.name}: {response}")
+
+    await client.beta.assistants.delete(agent.id)
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-### 4. Create an AgentGroupChat with Execution Settings
+### Example: Declarative Agent from YAML File with Plugins
 
-The `AgentGroupChat` manages the conversation between multiple agents and uses the termination and selection strategies.
+File: `samples/concepts/agents/openai_assistant/openai_assistant_declarative_function_calling_from_file.py`
 
-```csharp
-AgentGroupChat chat = new(agentWriter, agentReviewer)
-{
-    ExecutionSettings = new()
-    {
-        TerminationStrategy = new KernelFunctionTerminationStrategy(terminationFunction, CreateKernelWithChatCompletion())
-        {
-            Agents = [agentReviewer], // Only the reviewer can approve
-            ResultParser = (result) => result.GetValue<string>()?.Contains("yes", StringComparison.OrdinalIgnoreCase) ?? false,
-            HistoryVariableName = "history",
-            MaximumIterations = 10,
-            HistoryReducer = strategyReducer,
-        },
-        SelectionStrategy = new KernelFunctionSelectionStrategy(selectionFunction, CreateKernelWithChatCompletion())
-        {
-            InitialAgent = agentWriter,
-            ResultParser = (result) => result.GetValue<string>() ?? CopyWriterName,
-            HistoryVariableName = "history",
-            HistoryReducer = strategyReducer,
-            EvaluateNameOnly = true,
-        },
-    }
-};
-```
+This example loads a declarative spec from a YAML file and attaches plugins for tool calling.
 
-- `TerminationStrategy` uses the termination function to decide when to stop.
-- `SelectionStrategy` uses the selection function to pick the next agent.
-- `MaximumIterations` limits the number of turns.
-- `HistoryReducer` reduces the history size for efficiency.
-- `EvaluateNameOnly` in selection strategy means only agent names are considered, not full messages.
+```python
+import asyncio
+import os
+from semantic_kernel.agents import AgentRegistry, OpenAIAssistantAgent
+from semantic_kernel.functions import kernel_function
 
-### 5. Add Initial User Message and Invoke the Chat
+class MenuPlugin:
+    @kernel_function(description="Provides a list of specials from the menu.")
+    def get_specials(self) -> str:
+        return """
+        Special Soup: Clam Chowder
+        Special Salad: Cobb Salad
+        Special Drink: Chai Tea
+        """
 
-Add the initial user message to the chat and invoke the conversation asynchronously.
+    @kernel_function(description="Provides the price of the requested menu item.")
+    def get_item_price(self, menu_item: str) -> str:
+        return "$9.99"
 
-```csharp
-ChatMessageContent message = new(AuthorRole.User, "concept: maps made out of egg cartons.");
-chat.AddChatMessage(message);
-this.WriteAgentChatMessage(message);
+async def main():
+    client = OpenAIAssistantAgent.create_client()
+    file_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))),
+        "resources",
+        "declarative_spec",
+        "openai_assistant_spec.yaml",
+    )
+    agent = await AgentRegistry.create_from_file(file_path, plugins=[MenuPlugin()], client=client)
 
-await foreach (ChatMessageContent response in chat.InvokeAsync())
-{
-    this.WriteAgentChatMessage(response);
-}
+    user_inputs = [
+        "Hello",
+        "What is the special soup?",
+        "How much does that cost?",
+        "Thank you",
+    ]
+    thread = None
 
-Console.WriteLine($"\n[IS COMPLETED: {chat.IsComplete}]");
-```
+    for user_input in user_inputs:
+        print(f"# User: '{user_input}'")
+        async for response in agent.invoke(messages=user_input, thread=thread):
+            print(f"# {response.name}: {response}")
+            thread = response.thread
 
-- `ChatMessageContent` represents a message with an author role and content.
-- `InvokeAsync` runs the conversation, yielding responses from agents.
-- `IsComplete` indicates if the conversation ended per the termination strategy.
+    await client.beta.assistants.delete(agent.id) if agent else None
+    await thread.delete() if thread else None
 
-### 6. Dispose of Chat Clients
-
-Dispose of any chat clients created during kernel initialization to release resources.
-
-```csharp
-chatClient1?.Dispose();
-chatClient2?.Dispose();
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ---
 
-## Summary of Key Classes and Methods
+## Additional Example: Auto Function Calling with ReAct Style
 
-| Class/Method                          | Description                                                                                  |
-|-------------------------------------|----------------------------------------------------------------------------------------------|
-| `ChatCompletionAgent`                | Defines an AI agent with instructions and a kernel for chat completion.                      |
-| `AgentGroupChat`                    | Manages multi-agent chat with execution, termination, and selection strategies.              |
-| `KernelFunction`                    | Represents a prompt-based function used for decision-making in strategies.                   |
-| `KernelFunctionTerminationStrategy`| Strategy to terminate chat based on kernel function evaluation.                              |
-| `KernelFunctionSelectionStrategy`  | Strategy to select the next agent based on kernel function evaluation.                       |
-| `ChatHistoryTruncationReducer`      | Reduces chat history size to optimize token usage.                                          |
-| `ChatMessageContent`                | Represents a chat message with author role and content.                                     |
-| `InvokeAsync()`                    | Asynchronously runs the chat conversation, yielding agent responses.                         |
+File: `samples/concepts/auto_function_calling/chat_completion_with_auto_function_calling.py`
 
----
+This example shows how to build a conversational chatbot with auto function calling enabled, using Semantic Kernel's `Kernel` class and plugins.
 
-## How This Enables ReAct Agent with Tool Calling
+Key points:
 
-- The **ReAct pattern** involves reasoning (via LLM prompts) and acting (invoking tools/functions).
-- The `KernelFunctionSelectionStrategy` can be extended to select tools or agents dynamically based on the conversation context.
-- The `KernelFunctionTerminationStrategy` can decide when the agent has completed its task.
-- By defining agents with specific tool capabilities (via their kernel functions), the `AgentGroupChat` orchestrates tool calling as part of the conversation.
-- The prompt-based kernel functions act as the reasoning engine to decide actions and termination.
+- Plugins like `MathPlugin` and `TimePlugin` are added to the kernel.
+- Chat completion service is configured with function calling behavior.
+- Chat history is maintained.
+- The bot automatically calls functions as needed during conversation.
 
----
+```python
+import asyncio
+from semantic_kernel import Kernel
+from semantic_kernel.core_plugins.math_plugin import MathPlugin
+from semantic_kernel.core_plugins.time_plugin import TimePlugin
+from semantic_kernel.functions import KernelArguments
+from samples.concepts.setup.chat_completion_services import Services, get_chat_completion_service_and_request_settings
+from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoiceBehavior
+from semantic_kernel.contents import ChatHistory
 
-## Additional Notes
+system_message = """
+You are a chat bot. Your name is Mosscap and
+you have one goal: figure out what people need.
+Your full name, should you need to know it, is
+Splendid Speckled Mosscap. You communicate
+effectively, but you tend to answer with long
+flowery prose. You are also a math wizard,
+especially for adding and subtracting.
+You also excel at joke telling, where your tone is often sarcastic.
+Once you have the answer I am looking for,
+you will return a full answer to me as soon as possible.
+"""
 
-- The sample uses C# and the .NET Semantic Kernel SDK.
-- The `CreateKernelWithChatCompletion` method is a helper to create a kernel configured with a chat completion service (e.g., OpenAI, Azure OpenAI).
-- The `WriteAgentChatMessage` method is a helper to output messages for demonstration.
-- The approach is flexible and can be adapted to more agents, different tools, and more complex strategies.
+kernel = Kernel()
+kernel.add_plugin(MathPlugin(), plugin_name="math")
+kernel.add_plugin(TimePlugin(), plugin_name="time")
 
----
+chat_function = kernel.add_function(
+    prompt="{{$chat_history}}{{$user_input}}",
+    plugin_name="ChatBot",
+    function_name="Chat",
+)
 
-# Example Code Snippet (Simplified)
+chat_completion_service, request_settings = get_chat_completion_service_and_request_settings(Services.AZURE_OPENAI)
+request_settings.function_choice_behavior = FunctionChoiceBehavior.Auto(filters={"excluded_plugins": ["ChatBot"]})
 
-```csharp
-// Define agents
-var agent1 = new ChatCompletionAgent { Name = "Agent1", Instructions = "...", Kernel = kernel1 };
-var agent2 = new ChatCompletionAgent { Name = "Agent2", Instructions = "...", Kernel = kernel2 };
+kernel.add_service(chat_completion_service)
+arguments = KernelArguments(settings=request_settings)
 
-// Define termination and selection functions
-var terminationFunc = AgentGroupChat.CreatePromptFunctionForStrategy("...termination prompt...", "history");
-var selectionFunc = AgentGroupChat.CreatePromptFunctionForStrategy("...selection prompt...", "history");
+history = ChatHistory()
+history.add_system_message(system_message)
+history.add_user_message("Hi there, who are you?")
+history.add_assistant_message("I am Mosscap, a chat bot. I'm trying to figure out what people need.")
 
-// Create strategies
-var terminationStrategy = new KernelFunctionTerminationStrategy(terminationFunc, kernel1) { ... };
-var selectionStrategy = new KernelFunctionSelectionStrategy(selectionFunc, kernel1) { ... };
+async def chat() -> bool:
+    user_input = input("User:> ")
+    if user_input.lower().strip() == "exit":
+        return False
+    arguments["user_input"] = user_input
+    arguments["chat_history"] = history
+    result = await kernel.invoke(chat_function, arguments=arguments)
+    if result:
+        print(f"Mosscap:> {result}")
+        history.add_user_message(user_input)
+        history.add_message(result.value[0])
+    return True
 
-// Create agent group chat
-var chat = new AgentGroupChat(agent1, agent2)
-{
-    ExecutionSettings = new()
-    {
-        TerminationStrategy = terminationStrategy,
-        SelectionStrategy = selectionStrategy,
-    }
-};
+async def main():
+    print("Welcome to the chat bot! Type 'exit' to exit.")
+    chatting = True
+    while chatting:
+        chatting = await chat()
 
-// Add initial user message
-chat.AddChatMessage(new ChatMessageContent(AuthorRole.User, "Your input here"));
-
-// Run chat
-await foreach (var response in chat.InvokeAsync())
-{
-    Console.WriteLine(response.Content);
-}
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ---
 
-# Conclusion
+## Summary: How to Create and Run a Python ReAct Agent with Tool Calling
 
-The Microsoft Semantic Kernel API provides a powerful framework to create ReAct agents with tool calling by leveraging kernel functions for dynamic agent selection and termination strategies. Using `AgentGroupChat` with `KernelFunctionTerminationStrategy` and `KernelFunctionSelectionStrategy`, you can orchestrate multi-agent conversations that reason and act intelligently, invoking tools as needed.
+1. **Set up the environment and dependencies** for Semantic Kernel and your AI service (Azure OpenAI, OpenAI, etc.).
 
-For detailed usage, refer to the sample `Step04_KernelFunctionStrategies.cs` in the Semantic Kernel repository, which demonstrates these concepts in a practical scenario.
+2. **Create or use an existing AI client** (e.g., `AzureAssistantAgent.create_client()`).
+
+3. **Define your agent:**
+   - Use a direct Python class (e.g., `AzureAssistantAgent`) with optional plugins exposing tools via `@kernel_function`.
+   - Or create declaratively from YAML spec using `AgentRegistry.create_from_yaml()` or `AgentRegistry.create_from_file()`.
+
+4. **Add plugins (tools) to the agent** by passing plugin instances to the agent constructor or kernel.
+
+5. **Invoke the agent asynchronously** using `agent.invoke()` or `agent.get_response()` to send user inputs and receive responses.
+
+6. **Manage conversation threads** to maintain context across interactions.
+
+7. **Run the agent script directly** with `python agent.py`.
 
 ---
 
-If you need further details or examples on specific parts of the API or other samples, please ask!
+## References to Source Code and Documentation
+
+- **InProcessRuntime (core runtime for agents):**  
+  `semantic_kernel/agents/runtime/in_process/in_process_runtime.py`  
+  (See lines 50-600 for full implementation of message handling, agent registration, and runtime lifecycle.)
+
+- **Basic Azure OpenAI Assistant Agent Example:**  
+  `samples/getting_started_with_agents/openai_assistant/step1_assistant.py`
+
+- **Assistant Agent with Plugins (Tool Calling):**  
+  `samples/getting_started_with_agents/openai_assistant/step2_assistant_plugins.py`
+
+- **Declarative Agent Creation from YAML:**  
+  `samples/concepts/agents/openai_assistant/openai_assistant_declarative_templating.py`  
+  `samples/concepts/agents/openai_assistant/openai_assistant_declarative_function_calling_from_file.py`
+
+- **Auto Function Calling ReAct Style Chatbot:**  
+  `samples/concepts/auto_function_calling/chat_completion_with_auto_function_calling.py`
+
+- **Semantic Kernel GitHub Repository and Docs:**  
+  [Semantic Kernel GitHub](https://github.com/microsoft/semantic-kernel)  
+  [Semantic Kernel Python SDK Docs](https://aka.ms/semantic-kernel/docs/python)
+
+---
+
+# Final Notes
+
+- The Semantic Kernel Python SDK provides high-level abstractions and scaffolding tools to create powerful AI agents with tool calling capabilities.
+- Using declarative YAML specs and plugins simplifies agent creation and maintenance.
+- The runtime supports asynchronous message processing and agent lifecycle management.
+- The provided sample scripts are runnable and serve as excellent starting points for building your own ReAct agents.
+
+---
+
+This guide should enable you to create, run, and extend Python ReAct agents with tool calling using the Microsoft Semantic Kernel package effectively.
