@@ -11,12 +11,7 @@ from common.utils import (
     read_prompt_file,
     save_results,
     create_metadata,
-    ROLE_AND_TASK,
-    GENERAL_ANALYSIS_GUIDELINES,
-    INPUT_PROCESSING_GUIDELINES,
-    CODE_ANALYSIS_STRATEGIES,
-    REACT_PLANNING_STRATEGY,
-    QUALITY_REQUIREMENTS,
+    REACT_SYSTEM_PROMPT,
     CustomEncoder,
     validate_github_url,
     clone_repo,
@@ -28,9 +23,7 @@ from common.utils import (
 
 from common.tools import TOOLS
 from common.logging import logger, configure_logging
-
 class TechWriterReActAgent:
-    
     def __init__(self, model_name="gpt-4.1-mini", base_url=None):
         """Initialise the agent with the specified model."""
         self.model_name = model_name
@@ -50,7 +43,6 @@ class TechWriterReActAgent:
             if not OPENAI_API_KEY:
                 raise ValueError("OPENAI_API_KEY environment variable is not set but an OpenAI model was specified.")
             self.client = OpenAI(api_key=OPENAI_API_KEY, base_url=base_url)
-        REACT_SYSTEM_PROMPT = f"{ROLE_AND_TASK}\n\n{GENERAL_ANALYSIS_GUIDELINES}\n\n{INPUT_PROCESSING_GUIDELINES}\n\n{CODE_ANALYSIS_STRATEGIES}\n\n{REACT_PLANNING_STRATEGY}\n\n{QUALITY_REQUIREMENTS}"
 
         """Initialise the ReAct agent with the specified model."""
         self.system_prompt = REACT_SYSTEM_PROMPT

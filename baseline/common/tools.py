@@ -3,6 +3,8 @@ from pathlib import Path
 from .logging import logger
 from binaryornot.check import is_binary
 from .utils import get_gitignore_spec
+import ast
+import math
 
 # Tool functions
 def find_all_matching_files(
@@ -25,27 +27,38 @@ def find_all_matching_files(
     Returns:
         List of Path objects for matching files
     """
+    logger.info(f"Tool invoked: find_all_matching_files(directory='{directory}', pattern='{pattern}', respect_gitignore={respect_gitignore}, include_hidden={include_hidden}, include_subdirs={include_subdirs})")
+    
     try:
         directory_path = Path(directory).resolve()
+        logger.debug(f"Resolved directory path: {directory_path}")
+        
         if not directory_path.exists():
             logger.warning(f"Directory not found: {directory}")
             return []
         
         # Get gitignore spec if needed
         spec = get_gitignore_spec(str(directory_path)) if respect_gitignore else None
+        if spec:
+            logger.debug(f"Loaded .gitignore patterns from {directory_path}")
+        else:
+            logger.debug("No .gitignore patterns loaded (respect_gitignore=False or no .gitignore file)")
         
         result = []
         
         # Choose between recursive and non-recursive search
         if include_subdirs:
+            logger.debug(f"Using recursive search (rglob) with pattern: {pattern}")
             paths = directory_path.rglob(pattern)
         else:
+            logger.debug(f"Using non-recursive search (glob) with pattern: {pattern}")
             paths = directory_path.glob(pattern)
             
         for path in paths:
             if path.is_file():
                 # Skip hidden files if not explicitly included
                 if not include_hidden and any(part.startswith('.') for part in path.parts):
+                    logger.debug(f"Skipping hidden file: {path}")
                     continue
                 
                 # Skip if should be ignored
@@ -54,9 +67,12 @@ def find_all_matching_files(
                     rel_path = path.relative_to(directory_path)
                     rel_path_posix = rel_path.as_posix()
                     if spec.match_file(rel_path_posix):
+                        logger.debug(f"Skipping gitignored file: {rel_path_posix}")
                         continue
                 result.append(path)
         
+        logger.info(f"Found {len(result)} matching files")
+        logger.debug(f"Matching files: {[str(p) for p in result[:10]]}{'...' if len(result) > 10 else ''}")
         return result
     except (FileNotFoundError, PermissionError) as e:
         logger.error(f"Error accessing files: {e}")
@@ -67,16 +83,23 @@ def find_all_matching_files(
 
 def read_file(file_path: str) -> Dict[str, Any]:
     """Read the contents of a file."""
+    logger.info(f"Tool invoked: read_file(file_path='{file_path}')")
+    
     try:
         path = Path(file_path)
         if not path.exists():
             return {"error": f"File not found: {file_path}"}
         
         if is_binary(file_path):
+            logger.debug(f"File detected as binary: {file_path}")
             return {"error": f"Cannot read binary file: {file_path}"}
         
         with open(path, 'r', encoding='utf-8') as f:
             content = f.read()
+        
+        file_size = len(content)
+        logger.info(f"Successfully read file: {file_path} ({file_size} chars)")
+        logger.debug(f"File has {content.count('\n')} lines")
         
         return {
             "file": file_path,
@@ -103,12 +126,15 @@ def calculate(expression: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing the expression and its result
     """
+    logger.info(f"Tool invoked: calculate(expression='{expression}')")
+    
     try:
         # Create a safe environment for evaluating expressions
         # This uses Python's ast.literal_eval for safety instead of eval()
         def safe_eval(expr):
             # Replace common mathematical functions with their math module equivalents
             expr = expr.replace("^", "**")  # Support for exponentiation
+            logger.debug(f"Preprocessed expression: {expr}")
             
             # Parse the expression into an AST
             parsed_expr = ast.parse(expr, mode='eval')
@@ -130,6 +156,8 @@ def calculate(expression: str) -> Dict[str, Any]:
         
         # Evaluate the expression
         result = safe_eval(expression)
+        
+        logger.info(f"Calculation result: {expression} = {result}")
         
         return {
             "expression": expression,
