@@ -3,14 +3,12 @@
 # Installation script for Agno Python package using uv package manager
 
 # Create and activate a virtual environment with Python 3.12
+uv init
 uv venv --python 3.12
 source .venv/bin/activate
 
 # Install Agno and dependencies using uv pip
-uv pip install -U agno anthropic yfinance
-
-# Export your ANTHROPIC_API_KEY environment variable (replace with your actual key)
-export ANTHROPIC_API_KEY=sk-ant-api03-xxxx
+uv add agno 
 
 # Instructions to run example reasoning agent
 # Save the following example code to reasoning_agent.py:

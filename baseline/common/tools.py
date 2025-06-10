@@ -3,8 +3,6 @@ from pathlib import Path
 from .logging import logger
 from binaryornot.check import is_binary
 from .utils import get_gitignore_spec
-import ast
-import math
 
 # Tool functions
 def find_all_matching_files(
@@ -86,6 +84,30 @@ def find_all_matching_files(
     except Exception as e:
         logger.error(f"Unexpected error finding files: {e}")
         return []
+
+
+# Tool wrapper functions for JSON compatibility
+def find_all_matching_files_json(
+    directory: str, 
+    pattern: str = "*", 
+    respect_gitignore: bool = True, 
+    include_hidden: bool = False,
+    include_subdirs: bool = True
+) -> List[str]:
+    """
+    Wrapper for find_all_matching_files that returns paths as strings for JSON serialization.
+    
+    This is useful for frameworks that require JSON-serializable outputs (e.g., ADK, LangChain).
+    """
+    from .tools import find_all_matching_files
+    return find_all_matching_files(
+        directory=directory,
+        pattern=pattern,
+        respect_gitignore=respect_gitignore,
+        include_hidden=include_hidden,
+        include_subdirs=include_subdirs,
+        return_paths_as="str"
+    )
 
 def read_file(file_path: str) -> Dict[str, Any]:
     """Read the contents of a file."""
@@ -194,5 +216,9 @@ def read_file(file_path: str) -> Dict[str, Any]:
 TOOLS = {
     "find_all_matching_files": find_all_matching_files,
     "read_file": read_file,
-    # "calculate": calculate
+}
+
+TOOLS_JSON = {
+    "find_all_matching_files": find_all_matching_files_json,
+    "read_file": read_file,
 }

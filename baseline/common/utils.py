@@ -418,26 +418,3 @@ def create_metadata(output_file: Path, model_name: str, repo_url: str, repo_name
         logger.error(f"Error creating metadata: {str(e)}")
         raise
 
-
-# Tool wrapper functions for JSON compatibility
-def find_all_matching_files_json(
-    directory: str, 
-    pattern: str = "*", 
-    respect_gitignore: bool = True, 
-    include_hidden: bool = False,
-    include_subdirs: bool = True
-) -> List[str]:
-    """
-    Wrapper for find_all_matching_files that returns paths as strings for JSON serialization.
-    
-    This is useful for frameworks that require JSON-serializable outputs (e.g., ADK, LangChain).
-    """
-    from .tools import find_all_matching_files
-    return find_all_matching_files(
-        directory=directory,
-        pattern=pattern,
-        respect_gitignore=respect_gitignore,
-        include_hidden=include_hidden,
-        include_subdirs=include_subdirs,
-        return_paths_as="str"
-    )

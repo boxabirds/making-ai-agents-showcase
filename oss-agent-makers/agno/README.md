@@ -1,3 +1,90 @@
+# Agno (phidata) Tech Writer Agent
+
+This directory contains the Agno implementation of the tech writer agent, providing the same functionality as the baseline implementation but using the phidata framework (imported as `agno`).
+
+## Files
+
+- `agent.py` - Basic hello world Agno agent example
+- `tech-writer.py` - Full tech writer agent implementation using Agno
+- `tech-writer.sh` - Shell script wrapper for running the tech writer
+- `test-tech-writer.py` - Test script for verifying tool calling works
+- `code-report.md` - Detailed comparison between baseline and Agno implementations
+
+## Running the Tech Writer
+
+The tech writer agent accepts the same command-line arguments as the baseline version:
+
+```bash
+# Clone and analyze a GitHub repository
+python tech-writer.py -r https://github.com/owner/repo -p prompts/api-guide.prompt.txt
+
+# Analyze a local directory
+python tech-writer.py -d ./my-project -p prompts/architecture-overview.prompt.txt
+
+# Using the shell script
+./tech-writer.sh -d ./my-project -p prompts/api-guide.prompt.txt
+```
+
+### Command Line Arguments
+
+- `-r, --repo` - GitHub repository URL to analyze
+- `-d, --directory` - Local directory path to analyze
+- `-p, --prompt-file` - Path to prompt file (required)
+- `-m, --model` - Model name (default: gpt-4o-mini)
+- `-o, --output-dir` - Output directory (default: ./output)
+- `-c, --cache-dir` - Cache directory for repos (default: ~/.cache/github)
+
+## Key Features
+
+1. **ReAct Agent**: Uses the same ReAct (Reasoning and Acting) prompt as baseline
+2. **Tool Calling**: Automatic tool wrapping and execution via Agno framework
+3. **Multi-Model Support**: Works with OpenAI and Anthropic models
+4. **Code Reuse**: Maximizes reuse of tools and utilities from baseline/common
+
+## Implementation Highlights
+
+- **49% less code** compared to baseline (157 vs 308 lines)
+- **Zero tool definition code** - Agno handles this automatically
+- **Same CLI interface** - Drop-in replacement for baseline tech writer
+- **Automatic tool execution** - Framework manages the ReAct loop
+- **Clean model selection** - ModelFactory pattern instead of string prefix hacks
+
+## Example Usage
+
+```python
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+
+# Import tools from common directory
+from common.utils import find_all_matching_files_json
+
+# Create agent with tools
+agent = Agent(
+    model=OpenAIChat(id="gpt-4o-mini"),
+    instructions="You are a helpful code analysis assistant.",
+    tools=[find_all_matching_files_json],
+    show_tool_calls=True,
+)
+
+# Run analysis
+response = agent.run("Find all Python files containing 'def main'")
+```
+
+## Comparison with Baseline
+
+See `code-report.md` for a detailed comparison. Key differences:
+
+- **Agno**: Simpler code, automatic tool handling, multi-provider support
+- **Baseline**: More control, no framework dependency, explicit ReAct loop
+
+Both implementations share the same:
+- Command-line interface
+- Tool implementations from common directory
+- ReAct system prompt
+- Output format and file handling
+
+---
+
 # Guide to Creating a Python ReAct Agent with Tool Calling Using the `phidata` API
 
 This document provides an exhaustive, detailed guide on how to use the `phidata` package API to create an agent that can be run directly in Python (e.g., `python agent.py`). It specifically addresses how to create a Python ReAct agent with tool calling capabilities, leveraging the package's built-in scaffolding and tools.

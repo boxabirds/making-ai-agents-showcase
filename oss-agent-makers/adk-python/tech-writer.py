@@ -24,9 +24,9 @@ from common.utils import (
     create_metadata,
     configure_code_base_source,
     get_command_line_args,
-    find_all_matching_files_json  # JSON-compatible wrapper
+    
 )
-from common.tools import read_file
+from common.tools import TOOLS_JSON 
 from common.logging import logger, configure_logging
 
 
@@ -45,7 +45,7 @@ async def analyse_codebase(directory_path: str, prompt_file_path: str, model_nam
         model=model,
         instruction=REACT_SYSTEM_PROMPT,
         description="A technical documentation agent that analyzes codebases using ReAct pattern",
-        tools=[find_all_matching_files_json, read_file],
+        tools=TOOLS_JSON],
         generate_content_config=types.GenerateContentConfig(
             temperature=0,  # Use 0 for "more deterministic 😉"
         )
