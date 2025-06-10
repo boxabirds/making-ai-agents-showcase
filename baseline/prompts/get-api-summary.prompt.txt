@@ -1,0 +1,4 @@
+Prepare a markdown document that a language model can use that describes in 
+exhaustive detail precisely how to use the API this package provides. 
+It answers the question "How can I use this API to create a ReAct agent
+with tool calling?"

@@ -220,7 +220,7 @@ class TechWriterReActAgent:
     def run(self, prompt, directory):
         """Run the agent to analyse a codebase using the ReAct pattern."""
         self.initialise_memory(prompt, directory)
-        max_steps = 15
+        max_steps = 50
         
         for step in range(max_steps):
             logger.info(f"\n--- Step {step + 1} ---")
@@ -329,7 +329,7 @@ def main():
             sys.exit(1)
         
         # Save the results
-        output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension)
+        output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name)
         logger.info(f"Analysis complete. Results saved to: {output_file}")
         
         # Always create metadata (with optional evaluation)

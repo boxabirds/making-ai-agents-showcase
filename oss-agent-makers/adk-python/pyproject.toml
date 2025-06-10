@@ -1,7 +1,13 @@
 [project]
 name = "adk-python"
 version = "0.1.0"
-description = "Add your description here"
+description = "Tech Writer agent implemented using Google's Agent Development Kit (ADK)"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "google-adk",
+    "pathspec",
+    "binaryornot",
+    "openai",
+    "litellm",
+]

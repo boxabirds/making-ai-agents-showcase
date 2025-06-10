@@ -8,6 +8,7 @@ DEFAULT_MODEL="gpt-4.1-mini"
 DEFAULT_REPO=""
 DEFAULT_OUTPUT_DIR=""
 DEFAULT_EXTENSION=""
+DEFAULT_FILE_NAME=""
 DEFAULT_EVAL_PROMPT=""
 
 # Parse command line arguments
@@ -17,6 +18,7 @@ MODEL=$DEFAULT_MODEL
 REPO=$DEFAULT_REPO
 OUTPUT_DIR=$DEFAULT_OUTPUT_DIR
 EXTENSION=$DEFAULT_EXTENSION
+FILE_NAME=$DEFAULT_FILE_NAME
 EVAL_PROMPT=$DEFAULT_EVAL_PROMPT
 
 # Function to display usage information
@@ -29,6 +31,7 @@ function show_usage {
     echo "  --repo REPO       Repository to use (default: none)"
     echo "  --output-dir DIR  Directory to save results to (default: output)"
     echo "  --extension EXT   File extension for output files (default: .md)"
+    echo "  --file-name FILE  Specific file name for output (overrides --extension)"
     echo "  --eval-prompt FILE Path to evaluation prompt file (optional)"
     echo "  --help            Show this help message"
     exit 1
@@ -59,6 +62,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --extension)
             EXTENSION="$2"
+            shift 2
+            ;;
+        --file-name)
+            FILE_NAME="$2"
             shift 2
             ;;
         --eval-prompt)
@@ -120,6 +127,11 @@ fi
 # Add optional extension parameter
 if [ -n "$EXTENSION" ]; then
     CMD="$CMD --extension \"$EXTENSION\""
+fi
+
+# Add optional file-name parameter
+if [ -n "$FILE_NAME" ]; then
+    CMD="$CMD --file-name \"$FILE_NAME\""
 fi
 
 # Add optional eval-prompt parameter

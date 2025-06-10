@@ -30,9 +30,9 @@ if not GEMINI_API_KEY and not OPENAI_API_KEY:
 GEMINI_MODELS = ["gemini-2.0-flash"]
 OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4.1-nano"]
 
-def save_results(analysis_result: str, model_name: str, repo_name: str = None, output_dir: str = None, extension: str = None) -> Path:
+def save_results(analysis_result: str, model_name: str, repo_name: str = None, output_dir: str = None, extension: str = None, file_name: str = None) -> Path:
     """
-    Save analysis results to a timestamped file in the output directory.
+    Save analysis results to a file in the output directory.
     
     Args:
         analysis_result: The analysis text to save
@@ -40,6 +40,7 @@ def save_results(analysis_result: str, model_name: str, repo_name: str = None, o
         repo_name: The name of the repository being analysed
         output_dir: The directory to save results to (default: "output")
         extension: The file extension to use (default: ".md")
+        file_name: Specific file name to use (overrides extension and timestamp)
         
     Returns:
         Path to the saved file
@@ -47,26 +48,33 @@ def save_results(analysis_result: str, model_name: str, repo_name: str = None, o
     # Use default values if not provided
     if output_dir is None:
         output_dir = "output"
-    if extension is None:
-        extension = ".md"
-    
-    # Ensure extension starts with a dot
-    if extension and not extension.startswith('.'):
-        extension = '.' + extension
     
     # Create output directory if it doesn't exist
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    # Generate timestamp for filename
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    
-    # Include repository name in filename if available
-    if repo_name:
-        output_filename = f"{timestamp}-{repo_name}-{model_name}{extension}"
+    # Determine output filename
+    if file_name:
+        # Use the specific file name provided
+        output_filename = file_name
     else:
-        output_filename = f"{timestamp}-{model_name}{extension}"
+        # Use the existing logic with timestamp
+        if extension is None:
+            extension = ".md"
         
+        # Ensure extension starts with a dot
+        if extension and not extension.startswith('.'):
+            extension = '.' + extension
+        
+        # Generate timestamp for filename
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        
+        # Include repository name in filename if available
+        if repo_name:
+            output_filename = f"{timestamp}-{repo_name}-{model_name}{extension}"
+        else:
+            output_filename = f"{timestamp}-{model_name}{extension}"
+    
     output_file = output_path / output_filename
     
     # Save results to file
@@ -269,6 +277,8 @@ def get_command_line_args():
                       help="Directory to save results to (default: output)")
     parser.add_argument("--extension", default=None,
                       help="File extension for output files (default: .md)")
+    parser.add_argument("--file-name", default=None,
+                      help="Specific file name for output (overrides --extension)")
     
     # Add eval prompt argument
     parser.add_argument("--eval-prompt", default=None,
