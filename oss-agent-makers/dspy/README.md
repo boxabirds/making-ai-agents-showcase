@@ -1,33 +1,38 @@
 # DSPy Tech Writer Agent
 
-This directory contains the DSPy implementation of the tech writer agent, providing the same functionality as the baremetal implementation but using Stanford's DSPy framework.
+This directory contains two DSPy implementations of the tech writer agent, providing the same functionality as the baremetal implementation but using Stanford's DSPy framework.
 
 ## Files
 
-- `tech-writer.py` - Full tech writer agent implementation using DSPy
-- `tech-writer.sh` - Shell script wrapper for running the tech writer
+- `tech-writer.py` - Full tech writer agent implementation using manual DSPy signatures
+- `tech-writer.sh` - Shell script wrapper for running the manual signatures version
+- `tech-writer-react.py` - Simplified implementation using DSPy's built-in ReAct module
+- `tech-writer-react.sh` - Shell script wrapper for running the ReAct version
 - `demo-customer-service.py` - Example DSPy agent demonstrating basic functionality
 - `test-prompt.txt` - Simple test prompt for verification
 
 ## Running the Tech Writer
 
-The tech writer agent accepts the same command-line arguments as the baremetal version:
+Both implementations accept the same command-line arguments as the baremetal version:
 
 ```bash
-# Clone and analyze a GitHub repository
-./tech-writer.sh --repo https://github.com/owner/repo prompts/api-guide.prompt.txt --model openai/gpt-4o
+# Using manual signatures approach
+./tech-writer.sh --repo https://github.com/owner/repo --prompt prompts/api-guide.prompt.txt --model openai/gpt-4o
+
+# Using built-in ReAct module (simpler, recommended)
+./tech-writer-react.sh --repo https://github.com/owner/repo --prompt prompts/api-guide.prompt.txt --model openai/gpt-4o
 
 # Analyze a local directory
-./tech-writer.sh /path/to/project prompts/architecture-overview.prompt.txt --model google/gemini-2.0-flash
+./tech-writer-react.sh /path/to/project --prompt prompts/architecture-overview.prompt.txt --model google/gemini-2.0-flash
 
 # Using Python directly with virtual environment
-source .venv/bin/activate && python tech-writer.py /my-project prompt.txt --model openai/gpt-4o-mini
+source .venv/bin/activate && python tech-writer-react.py /my-project --prompt prompt.txt --model openai/gpt-4o-mini
 ```
 
 ### Command Line Arguments
 
 - First positional: Directory path to analyze (or use `--repo`)
-- Second positional: Path to prompt file (required)
+- `--prompt` - Path to prompt file (required)
 - `--repo` - GitHub repository URL to analyze instead of local directory
 - `--model` - Model name in vendor/model format (default: openai/gpt-4o-mini)
 - `--output-dir` - Output directory (default: ./output)
@@ -90,15 +95,31 @@ The agent implements a ReAct-style loop:
 3. Repeat until task is complete or max steps reached
 4. Generate final documentation from all observations
 
+## Two Implementation Approaches
+
+### 1. Manual Signatures (`tech-writer.py`)
+- Uses custom DSPy signatures for each step
+- Implements ReAct loop manually
+- More control over the process
+- Good for learning DSPy concepts
+- ~234 lines of code
+
+### 2. Built-in ReAct (`tech-writer-react.py`)
+- Uses DSPy's built-in `dspy.ReAct` module
+- Automatic tool handling and reasoning
+- Much simpler implementation
+- Recommended for production use
+- ~150 lines of code
+
 ## Comparison with Other Implementations
 
-| Aspect | Baremetal | ADK | Agno | DSPy |
-|--------|-----------|-----|------|------|
-| **Framework** | OpenAI Client | Google ADK | phidata | Stanford DSPy |
-| **Lines of Code** | 308 | 126 | 111 | 234 |
-| **Tool Handling** | Manual | Framework | Automatic | Signature-based |
-| **Execution Model** | Sync | Async | Sync | Sync |
-| **Optimization** | None | None | None | Compilable |
+| Aspect | Baremetal | ADK | Agno | DSPy Manual | DSPy ReAct |
+|--------|-----------|-----|------|-------------|------------|
+| **Framework** | OpenAI Client | Google ADK | phidata | Stanford DSPy | Stanford DSPy |
+| **Lines of Code** | 308 | 126 | 111 | 234 | ~150 |
+| **Tool Handling** | Manual | Framework | Automatic | Signature-based | Built-in |
+| **Execution Model** | Sync | Async | Sync | Sync | Sync |
+| **Optimization** | None | None | None | Compilable | Compilable |
 
 ## Example Usage
 

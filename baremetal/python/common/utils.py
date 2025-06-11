@@ -14,6 +14,8 @@ from openai import OpenAI
 from .logging import logger
 
 
+MAX_ITERATIONS = 50
+
 # Check for API keys
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")

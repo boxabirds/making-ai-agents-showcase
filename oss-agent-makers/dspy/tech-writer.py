@@ -1,253 +1,146 @@
 #!/usr/bin/env python3
 """
-Tech Writer Agent using DSPy
-Direct port of baremetal/python/tech-writer.py to use DSPy framework
+Tech Writer Agent using DSPy's built-in ReAct module.
+
+This implementation uses DSPy's native ReAct agent for tool-based reasoning.
 """
 
 import sys
-from pathlib import Path
+import os
 import json
-import dspy
-from typing import Dict, Any, Optional, List
+from pathlib import Path
+from typing import List, Dict, Any
 
 # Add baremetal/python to path to import common modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baremetal" / "python"))
 
-# Import from common modules - reuse everything possible
+import dspy
 from common.utils import (
+    get_command_line_args,
     read_prompt_file,
     save_results,
     create_metadata,
     configure_code_base_source,
-    get_command_line_args,
-    REACT_SYSTEM_PROMPT,
+    logger,
+    CustomEncoder,
 )
-from common.tools import TOOLS, TOOLS_JSON
-from common.logging import logger, configure_logging
+from common.tools import TOOLS
 
-
-# Define signatures for DSPy
-class TechWriterSignature(dspy.Signature):
-    """Analyze a codebase and generate technical documentation."""
+# Initialize DSPy with the selected model
+def initialize_dspy(model_name: str, base_url: str = None):
+    vendor, model_id = model_name.split("/", 1)
     
-    # Input fields
-    prompt: str = dspy.InputField(desc="Instructions for what to analyze and document")
-    base_directory: str = dspy.InputField(desc="Base directory path of the codebase to analyze")
-    tools_available: str = dspy.InputField(desc="JSON description of available tools")
-    
-    # Output field
-    analysis: str = dspy.OutputField(desc="Complete technical documentation analysis")
-
-
-class ToolCallSignature(dspy.Signature):
-    """Decide which tool to call and with what arguments."""
-    
-    # Input fields
-    task: str = dspy.InputField(desc="Current task to accomplish")
-    tools_available: str = dspy.InputField(desc="JSON description of available tools")
-    previous_observations: str = dspy.InputField(desc="Previous tool outputs and observations")
-    
-    # Output fields
-    reasoning: str = dspy.OutputField(desc="Reasoning about which tool to use and why")
-    tool_name: str = dspy.OutputField(desc="Name of the tool to call (or 'none' if task is complete)")
-    tool_args: str = dspy.OutputField(desc="JSON string of arguments for the tool (or empty if no tool)")
-    
-
-class FinalAnswerSignature(dspy.Signature):
-    """Generate the final documentation based on all observations."""
-    
-    # Input fields
-    original_prompt: str = dspy.InputField(desc="Original analysis prompt")
-    all_observations: str = dspy.InputField(desc="All tool outputs and observations gathered")
-    
-    # Output field
-    final_documentation: str = dspy.OutputField(desc="Final technical documentation")
-
-
-class DSPyTechWriter(dspy.Module):
-    """DSPy implementation of the Tech Writer agent."""
-    
-    def __init__(self, model_name: str = "openai/gpt-4o-mini"):
-        super().__init__()
-        
-        # Parse model name
-        self.model_name = model_name
-        
-        m = dspy.LM(model_name)
-            
-        dspy.configure(lm=lm)
-        
-        # Initialize DSPy modules
-        self.tool_selector = dspy.ChainOfThought(ToolCallSignature)
-        self.final_answer_generator = dspy.ChainOfThought(FinalAnswerSignature)
-        
-        # Store tools reference
-        self.tools = TOOLS_JSON  # Use TOOLS_JSON which has the JSON-compatible wrappers
-        
-        # Create tool descriptions for DSPy
-        tool_descriptions = {
-            "find_all_matching_files": {
-                "name": "find_all_matching_files",
-                "description": "Find files matching a pattern while respecting .gitignore",
-                "parameters": {
-                    "directory": "Directory to search in (required)",
-                    "pattern": "File pattern to match in glob format (default: '*')",
-                    "respect_gitignore": "Whether to respect .gitignore patterns (default: true)",
-                    "include_hidden": "Whether to include hidden files (default: false)",
-                    "include_subdirs": "Whether to include subdirectories (default: true)"
-                }
-            },
-            "read_file": {
-                "name": "read_file",
-                "description": "Read the contents of a file",
-                "parameters": {
-                    "file_path": "Path to the file to read (required)"
-                }
-            }
-        }
-        self.tools_json_str = json.dumps(tool_descriptions, indent=2)
-        
-    def execute_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> str:
-        """Execute a tool with given arguments."""
-        if tool_name not in self.tools:
-            return f"Error: Tool '{tool_name}' not found"
-            
-        try:
-            logger.debug(f"Executing tool: {tool_name} with args: {tool_args}")
-            result = self.tools[tool_name](**tool_args)
-            
-            # Convert result to string if needed
-            if isinstance(result, (dict, list)):
-                return json.dumps(result, indent=2)
-            return str(result)
-        except Exception as e:
-            logger.error(f"Error executing tool {tool_name}: {e}")
-            return f"Error executing tool: {str(e)}"
-    
-    def forward(self, prompt: str, base_directory: str, max_steps: int = 15) -> str:
-        """Run the tech writer agent with DSPy's ReAct-style approach."""
-        
-        logger.info(f"Starting DSPy tech writer analysis with model: {self.model_name}")
-        
-        # Initialize observations list
-        observations = []
-        
-        # Add initial context
-        initial_context = f"Base directory for analysis: {base_directory}"
-        observations.append(initial_context)
-        
-        # ReAct loop
-        for step in range(max_steps):
-            logger.info(f"Step {step + 1}/{max_steps}")
-            
-            # Prepare previous observations
-            previous_obs = "\n".join(observations) if observations else "No previous observations"
-            
-            # Decide on tool to use
-            tool_decision = self.tool_selector(
-                task=prompt,
-                tools_available=self.tools_json_str,
-                previous_observations=previous_obs
-            )
-            
-            logger.debug(f"Tool decision reasoning: {tool_decision.reasoning}")
-            logger.info(f"Selected tool: {tool_decision.tool_name}")
-            
-            # Check if we're done
-            if tool_decision.tool_name.lower() == "none" or not tool_decision.tool_name:
-                logger.info("Agent decided no more tools needed")
-                break
-                
-            # Parse and execute tool
-            try:
-                # Parse tool arguments
-                if tool_decision.tool_args:
-                    tool_args = json.loads(tool_decision.tool_args)
-                else:
-                    tool_args = {}
-                    
-                # Map base_path to directory for find_all_matching_files
-                if tool_decision.tool_name == "find_all_matching_files" and "directory" not in tool_args:
-                    tool_args["directory"] = base_directory
-                    
-                # Execute tool
-                result = self.execute_tool(tool_decision.tool_name, tool_args)
-                
-                # Add observation
-                observation = f"Tool: {tool_decision.tool_name}\nArgs: {json.dumps(tool_args)}\nResult: {result}"
-                observations.append(observation)
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse tool arguments: {e}")
-                observations.append(f"Error: Failed to parse tool arguments for {tool_decision.tool_name}")
-            except Exception as e:
-                logger.error(f"Error in tool execution: {e}")
-                observations.append(f"Error executing {tool_decision.tool_name}: {str(e)}")
-        
-        # Generate final answer
-        logger.info("Generating final documentation")
-        all_observations = "\n\n".join(observations)
-        
-        final_result = self.final_answer_generator(
-            original_prompt=prompt,
-            all_observations=all_observations
+    # Configure LM based on vendor
+    if vendor == "google":
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable is not set")
+        lm = dspy.LM(
+            model=f"google/{model_id}",
+            api_key=api_key,
+            api_base="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
-        
-        return final_result.final_documentation
+    elif vendor == "openai":
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
+        lm = dspy.LM(
+            model=f"openai/{model_id}",
+            api_key=api_key,
+            api_base=base_url
+        )
+    else:
+        raise ValueError(f"Unsupported model vendor: {vendor}")
+    
+    dspy.configure(lm=lm)
+    return model_name
 
+# DSPy uses docstrings as functional units -- it uses it as the main prompt. 
+# This approach can be very problematic because it prevents you from easily
+# being able to use variables for your prompt, which is clearly nonsense.
+# You'd have to do this hack below to modify the __doc__ variable:
+# class TechWriterSignature(dspy.Signature):
+
+#     TechWriterSignature.__doc__ = TECH_WRITER_SYSTEM_PROMPT
+#     😱
+# So I've inlined the text prompts. 
+
+
+class TechWriterSignature(dspy.Signature):
+    """
+    You are an expert tech writer that helps teams understand codebases with accurate and concise supporting analysis and documentation. 
+    Your task is to analyse the local filesystem to understand the structure and functionality of a codebase.
+
+     Follow these guidelines:
+    - Use the available tools to explore the filesystem, read files, and gather information.
+    - Make no assumptions about file types or formats - analyse each file based on its content and extension.
+    - Focus on providing a comprehensive, accurate, and well-structured analysis.
+    - Include code snippets and examples where relevant.
+    - Organize your response with clear headings and sections.
+    - Cite specific files and line numbers to support your observations.
+
+    Important guidelines:
+    - The user's analysis prompt will be provided in the initial message, prefixed with the base directory of the codebase (e.g., "Base directory: /path/to/codebase").
+    - Analyse the codebase based on the instructions in the prompt, using the base directory as the root for all relative paths.
+    - Make no assumptions about file types or formats - analyse each file based on its content and extension.
+    - Adapt your analysis approach based on the codebase and the prompt's requirements.
+    - Be thorough but focus on the most important aspects as specified in the prompt.
+    - Provide clear, structured summaries of your findings in your final response.
+    - Handle errors gracefully and report them clearly if they occur but don't let them halt the rest of the analysis.
+
+    When analysing code:
+    - Start by exploring the directory structure to understand the project organisation.
+    - Identify key files like README, configuration files, or main entry points.
+    - Ignore temporary files and directories like node_modules, .git, etc.
+    - Analyse relationships between components (e.g., imports, function calls).
+    - Look for patterns in the code organisation (e.g., line counts, TODOs).
+    - Summarise your findings to help someone understand the codebase quickly, tailored to the prompt.
+
+    When you've completed your analysis, provide a final answer in the form of a comprehensive Markdown document 
+    that provides a mutually exclusive and collectively exhaustive (MECE) analysis of the codebase using the user prompt.
+
+    Your analysis should be thorough, accurate, and helpful for someone trying to understand this codebase.
+
+    """
+
+    # TODO the prompt above is a copy of the master prompt in TECH_WRITER_SYSTEM_PROMPT so if that changes, this has to be updated manually
+    
+    prompt: str = dspy.InputField(desc="The analysis prompt and base directory")
+    analysis: str = dspy.OutputField(desc="Comprehensive markdown analysis of the codebase")
 
 def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:
-    """
-    Analyse a codebase using DSPy tech writer agent.
+    initialize_dspy(model_name, base_url)
     
-    Args:
-        directory_path: Path to directory containing codebase
-        prompt_file_path: Path to file containing analysis prompt
-        model_name: Name of model to use for analysis
-        base_url: Base URL for API (not used in DSPy)
-        repo_url: GitHub repository URL if cloned from GitHub (optional)
-        
-    Returns:
-        tuple: (analysis_result, repo_name, repo_url)
-    """
-    prompt = read_prompt_file(prompt_file_path)
+    prompt_content = read_prompt_file(prompt_file_path)
+    full_prompt = f"Base directory for analysis: {directory_path}\n\n{prompt_content}"
     
-    # Create DSPy agent
-    agent = DSPyTechWriter(model_name)
+    logger.info(f"Starting DSPy ReAct tech writer with model: {model_name}")
+    logger.info(f"Analyzing directory: {directory_path}")
     
-    # Run analysis
-    analysis_result = agent(prompt=prompt, base_directory=directory_path)
+    react_agent = dspy.ReAct(TechWriterSignature, tools=list(TOOLS.values()), max_iters=20)
+    result = react_agent(prompt=full_prompt)
+    analysis = result.analysis
     
-    # Get repo name
     repo_name = Path(directory_path).name
-    
-    return analysis_result, repo_name, repo_url or ""
+    return analysis, repo_name, repo_url or ""
 
 
 def main():
-    """Main entry point matching baremetal tech-writer.py interface."""
     try:
+        from common.logging import configure_logging
         configure_logging()
         args = get_command_line_args()
-        repo_url, directory_path = configure_code_base_source(
-            args.repo, args.directory, args.cache_dir
-        )
-        
-        analysis_result, repo_name, _ = analyse_codebase(
-            directory_path, args.prompt_file, args.model, args.base_url, repo_url
-        )
-        
-        output_file = save_results(
-            analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name
-        )
+        repo_url, directory_path = configure_code_base_source(args.repo, args.directory, args.cache_dir)
+            
+        analysis_result, repo_name, _ = analyse_codebase(directory_path, args.prompt_file, args.model, args.base_url, repo_url)
+
+        output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name)
         logger.info(f"Analysis complete. Results saved to: {output_file}")
-        
-        create_metadata(
-            output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt
-        )
+
+        create_metadata(output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt)
         
     except Exception as e:
-        logger.error(f"Error: {str(e)}", exc_info=True)
+        logger.error(f"Error: {str(e)}")
         sys.exit(1)
 
 
