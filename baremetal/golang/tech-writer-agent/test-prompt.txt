@@ -1,0 +1,1 @@
+Analyze this Go project and provide an overview of its structure, purpose, and implementation status.
