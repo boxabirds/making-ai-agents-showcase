@@ -1,4 +1,0 @@
-2025-06-09 14:17:06,368 - common.utils - INFO - Logging to file: /Users/julian/expts/awesome-agent-showcase/baseline/common/logs/tech-writer-20250609-141706.log
-2025-06-09 14:17:06,385 - common.utils - ERROR - Failed to clone repository: fatal: repository 'axios/axios' does not exist
-
-2025-06-09 14:17:06,386 - common.utils - ERROR - Failed to clone repository: Failed to clone repository: axios/axios
