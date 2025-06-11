@@ -325,10 +325,13 @@ def configure_code_base_source(repo_arg: str, directory_arg: str, cache_dir: str
 def get_command_line_args():
     """Get command line arguments."""
     parser = argparse.ArgumentParser(description="Analyse a codebase using an LLM agent.")
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("directory", nargs='?', help="Directory containing the codebase to analyse")
     group.add_argument("--repo", help="GitHub repository URL to clone (e.g. https://github.com/owner/repo)")
-    parser.add_argument("prompt_file", help="Path to a file containing the analysis prompt")
+    
+    # Prompt argument (required)
+    parser.add_argument("--prompt", dest='prompt_file', required=True,
+                      help="Path to a file containing the analysis prompt")
     
     # Add cache directory argument
     parser.add_argument("--cache-dir", default="~/.cache/github",
@@ -359,6 +362,10 @@ def get_command_line_args():
                       help="Base URL for the API (automatically set based on model if not provided)")
     
     args = parser.parse_args()
+    
+    # Validate that we need either directory or repo
+    if not args.directory and not args.repo:
+        parser.error("Either directory or --repo is required.")
     
     # Validate that we have a model available
     if not available_models:

@@ -1,0 +1,15 @@
+[project]
+name = "tech-writer-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "binaryornot>=0.4.4",
+    "chardet>=5.2.0",
+    "dspy>=2.6.27",
+    "gitpython>=3.1.44",
+    "openai>=1.86.0",
+    "pathspec>=0.12.1",
+    "pydantic>=2.11.5",
+]

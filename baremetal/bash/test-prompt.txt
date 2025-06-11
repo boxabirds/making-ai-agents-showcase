@@ -1,0 +1,1 @@
+List all shell scripts in this directory and describe their purpose.

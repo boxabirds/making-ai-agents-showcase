@@ -13,8 +13,8 @@ from google.adk.runners import InMemoryRunner
 from google.adk.models.lite_llm import LiteLlm
 from google.genai import types
 
-# Add baseline to path to import common modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baseline"))
+# Add baremetal/python to path to import common modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baremetal" / "python"))
 
 # Import from common modules - reuse everything possible
 from common.utils import (

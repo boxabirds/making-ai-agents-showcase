@@ -1,5 +1,5 @@
 Create a comprehensive code analysis report named `code-report.md` that compares two implementations of a tech writer agent:
-1. Baseline implementation at `@baseline/tech-writer.py` 
+1. Baseline implementation at `@baremetal/python/tech-writer.py` 
 2. Framework implementation at `@oss-agent-makers/[FRAMEWORK-NAME]/tech-writer.py`
 
 Requirements:

@@ -20,7 +20,7 @@ from agno.models.openai import OpenAIChat
 from agno.models.google import Gemini
 
 # Import from common directory
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baseline"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baremetal" / "python"))
 from common.utils import (
     read_prompt_file,
     save_results,
