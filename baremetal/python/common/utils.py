@@ -65,6 +65,20 @@ def save_results(analysis_result: str, model_name: str, repo_name: str = None, o
     Returns:
         Path to the saved file
     """
+    # Strip markdown code block delimiters if present
+    lines = analysis_result.strip().split('\n')
+    
+    # Check if the first line starts with ``` and potentially has a language identifier
+    if lines and lines[0].strip().startswith('```'):
+        lines = lines[1:]  # Remove first line
+        
+    # Check if the last line is just ```
+    if lines and lines[-1].strip() == '```':
+        lines = lines[:-1]  # Remove last line
+        
+    # Rejoin the cleaned content
+    analysis_result = '\n'.join(lines)
+    
     # Use default values if not provided
     if output_dir is None:
         output_dir = "output"

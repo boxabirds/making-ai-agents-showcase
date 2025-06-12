@@ -1,6 +1,6 @@
-# Comprehensive Guide to Using the `pydantic-ai` Package to Create and Run Agents in Python
+# Tech Writer Agent - pydantic-ai Implementation
 
-This document provides an exhaustive explanation of how to use the `pydantic-ai` package API to create an agent that can be run directly in Python (e.g., `python agent.py`). It also explains how to create a Python ReAct agent with tool calling, referencing source code and examples from the package.
+This implementation uses the pydantic-ai framework to create a tech writer agent that analyzes codebases and generates documentation.
 
 ---
 

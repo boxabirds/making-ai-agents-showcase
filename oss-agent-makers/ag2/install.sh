@@ -5,7 +5,7 @@
 
 # Python package installation using uv (Python package manager)
 uv init
-uv venv -p 3.9
+uv venv -p 3.12
 source .venv/bin/activate
 uv pip install ag2[openai]
 

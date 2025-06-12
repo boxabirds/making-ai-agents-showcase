@@ -1,7 +1,19 @@
 [project]
-name = "pydantic-ai"
+name = "tech-writer-pydantic-ai"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []
+description = "Tech Writer Agent using pydantic-ai"
+dependencies = [
+    "pydantic-ai>=0.0.17",
+    "pydantic>=2.0",
+    "openai>=1.0",
+    "google-generativeai>=0.8.0",
+    "httpx>=0.27.0",
+    "pathspec>=0.12.1",
+    "gitpython>=3.1.44",
+    "binaryornot>=0.4.4",
+    "chardet>=5.2.0",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

@@ -26,35 +26,6 @@ from common.utils import (
 )
 from common.tools import TOOLS
 
-# Initialize DSPy with the selected model
-def initialize_dspy(model_name: str, base_url: str = None):
-    vendor, model_id = model_name.split("/", 1)
-    
-    # Configure LM based on vendor
-    if vendor == "google":
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is not set")
-        lm = dspy.LM(
-            model=f"google/{model_id}",
-            api_key=api_key,
-            api_base="https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
-    elif vendor == "openai":
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set")
-        lm = dspy.LM(
-            model=f"openai/{model_id}",
-            api_key=api_key,
-            api_base=base_url
-        )
-    else:
-        raise ValueError(f"Unsupported model vendor: {vendor}")
-    
-    dspy.configure(lm=lm)
-    return model_name
-
 # DSPy uses docstrings as functional units -- it uses it as the main prompt. 
 # This approach can be very problematic because it prevents you from easily
 # being able to use variables for your prompt, which is clearly nonsense.
@@ -109,7 +80,7 @@ class TechWriterSignature(dspy.Signature):
     analysis: str = dspy.OutputField(desc="Comprehensive markdown analysis of the codebase")
 
 def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:
-    initialize_dspy(model_name, base_url)
+    dspy.configure(lm=dspy.LM(model=model_name))
     
     prompt_content = read_prompt_file(prompt_file_path)
     full_prompt = f"Base directory for analysis: {directory_path}\n\n{prompt_content}"

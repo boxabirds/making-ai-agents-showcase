@@ -6,7 +6,7 @@
 uv init
 
 # Create a virtual environment with Python 3.9 or higher (minimum required is 3.9)
-uv venv -p python3.9
+uv venv -p python3.12
 
 # Activate the virtual environment
 source .venv/bin/activate
