@@ -8,7 +8,7 @@ uv venv -p 3.12
 uv add atomic-agents
 
 # Install example provider packages (OpenAI and Groq as examples)
-uv add openai google-genai
+uv add openai google-genai pathspec binaryornot
 
 # Notes:
 # - The atomic-agents package includes the CLI tool "Atomic Assembler"

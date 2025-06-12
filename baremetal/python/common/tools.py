@@ -1,156 +1,246 @@
-from typing import List, Dict, Any, Union
-from pathlib import Path
-from .logging import logger
-from binaryornot.check import is_binary
-from .utils import get_gitignore_spec
-
-# Tool functions
-def find_all_matching_files(
-    directory: str, 
-    pattern: str = "*", 
-    respect_gitignore: bool = True, 
-    include_hidden: bool = False,
-    include_subdirs: bool = True,
-    return_paths_as: str = "Path"
-    ) -> List[Union[Path, str]]:
-    """
-    Find files matching a pattern while respecting .gitignore.
-    
-    Args:
-        directory: Directory to search in
-        pattern: File pattern to match (glob format)
-        respect_gitignore: Whether to respect .gitignore patterns
-        include_hidden: Whether to include hidden files and directories
-        include_subdirs: Whether to include files in subdirectories
-        return_paths_as: Return type for paths - "Path" for Path objects, "str" for strings
-        
-    Returns:
-        List of Path objects or strings for matching files
-    """
-    logger.info(f"Tool invoked: find_all_matching_files(directory='{directory}', pattern='{pattern}', respect_gitignore={respect_gitignore}, include_hidden={include_hidden}, include_subdirs={include_subdirs})")
-    
-    try:
-        directory_path = Path(directory).resolve()
-        logger.debug(f"Resolved directory path: {directory_path}")
-        
-        if not directory_path.exists():
-            logger.warning(f"Directory not found: {directory}")
-            return []
-        
-        # Get gitignore spec if needed
-        spec = get_gitignore_spec(str(directory_path)) if respect_gitignore else None
-        if spec:
-            logger.debug(f"Loaded .gitignore patterns from {directory_path}")
-        else:
-            logger.debug("No .gitignore patterns loaded (respect_gitignore=False or no .gitignore file)")
-        
-        result = []
-        
-        # Choose between recursive and non-recursive search
-        if include_subdirs:
-            logger.debug(f"Using recursive search (rglob) with pattern: {pattern}")
-            paths = directory_path.rglob(pattern)
-        else:
-            logger.debug(f"Using non-recursive search (glob) with pattern: {pattern}")
-            paths = directory_path.glob(pattern)
-            
-        for path in paths:
-            if path.is_file():
-                # Skip hidden files if not explicitly included
-                # Only check the file name, not the entire path
-                if not include_hidden and path.name.startswith('.'):
-                    logger.debug(f"Skipping hidden file: {path}")
-                    continue
-                
-                # Skip if should be ignored
-                if respect_gitignore and spec:
-                    # Use pathlib to get relative path and convert to posix format
-                    rel_path = path.relative_to(directory_path)
-                    rel_path_posix = rel_path.as_posix()
-                    if spec.match_file(rel_path_posix):
-                        logger.debug(f"Skipping gitignored file: {rel_path_posix}")
-                        continue
-                result.append(path)
-        
-        logger.info(f"Found {len(result)} matching files")
-        logger.debug(f"Matching files: {[str(p) for p in result[:10]]}{'...' if len(result) > 10 else ''}")
-        
-        # Return as strings if requested
-        if return_paths_as == "str":
-            return [str(p) for p in result]
-        return result
-    except (FileNotFoundError, PermissionError) as e:
-        logger.error(f"Error accessing files: {e}")
-        return []
-    except Exception as e:
-        logger.error(f"Unexpected error finding files: {e}")
-        return []
-
-
-# Tool wrapper functions for JSON compatibility
-def find_all_matching_files_json(
-    directory: str, 
-    pattern: str = "*", 
-    respect_gitignore: bool = True, 
-    include_hidden: bool = False,
-    include_subdirs: bool = True
-) -> List[str]:
-    """
-    Wrapper for find_all_matching_files that returns paths as strings for JSON serialization.
-    
-    This is useful for frameworks that require JSON-serializable outputs (e.g., ADK, LangChain).
-    """
-    return find_all_matching_files(
-        directory=directory,
-        pattern=pattern,
-        respect_gitignore=respect_gitignore,
-        include_hidden=include_hidden,
-        include_subdirs=include_subdirs,
-        return_paths_as="str"
-    )
-
-def read_file(file_path: str) -> Dict[str, Any]:
-    """Read the contents of a file."""
-    logger.info(f"Tool invoked: read_file(file_path='{file_path}')")
-    
-    try:
-        path = Path(file_path)
-        if not path.exists():
-            return {"error": f"File not found: {file_path}"}
-        
-        if is_binary(file_path):
-            logger.debug(f"File detected as binary: {file_path}")
-            return {"error": f"Cannot read binary file: {file_path}"}
-        
-        with open(path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        file_size = len(content)
-        logger.info(f"Successfully read file: {file_path} ({file_size} chars)")
-        logger.debug(f"File has {content.count(chr(10))} lines")
-        
-        return {
-            "file": file_path,
-            "content": content
-        }
-    except FileNotFoundError:
-        return {"error": f"File not found: {file_path}"}
-    except UnicodeDecodeError:
-        return {"error": f"Cannot decode file as UTF-8: {file_path}"}
-    except PermissionError:
-        return {"error": f"Permission denied when reading file: {file_path}"}
-    except IOError as e:
-        return {"error": f"IO error reading file: {str(e)}"}
-    except Exception as e:
-        return {"error": f"Unexpected error reading file: {str(e)}"}
-
-# Dictionary mapping tool names to their functions
-TOOLS = {
-    "find_all_matching_files": find_all_matching_files,
-    "read_file": read_file,
-}
-
-TOOLS_JSON = {
-    "find_all_matching_files": find_all_matching_files_json,
-    "read_file": read_file,
-}
+import sys  
+import os  
+import textwrap  
+import instructor  
+import json  
+from pathlib import Path  
+from typing import Optional, List, Dict, Any, Union  
+from pydantic import Field  
+  
+from atomic_agents.agents.base_agent import BaseAgent, BaseAgentConfig, BaseIOSchema  
+from atomic_agents.lib.components.system_prompt_generator import SystemPromptGenerator, SystemPromptContextProviderBase  
+from atomic_agents.lib.components.agent_memory import AgentMemory  
+from atomic_agents.lib.base.base_tool import BaseTool, BaseToolConfig  
+  
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baremetal" / "python"))  
+from common.utils import (  
+    read_prompt_file,  
+    save_results,  
+    create_metadata,  
+    ROLE_AND_TASK,  
+    GENERAL_ANALYSIS_GUIDELINES,  
+    INPUT_PROCESSING_GUIDELINES,  
+    CODE_ANALYSIS_STRATEGIES,  
+    QUALITY_REQUIREMENTS,  
+    REACT_PLANNING_STRATEGY,  
+    configure_code_base_source,  
+    get_command_line_args,  
+    CustomEncoder  
+)  
+from common.logging import logger, configure_logging  
+from common.tools import TOOLS  
+  
+# Atomic Agents Schema Definitions  
+class TechWriterInputSchema(BaseIOSchema):  
+    """Input schema for the tech writer agent."""  
+    prompt: str = Field(..., description="The analysis prompt")  
+    directory: str = Field(..., description="Base directory path to analyze")  
+  
+class TechWriterOutputSchema(BaseIOSchema):  
+    """Output schema for the tech writer agent."""  
+    analysis_result: str = Field(..., description="The final analysis result")  
+  
+# Context Provider for dynamic codebase information  
+class CodebaseContextProvider(SystemPromptContextProviderBase):  
+    def __init__(self, title: str):  
+        super().__init__(title=title)  
+        self.base_directory = None  
+        self.analysis_prompt = None  
+      
+    def get_info(self) -> str:  
+        return f"Base directory: {self.base_directory}\n\nAnalysis prompt: {self.analysis_prompt}"  
+  
+# FindAllMatchingFilesTool  
+class FindAllMatchingFilesInputSchema(BaseIOSchema):  
+    """Input schema for finding matching files."""  
+    directory: str = Field(..., description="Directory to search in")  
+    pattern: str = Field(default="*", description="File pattern to match (glob format)")  
+    respect_gitignore: bool = Field(default=True, description="Whether to respect .gitignore patterns")  
+    include_hidden: bool = Field(default=False, description="Whether to include hidden files and directories")  
+    include_subdirs: bool = Field(default=True, description="Whether to include files in subdirectories")  
+  
+class FindAllMatchingFilesOutputSchema(BaseIOSchema):  
+    """Output schema for finding matching files."""  
+    result: str = Field(..., description="JSON string containing list of matching file paths")  
+  
+class FindAllMatchingFilesTool(BaseTool):  
+    """Tool for finding files matching a pattern while respecting .gitignore."""  
+    input_schema = FindAllMatchingFilesInputSchema  
+    output_schema = FindAllMatchingFilesOutputSchema  
+      
+    def __init__(self, config: BaseToolConfig = None):  
+        super().__init__(config or BaseToolConfig(  
+            title="FindAllMatchingFilesTool",  
+            description="Find files matching a pattern while respecting .gitignore"  
+        ))  
+      
+    def run(self, params: FindAllMatchingFilesInputSchema) -> FindAllMatchingFilesOutputSchema:  
+        try:  
+            # Call your original function from TOOLS  
+            tool_func = TOOLS["find_all_matching_files"]  
+            result = tool_func(  
+                directory=params.directory,  
+                pattern=params.pattern,  
+                respect_gitignore=params.respect_gitignore,  
+                include_hidden=params.include_hidden,  
+                include_subdirs=params.include_subdirs,  
+                return_paths_as="str"  # Always return strings for JSON compatibility  
+            )  
+            return FindAllMatchingFilesOutputSchema(result=json.dumps(result, cls=CustomEncoder, indent=2))  
+        except Exception as e:  
+            return FindAllMatchingFilesOutputSchema(result=f"Error finding files: {str(e)}")  
+  
+# FileReaderTool  
+class FileReaderInputSchema(BaseIOSchema):  
+    """Input schema for reading file contents."""  
+    file_path: str = Field(..., description="Path to the file to read")  
+  
+class FileReaderOutputSchema(BaseIOSchema):  
+    """Output schema for reading file contents."""  
+    result: str = Field(..., description="JSON string containing file content or error message")  
+  
+class FileReaderTool(BaseTool):  
+    """Tool for reading the contents of a file."""  
+    input_schema = FileReaderInputSchema  
+    output_schema = FileReaderOutputSchema  
+      
+    def __init__(self, config: BaseToolConfig = None):  
+        super().__init__(config or BaseToolConfig(  
+            title="FileReaderTool",  
+            description="Read the contents of a file"  
+        ))  
+      
+    def run(self, params: FileReaderInputSchema) -> FileReaderOutputSchema:  
+        try:  
+            # Call your original function from TOOLS  
+            tool_func = TOOLS["read_file"]  
+            result = tool_func(params.file_path)  
+            return FileReaderOutputSchema(result=json.dumps(result, cls=CustomEncoder, indent=2))  
+        except Exception as e:  
+            return FileReaderOutputSchema(result=f"Error reading file: {str(e)}")  
+  
+def create_system_prompt_generator():  
+    """Create system prompt generator using existing constants."""  
+    background_lines = [  
+        line.strip() for line in ROLE_AND_TASK.strip().split('\n') if line.strip()  
+    ] + [  
+        line.strip() for line in GENERAL_ANALYSIS_GUIDELINES.strip().split('\n')  
+        if line.strip() and not line.strip().startswith('Follow these guidelines:') and line.strip() != '-'  
+    ]  
+      
+    strategy = REACT_PLANNING_STRATEGY  
+    steps = [  
+        line.strip() for line in strategy.strip().split('\n')  
+        if line.strip() and (line.strip().startswith(('1.', '2.', '3.', '4.', '5.')))  
+    ] + [  
+        line.strip() for line in CODE_ANALYSIS_STRATEGIES.strip().split('\n')  
+        if line.strip() and line.strip().startswith('-')  
+    ]  
+      
+    output_instructions = [  
+        line.strip() for line in INPUT_PROCESSING_GUIDELINES.strip().split('\n')  
+        if line.strip() and line.strip().startswith('-')  
+    ] + [  
+        line.strip() for line in QUALITY_REQUIREMENTS.strip().split('\n')  
+        if line.strip()  
+    ]  
+      
+    return SystemPromptGenerator(  
+        background=background_lines,  
+        steps=steps,  
+        output_instructions=output_instructions  
+    )  
+  
+class TechWriterAgent:  
+    def __init__(self, model_name: str = "openai/gpt-4o-mini", base_url: Optional[str] = None):  
+        """Initialize the TechWriter agent with atomic-agents using LiteLLM."""  
+          
+        # Use instructor.from_litellm - this handles all the vendor/model parsing!  
+        client = instructor.from_litellm(  
+            model=model_name,  
+            base_url=base_url  
+        )  
+          
+        # Create your hardcoded tools  
+        self.tools = [FindAllMatchingFilesTool(), FileReaderTool()]  
+          
+        # Create context provider  
+        self.codebase_context = CodebaseContextProvider("Codebase Analysis Context")  
+          
+        # Create system prompt generator  
+        system_prompt_generator = create_system_prompt_generator()  
+        system_prompt_generator.context_providers["codebase_context"] = self.codebase_context  
+          
+        # Create the atomic agent with tools  
+        self.agent = BaseAgent(  
+            BaseAgentConfig(  
+                client=client,  
+                model=model_name,  # LiteLLM handles the full vendor/model string  
+                system_prompt_generator=system_prompt_generator,  
+                input_schema=TechWriterInputSchema,  
+                output_schema=TechWriterOutputSchema,  
+                memory=AgentMemory(),  
+                model_api_parameters={"temperature": 0},  
+                tools=self.tools  # Add tools to the agent  
+            )  
+        )  
+      
+    def run(self, prompt: str, directory: str) -> str:  
+        """Run the agent to analyze a codebase."""  
+        self.codebase_context.base_directory = directory  
+        self.codebase_context.analysis_prompt = prompt  
+          
+        input_data = TechWriterInputSchema(prompt=prompt, directory=directory)  
+        result = self.agent.run(input_data)  
+          
+        return result.analysis_result  
+  
+def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str,  
+                    base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:  
+    """  
+    Analyse a codebase using the TechWriter agent.  
+      
+    Args:  
+        directory_path: Path to directory containing codebase  
+        prompt_file_path: Path to file containing analysis prompt  
+        model_name: Name of model to use for analysis (LiteLLM format: "vendor/model")  
+        base_url: Base URL for API (optional)  
+        repo_url: GitHub repository URL if cloned from GitHub (optional)  
+          
+    Returns:  
+        tuple: (analysis_result, repo_name, repo_url)  
+    """  
+    prompt = read_prompt_file(prompt_file_path)  
+    agent = TechWriterAgent(model_name, base_url)  
+    analysis_result = agent.run(prompt, directory_path)  
+      
+    repo_name = Path(directory_path).name  
+    return analysis_result, repo_name, repo_url or ""  
+  
+def main():  
+    try:  
+        configure_logging()  
+        args = get_command_line_args()  
+        repo_url, directory_path = configure_code_base_source(  
+            args.repo, args.directory, args.cache_dir  
+        )  
+          
+        analysis_result, repo_name, _ = analyse_codebase(  
+            directory_path, args.prompt_file, args.model, args.base_url, repo_url  
+        )  
+          
+        output_file = save_results(  
+            analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name  
+        )  
+        logger.info(f"Analysis complete. Results saved to: {output_file}")  
+          
+        create_metadata(  
+            output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt  
+        )  
+          
+    except Exception as e:  
+        logger.error(f"Error: {str(e)}", exc_info=True)  
+        sys.exit(1)  
+  
+if __name__ == "__main__":  
+    main()
