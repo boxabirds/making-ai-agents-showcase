@@ -8,16 +8,14 @@
 # curl -fsSL https://get.astral.sh | sh
 
 uv init
-# Step 2: Update uv to the recommended version (example: 0.5.18)
-uv self update 0.5.18
 
 # Step 3: Create and activate a virtual environment with all dependencies
 uv sync --all-extras
-source .venv/bin/activate
+uv venv -p 3.12
 
 # Step 4: Install AutoGen packages from PyPI (latest stable versions)
-uv pip install -U autogen-agentchat autogen-ext[openai]
-uv pip install -U autogenstudio
+uv add -U autogen-agentchat autogen-ext[openai]
+uv add -U autogenstudio
 
 # Optional: To upgrade packages later, run the above uv pip install commands again
 

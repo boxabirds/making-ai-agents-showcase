@@ -1,49 +1,50 @@
-from pathlib import Path
+import asyncio
 import sys
-from typing import Tuple
-from pydantic import BaseModel
-from pydantic_ai import Agent, RunContext
+from pathlib import Path
+from typing import List, Dict, Any
+from autogen_agentchat.agents import AssistantAgent
 
-# Add baremetal/python to path to import common modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'baremetal' / 'python'))
+# Works with any OpenAI API compatible LLM which is most of them 
+from autogen_ext.models.openai import OpenAIChatCompletionClient
+import argparse
+
+# Add the baremetal/python directory to sys.path to import common modules
+baremetal_path = Path(__file__).parent.parent.parent / "baremetal" / "python"
+sys.path.insert(0, str(baremetal_path))
 
 from common.utils import (
     read_prompt_file,
     save_results,
     create_metadata,
+    #REACT_SYSTEM_PROMPT,
     TECH_WRITER_SYSTEM_PROMPT,
     configure_code_base_source,
     get_command_line_args,
     MAX_ITERATIONS,
     vendor_model_with_colons,
+    OPENAI_API_KEY,
+    GEMINI_API_KEY,
 )
 
 from common.tools import find_all_matching_files, read_file
 from common.logging import logger, configure_logging
 
 
-class AnalysisContext(BaseModel):
-    """Context dependencies for the analysis."""
-    base_directory: str
-    analysis_prompt: str
-
-
-tech_writer = Agent(
-    deps_type=AnalysisContext,
-    result_type=str,
-    system_prompt=TECH_WRITER_SYSTEM_PROMPT,
-)
-
-@tech_writer.tool
-async def find_files(
-    ctx: RunContext[AnalysisContext], 
+# Async wrapper functions for AutoGen compatibility
+async def find_all_matching_files_async(
+    directory: str, 
     pattern: str = "*", 
     respect_gitignore: bool = True, 
     include_hidden: bool = False,
     include_subdirs: bool = True
-) -> list[str]:
+) -> List[str]:
+    """Find all the files in a given directory matching a certain regex pattern 
+    optionally recursively (on by default),
+    optionally include hidden files (off by default),
+    respecting git's .gitignore file (on by default)
+    """
     return find_all_matching_files(
-        directory=ctx.deps.base_directory,
+        directory=directory,
         pattern=pattern,
         respect_gitignore=respect_gitignore,
         include_hidden=include_hidden,
@@ -51,46 +52,44 @@ async def find_files(
         return_paths_as="str"
     )
 
-@tech_writer.tool
-async def read_file_content(ctx: RunContext[AnalysisContext], file_path: str) -> dict:
+async def read_file_async(file_path: str) -> Dict[str, Any]:
     """Read the contents of a specific file.
     
     Use this when you need to examine the actual content of a file.
     Provide either an absolute path or a path relative to the base directory.
     Returns the file content or an error message.
     """
-
-    if not Path(file_path).is_absolute():
-        file_path = str(Path(ctx.deps.base_directory) / file_path)
     return read_file(file_path)
 
 
-async def analyze_codebase(
-    directory_path: str, 
-    prompt_file_path: str, 
-    model_name: str, 
-    base_url: str = None, 
-    repo_url: str = None,
-    max_iterations: int = MAX_ITERATIONS # not used in this framework
-) -> Tuple[str, str, str]:
-
+async def analyze_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None, max_iters = MAX_ITERATIONS) -> tuple[str, str, str]:
     prompt = read_prompt_file(prompt_file_path)
     
-    context = AnalysisContext(
-        base_directory=directory_path,
-        analysis_prompt=prompt
+    # Autogen relies 100% on OpenAI-compatible endpoints, which is most of them
+    # but it does have a hard-coded list of models that limits things a bit  
+    # default string sent is openai/gpt-4.1-mini which is SOTA cheap model currently
+    _, model_id = model_name.split("/", 1)
+    
+    # Configure the model client based on vendor
+    model_client = OpenAIChatCompletionClient(
+        model=model_id,
+    )
+  
+    # Create the agent with tools
+    agent = AssistantAgent(
+        name="tech_writer",
+        model_client=model_client,
+        tools=[find_all_matching_files_async, read_file_async],
+        system_message=TECH_WRITER_SYSTEM_PROMPT,
+        reflect_on_tool_use=True
     )
     
-    colon_delimited_vendor_model_pair = vendor_model_with_colons(model_name)
-    
-    result = await tech_writer.run(
-        f"Base directory: {directory_path}\n\n{prompt}",
-        deps=context,
-        model=colon_delimited_vendor_model_pair
-    )
-    
+    task_message = f"Base directory: {directory_path}\n\n{prompt}"
+    result = await agent.run(task=task_message)
+    analysis_result = result.messages[-1].content
+        
     repo_name = Path(directory_path).name
-    return result.output, repo_name, repo_url or ""
+    return analysis_result, repo_name, repo_url or ""
 
 
 def main():

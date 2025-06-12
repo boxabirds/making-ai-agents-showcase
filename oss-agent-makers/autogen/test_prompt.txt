@@ -1,0 +1,5 @@
+Analyze this codebase and provide a brief overview of:
+1. The main purpose and functionality
+2. Key files and their roles
+3. Project structure and organization
+4. Any notable patterns or conventions used

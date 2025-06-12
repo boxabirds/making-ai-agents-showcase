@@ -4,4 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "autogen-agentchat>=0.6.1",
+    "autogen-ext[openai]>=0.6.1",
+    "autogenstudio>=0.1.5",
+    "binaryornot>=0.4.4",
+    "pathspec>=0.12.1",
+]

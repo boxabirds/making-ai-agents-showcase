@@ -3,10 +3,12 @@
 # Installation script for Atomic Agents Python package
 
 # Install the atomic-agents package from PyPI
-uv pip install atomic-agents
+uv init 
+uv venv -p 3.12
+uv add atomic-agents
 
 # Install example provider packages (OpenAI and Groq as examples)
-uv pip install openai groq
+uv add openai gemini
 
 # Notes:
 # - The atomic-agents package includes the CLI tool "Atomic Assembler"
