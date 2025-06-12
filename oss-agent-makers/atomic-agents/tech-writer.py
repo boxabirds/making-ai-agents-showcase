@@ -1,4 +1,4 @@
-mport sys  
+import sys  
 import os  
 import textwrap  
 import instructor  
@@ -75,6 +75,7 @@ class FindAllMatchingFilesTool(BaseTool):
         ))  
       
     def run(self, params: FindAllMatchingFilesInputSchema) -> FindAllMatchingFilesOutputSchema:  
+        logger.info(f"FindAllMatchingFilesTool invoked with directory={params.directory}, pattern={params.pattern}")
         try:  
             # Call your original function from TOOLS  
             tool_func = TOOLS["find_all_matching_files"]  
@@ -111,6 +112,7 @@ class FileReaderTool(BaseTool):
         ))  
       
     def run(self, params: FileReaderInputSchema) -> FileReaderOutputSchema:  
+        logger.info(f"FileReaderTool invoked with file_path={params.file_path}")
         try:  
             # Call your original function from TOOLS  
             tool_func = TOOLS["read_file"]  
@@ -155,8 +157,8 @@ class TechWriterAgent:
     def __init__(self, vendor_model: str = "openai/gpt-4o-mini"):  
         """Initialize the TechWriter agent with atomic-agents using LiteLLM."""  
           
-        # Use instructor.from_litellm - this handles all the vendor/model parsing!  
-        client = instructor.from_litellm( model=vendor_model )  
+        import litellm
+        client = instructor.from_litellm(litellm.completion)  
           
         self.tools = [FindAllMatchingFilesTool(), FileReaderTool()]  
           
@@ -165,17 +167,17 @@ class TechWriterAgent:
         system_prompt_generator = create_system_prompt_generator()  
         system_prompt_generator.context_providers["codebase_context"] = self.codebase_context  
 
-        model_name = vendor_model.split("/", 1)[1]
         self.agent = BaseAgent(  
             BaseAgentConfig(  
                 client=client,  
-                model=model_name,  
+                model=vendor_model,  
                 system_prompt_generator=system_prompt_generator,  
                 input_schema=TechWriterInputSchema,  
                 output_schema=TechWriterOutputSchema,  
                 memory=AgentMemory(),  
                 model_api_parameters={"temperature": 0},  
-                tools=self.tools 
+                tools=self.tools,
+                max_tool_iterations=50 
             )  
         )  
       
@@ -184,6 +186,11 @@ class TechWriterAgent:
         self.codebase_context.analysis_prompt = prompt  
           
         input_data = TechWriterInputSchema(prompt=prompt, directory=directory)  
+        
+        logger.info(f"Running agent with {len(self.tools)} tools")
+        for tool in self.tools:
+            logger.info(f"Tool: {tool.__class__.__name__}")
+        
         result = self.agent.run(input_data)  
           
         return result.analysis_result  

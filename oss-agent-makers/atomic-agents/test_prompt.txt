@@ -1,0 +1,1 @@
+Find all JavaScript files in the lib directory and tell me exactly how many there are. List each one with its full path.

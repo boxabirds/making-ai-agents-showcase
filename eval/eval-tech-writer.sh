@@ -105,7 +105,7 @@ test_tech_writer() {
     local start_time=$(date +%s)
     local exit_code=0
     
-    if timeout 300 bash -c "cd '$(dirname "$script_path")' && $cmd" >> "$LOG_FILE" 2>&1; then
+    if timeout 300 bash -c "cd '$(dirname "$script_path")' && ./$(basename "$script_path") ${cmd#*$script_path}" >> "$LOG_FILE" 2>&1; then
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         
