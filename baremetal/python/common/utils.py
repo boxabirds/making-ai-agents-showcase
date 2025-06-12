@@ -33,6 +33,10 @@ if not GEMINI_API_KEY and not OPENAI_API_KEY:
 GEMINI_MODELS = ["google/gemini-2.0-flash"]
 OPENAI_MODELS = ["openai/gpt-4.1-mini", "openai/gpt-4.1-nano", "openai/gpt-4.1"]
 
+def vendor_model_with_colons(vendor_model_with_slashes: str) -> str:
+    return vendor_model_with_slashes.replace("/", ":", 1)
+
+
 def sanitize_filename(name: str) -> str:
     """
     Sanitize a string to be safe for use in filenames.

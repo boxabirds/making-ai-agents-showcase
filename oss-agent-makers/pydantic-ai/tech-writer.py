@@ -17,6 +17,7 @@ from common.utils import (
     MAX_ITERATIONS,
     OPENAI_API_KEY,
     GEMINI_API_KEY,
+    vendor_model_with_colons,
 )
 
 from common.tools import find_all_matching_files, read_file
@@ -29,16 +30,11 @@ class AnalysisContext(BaseModel):
     analysis_prompt: str
 
 
-
-
-
-# Create the agent with proper types
 tech_writer = Agent(
     deps_type=AnalysisContext,
     result_type=str,
     system_prompt=TECH_WRITER_SYSTEM_PROMPT,
 )
-
 
 @tech_writer.tool
 async def find_files(
@@ -48,12 +44,6 @@ async def find_files(
     include_hidden: bool = False,
     include_subdirs: bool = True
 ) -> list[str]:
-    """Find files matching a pattern in the codebase.
-    
-    Use this to discover files by pattern (e.g., '*.py' for Python files,
-    '*.md' for markdown). Respects .gitignore by default to avoid 
-    temporary/build files.
-    """
     return find_all_matching_files(
         directory=ctx.deps.base_directory,
         pattern=pattern,
@@ -63,7 +53,6 @@ async def find_files(
         return_paths_as="str"
     )
 
-
 @tech_writer.tool
 async def read_file_content(ctx: RunContext[AnalysisContext], file_path: str) -> dict:
     """Read the contents of a specific file.
@@ -72,7 +61,7 @@ async def read_file_content(ctx: RunContext[AnalysisContext], file_path: str) ->
     Provide either an absolute path or a path relative to the base directory.
     Returns the file content or an error message.
     """
-    # Handle both absolute and relative paths
+
     if not Path(file_path).is_absolute():
         file_path = str(Path(ctx.deps.base_directory) / file_path)
     return read_file(file_path)
@@ -84,42 +73,29 @@ async def analyze_codebase(
     model_name: str, 
     base_url: str = None, 
     repo_url: str = None,
-    max_iterations: int = MAX_ITERATIONS
+    max_iterations: int = MAX_ITERATIONS # not used in this framework
 ) -> Tuple[str, str, str]:
-    """Analyze a codebase using pydantic-ai agent."""
-    # Read the prompt
+
     prompt = read_prompt_file(prompt_file_path)
     
-    # Create context
     context = AnalysisContext(
         base_directory=directory_path,
         analysis_prompt=prompt
     )
     
-    # Configure model
-    model_string = model_name.replace("/", ":", 1)
+    colon_delimited_vendor_model_pair = vendor_model_with_colons(model_name)
     
-    # Set API keys in environment if needed
-    import os
-    if OPENAI_API_KEY:
-        os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-    if GEMINI_API_KEY:
-        os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
-    
-    # Run agent with the specified model
     result = await tech_writer.run(
         f"Base directory: {directory_path}\n\n{prompt}",
         deps=context,
-        model=model_string
+        model=colon_delimited_vendor_model_pair
     )
     
-    # Extract results
     repo_name = Path(directory_path).name
     return result.output, repo_name, repo_url or ""
 
 
 def main():
-    """Main entry point."""
     import asyncio
     
     async def async_main():

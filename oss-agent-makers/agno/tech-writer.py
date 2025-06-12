@@ -47,14 +47,8 @@ class ModelFactory:
         if not model_name:
             raise ValueError("Model name cannot be None or empty")
         
-        if "/" not in model_name:
-            raise ValueError(f"Model name must be in vendor/model format, got: {model_name}")
-            
         vendor, model_id = model_name.split("/", 1)    
         model_class = cls.VENDOR_MAP.get(vendor)
-        if not model_class:
-            raise ValueError(f"Unknown model vendor: {vendor}. Supported: {list(cls.VENDOR_MAP.keys())}")
-            
         return model_class(id=model_id, **kwargs)
 
 
@@ -81,7 +75,6 @@ def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str
 
 
 def main():
-    """Main entry point matching baseline tech-writer.py interface."""
     try:
         configure_logging()
         args = get_command_line_args()

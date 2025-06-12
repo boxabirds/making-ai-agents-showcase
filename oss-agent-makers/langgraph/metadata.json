@@ -1,7 +1,7 @@
 {
   "model": "gpt-4.1-mini",
   "github_url": "https://github.com/langchain-ai/langgraph",
-  "repo_name": "langgraph-swarm-py",
+  "repo_name": "langgraph",
   "timestamp": "2025-06-09T16:37:35.364112",
-  "eval_output": "Package option, Python"
+  "eval_output": "Server required, Python"
 }
