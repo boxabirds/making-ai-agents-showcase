@@ -6,9 +6,16 @@ import sys
 from typing import Tuple, List, Dict, Any
 import json
 
+from langgraph.prebuilt import create_react_agent
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import SystemMessage, HumanMessage
+
+
 # Add baremetal/python to path to import common modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baremetal" / "python"))
 
+from common.tools import find_all_matching_files, read_file
 from common.utils import (
     read_prompt_file,
     save_results,
@@ -21,13 +28,9 @@ from common.utils import (
     GEMINI_API_KEY,
     vendor_model_with_colons
 )
-from common.tools import find_all_matching_files, read_file
+from common.tools import TOOLS_JSON
 from common.logging import logger, configure_logging
 
-from langgraph.prebuilt import create_react_agent
-from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import SystemMessage, HumanMessage
 
 
 async def analyze_codebase(
@@ -54,7 +57,11 @@ async def analyze_codebase(
     prompt = read_prompt_file(prompt_file_path)
     
     
-    # Create tools with bound directory
+    # Import the tools we need
+
+    
+    # find_files REQUIRES a wrapper because find_all_matching_files expects a 'directory' parameter
+    # that the LLM won't reliably extract from the prompt
     def find_files(pattern: str = "*", respect_gitignore: bool = True, 
                    include_hidden: bool = False, include_subdirs: bool = True) -> List[str]:
         """Find files matching a pattern in the codebase.
@@ -64,7 +71,7 @@ async def analyze_codebase(
         temporary/build files.
         """
         return find_all_matching_files(
-            directory=directory_path,
+            directory=directory_path,  # Bound from closure - this is why we need the wrapper
             pattern=pattern,
             respect_gitignore=respect_gitignore,
             include_hidden=include_hidden,
@@ -72,22 +79,25 @@ async def analyze_codebase(
             return_paths_as="str"
         )
     
-    def read_file(file_path: str) -> Dict[str, Any]:
+    # read_file doesn't REQUIRE a wrapper (it only takes file_path), but we add one 
+    # for convenience to handle relative paths. Without this, the LLM would need to 
+    # always provide absolute paths.
+    def read_file_with_path_resolution(file_path: str) -> Dict[str, Any]:
         """Read the contents of a specific file.
         
         Use this when you need to examine the actual content of a file.
         Provide either an absolute path or a path relative to the base directory.
         Returns the file content or an error message.
         """
-        # Handle both absolute and relative paths
+        # Convert relative paths to absolute paths based on the base directory
         if not Path(file_path).is_absolute():
             file_path = str(Path(directory_path) / file_path)
         return read_file(file_path)
     
     # Create agent with tools
     agent = create_react_agent(
-        model=vendor_model_with_colons(model),
-        tools=[find_files, read_file],
+        model=vendor_model_with_colons(model_name),
+        tools=[find_files, read_file_with_path_resolution],
     )
     
     # Prepare messages

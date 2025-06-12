@@ -11,4 +11,6 @@ dependencies = [
     "pytz",
     "pathspec",
     "binaryornot",
+    "langchain-google>=0.1.1",
+    "langchain>=0.3.25",
 ]
