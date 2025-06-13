@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Writer Implementation Comparison Matrix</title>
+    <style>
+        /* Prism.js Tomorrow Night Theme */
+        code[class*="language-"],
+        pre[class*="language-"] {
+            color: #ccc;
+            background: none;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            text-align: left;
+            white-space: pre;
+            word-spacing: normal;
+            word-break: normal;
+            word-wrap: normal;
+            line-height: 1.5;
+            -moz-tab-size: 4;
+            -o-tab-size: 4;
+            tab-size: 4;
+            -webkit-hyphens: none;
+            -moz-hyphens: none;
+            -ms-hyphens: none;
+            hyphens: none;
+        }
+
+        /* Token colors for light theme */
+        .token.comment {
+            color: #008000;
+            font-style: italic;
+        }
+
+        .token.string {
+            color: #a31515;
+        }
+
+        .token.keyword {
+            color: #0000ff;
+            font-weight: bold;
+        }
+
+        .token.function {
+            color: #795e26;
+        }
+
+        .token.number {
+            color: #098658;
+        }
+
+        .token.important,
+        .token.bold {
+            font-weight: bold;
+        }
+        
+        .token.italic {
+            font-style: italic;
+        }
+
+        .token.entity {
+            cursor: help;
+        }
+
+        .token.inserted {
+            color: #7ec699;
+        }
+    </style>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --accent-color: #0066cc;
+            --winner-color: #28a745;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --font-mono: 'SF Mono', Monaco, Consolas, 'Courier New', monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        /* Matrix View */
+        .matrix-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 1px;
+            background: var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .matrix-cell {
+            background: var(--bg-primary);
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            position: relative;
+        }
+
+        .matrix-cell:hover {
+            background: var(--bg-tertiary);
+            transform: scale(1.02);
+            box-shadow: var(--shadow-sm);
+            z-index: 1;
+        }
+
+        .matrix-cell.header {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .matrix-cell.header:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .matrix-cell.disabled {
+            background: var(--bg-secondary);
+            cursor: default;
+            opacity: 0.5;
+        }
+
+        .matrix-cell.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Comparison Panel */
+        .comparison-panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+            display: none;
+        }
+
+        .comparison-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .comparison-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .comparison-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .winner-badge {
+            background: var(--winner-color);
+            color: white;
+            padding: 0.25rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .comparison-summary {
+            margin-bottom: 2rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .pros-cons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .vendor-section {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .vendor-name {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+        }
+
+        .suitability {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+
+        .pros-list, .cons-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .pros-list li, .cons-list li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .pros-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--winner-color);
+            font-weight: bold;
+        }
+
+        .cons-list li::before {
+            content: "×";
+            position: absolute;
+            left: 0;
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .view-code-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .view-code-btn:hover {
+            background: #0052a3;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Code Browser */
+        .code-browser {
+            display: none;
+            height: calc(100vh - 4rem);
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .code-browser.active {
+            display: grid;
+            grid-template-columns: 1fr 400px 1fr;
+            gap: 1px;
+            background: var(--border-color);
+        }
+
+        .code-panel {
+            background: var(--bg-primary);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-header {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            font-weight: 600;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .code-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.5;
+            background: #f8f8f8;
+            color: #333;
+        }
+
+        .comparison-list {
+            background: var(--bg-secondary);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .block-comparison {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .block-comparison:hover {
+            box-shadow: var(--shadow-sm);
+            transform: translateX(-2px);
+        }
+
+        .block-comparison.active {
+            border-left: 4px solid var(--accent-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .block-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .block-details {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .block-comparison-text {
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* Code highlighting */
+        .code-block {
+            margin: 0.5rem 0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .code-block.highlighted {
+            animation: highlight 0.5s ease;
+        }
+
+        @keyframes highlight {
+            0% { background: transparent; }
+            50% { background: rgba(0, 102, 204, 0.2); }
+            100% { background: var(--block-color); }
+        }
+
+        .line-number {
+            color: #858585;
+            margin-right: 1rem;
+            user-select: none;
+            display: inline-block;
+            width: 3em;
+            text-align: right;
+            opacity: 0.7;
+        }
+
+        /* Navigation */
+        .nav-buttons {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+        }
+
+        .nav-btn:hover {
+            background: var(--bg-secondary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nav-btn.active {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .code-browser.active {
+                grid-template-columns: 1fr 300px 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .pros-cons-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .code-browser.active {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+            }
+            
+            .comparison-list {
+                order: -1;
+                max-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-buttons">
+        <button class="nav-btn active" onclick="showView('matrix', this)">Matrix View</button>
+        <button class="nav-btn" onclick="showView('code', this)">Code Browser</button>
+    </div>
+
+    <div class="container">
+        <h1>Tech Writer Implementation Comparison</h1>
+        
+        <!-- Debug button -->
+        <button onclick="debugCodeDisplay()" style="position: fixed; bottom: 20px; right: 20px; background: #dc3545; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">Debug Code Display</button>
+        
+        <div id="matrix-view">
+            <div class="matrix-container">
+                <div id="matrix-grid" class="matrix-grid"></div>
+            </div>
+            
+            <div id="comparison-panel" class="comparison-panel">
+                <div class="comparison-header">
+                    <h2 class="comparison-title" id="comparison-title"></h2>
+                    <span class="winner-badge" id="winner-badge"></span>
+                </div>
+                
+                <p class="comparison-summary" id="comparison-summary"></p>
+                
+                <div class="pros-cons-grid">
+                    <div class="vendor-section">
+                        <h3 class="vendor-name" id="vendor-a-name"></h3>
+                        <p class="suitability" id="vendor-a-suitability"></p>
+                        <h4>Pros</h4>
+                        <ul class="pros-list" id="vendor-a-pros"></ul>
+                        <h4 style="margin-top: 1rem;">Cons</h4>
+                        <ul class="cons-list" id="vendor-a-cons"></ul>
+                    </div>
+                    
+                    <div class="vendor-section">
+                        <h3 class="vendor-name" id="vendor-b-name"></h3>
+                        <p class="suitability" id="vendor-b-suitability"></p>
+                        <h4>Pros</h4>
+                        <ul class="pros-list" id="vendor-b-pros"></ul>
+                        <h4 style="margin-top: 1rem;">Cons</h4>
+                        <ul class="cons-list" id="vendor-b-cons"></ul>
+                    </div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <button class="view-code-btn" onclick="viewCode()">View Code Comparison</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="code-browser" class="code-browser">
+            <div class="code-panel">
+                <div class="code-header" id="code-header-a">Select a comparison</div>
+                <div class="code-content" id="code-content-a">
+                    <div style="padding: 20px; color: #666; text-align: center;">
+                        <p>Please select a comparison from the Matrix View first.</p>
+                        <p>Click on any ⚖️ cell in the matrix to compare two implementations.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="comparison-list" id="comparison-list">
+                <div style="padding: 20px; color: #666; text-align: center;">
+                    <p>Comparisons will appear here</p>
+                </div>
+            </div>
+            
+            <div class="code-panel">
+                <div class="code-header" id="code-header-b">Select a comparison</div>
+                <div class="code-content" id="code-content-b">
+                    <div style="padding: 20px; color: #666; text-align: center;">
+                        <p>Please select a comparison from the Matrix View first.</p>
+                        <p>Click on any ⚖️ cell in the matrix to compare two implementations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Prism.js for syntax highlighting
+        var Prism = {languages: {}, plugins: {}};
+        !function(e){var t=/\b(?:False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/,n={comment:{pattern:/(^|[^\\])#.*/,lookbehind:!0},string:{pattern:/("""|''')[\s\S]+?\1|(?:[br]?(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'))/,greedy:!0},function:{pattern:/((?:^|\s)def[ \t]+)[a-zA-Z_]\w*(?=\s*\()/g,lookbehind:!0},"class-name":{pattern:/(\bclass\s+)\w+/i,lookbehind:!0},keyword:t,boolean:/\b(?:False|True)\b/,number:/\b0(?:b(?:_?[01])+|o(?:_?[0-7])+|x(?:_?[a-f0-9])+)\b|(?:\b\d+(?:_\d+)*(?:\.(?:\d+(?:_\d+)*)?)?|\B\.\d+(?:_\d+)*)(?:e[+-]?\d+(?:_\d+)*)?j?\b/i,operator:/[-+%=]=?|!=|\*\*?=?|\/\/?=?|<[<=>]?|>[=>]?|[&|^~]/,punctuation:/[{}[\];(),.:]/};e.languages.python={comment:n.comment,string:n.string,function:n.function,"class-name":n["class-name"],keyword:t,builtin:/\b(?:__import__|abs|all|any|ascii|bin|bool|breakpoint|bytearray|bytes|callable|chr|classmethod|compile|complex|delattr|dict|dir|divmod|enumerate|eval|exec|filter|float|format|frozenset|getattr|globals|hasattr|hash|help|hex|id|input|int|isinstance|issubclass|iter|len|list|locals|map|max|memoryview|min|next|object|oct|open|ord|pow|print|property|range|repr|reversed|round|set|setattr|slice|sorted|staticmethod|str|sum|super|tuple|type|vars|zip)\b/,boolean:n.boolean,number:n.number,operator:n.operator,punctuation:n.punctuation},e.languages.py=e.languages.python}(Prism);
+        
+        // Prism tokenize function
+        Prism.tokenize = function(text, grammar) {
+            var tokens = [];
+            var rest = text;
+            
+            tokenloop: while (rest) {
+                for (var token in grammar) {
+                    var pattern = grammar[token];
+                    pattern = pattern.pattern || pattern;
+                    
+                    var match = pattern.exec ? pattern.exec(rest) : rest.match(pattern);
+                    if (match && match.index === 0) {
+                        var content = match[0];
+                        var newToken = {
+                            type: token,
+                            content: content
+                        };
+                        tokens.push(newToken);
+                        rest = rest.slice(content.length);
+                        continue tokenloop;
+                    }
+                }
+                // No match found, treat first character as text
+                tokens.push(rest[0]);
+                rest = rest.slice(1);
+            }
+            
+            return tokens;
+        };
+        
+        // Prism highlight function
+        Prism.highlight = function(text, grammar) {
+            var tokens = Prism.tokenize(text, grammar);
+            return tokens.map(token => {
+                if (typeof token === 'string') {
+                    return escapeHtml(token);
+                }
+                return '<span class="token ' + token.type + '">' + escapeHtml(token.content) + '</span>';
+            }).join('');
+        };
+
+        // Matrix data will be injected here
+        const matrixData = /* MATRIX_DATA_PLACEHOLDER */;
+        
+        // Code content will be injected here
+        const codeFiles = /* CODE_FILES_PLACEHOLDER */;
+        
+        // Color palette for block mappings
+        const blockColors = [
+            '#e3f2fd', '#f3e5f5', '#e8f5e9', '#fff3e0', '#fce4ec',
+            '#e0f2f1', '#f1f8e9', '#ede7f6', '#e0f7fa', '#fff8e1'
+        ];
+        
+        let currentComparison = null;
+        let currentView = 'matrix';
+        
+        // Initialize the app
+        function init() {
+            console.log('Initializing app...');
+            console.log('Matrix data:', matrixData);
+            console.log('Code files:', Object.keys(codeFiles));
+            
+            buildMatrix();
+            setupEventListeners();
+            
+            // Load a default comparison for testing
+            if (matrixData && matrixData.comparisons && matrixData.comparisons.length > 0) {
+                const firstComparison = matrixData.comparisons[0];
+                showComparison(firstComparison.vendor_a, firstComparison.vendor_b);
+            }
+        }
+        
+        function buildMatrix() {
+            const vendors = getUniqueVendors();
+            const grid = document.getElementById('matrix-grid');
+            const gridSize = vendors.length + 1;
+            
+            grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+            
+            // Empty top-left cell
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'matrix-cell header';
+            grid.appendChild(emptyCell);
+            
+            // Column headers
+            vendors.forEach(vendor => {
+                const cell = document.createElement('div');
+                cell.className = 'matrix-cell header';
+                cell.textContent = vendor;
+                grid.appendChild(cell);
+            });
+            
+            // Rows
+            vendors.forEach(vendorA => {
+                // Row header
+                const rowHeader = document.createElement('div');
+                rowHeader.className = 'matrix-cell header';
+                rowHeader.textContent = vendorA;
+                grid.appendChild(rowHeader);
+                
+                // Cells
+                vendors.forEach(vendorB => {
+                    const cell = document.createElement('div');
+                    
+                    if (vendorA === vendorB) {
+                        cell.className = 'matrix-cell disabled';
+                        cell.textContent = '—';
+                    } else {
+                        const comparison = findComparison(vendorA, vendorB);
+                        if (comparison) {
+                            cell.className = 'matrix-cell';
+                            cell.textContent = '⚖️';
+                            cell.dataset.vendorA = vendorA;
+                            cell.dataset.vendorB = vendorB;
+                            cell.onclick = () => showComparison(vendorA, vendorB);
+                        } else {
+                            cell.className = 'matrix-cell disabled';
+                            cell.textContent = '·';
+                        }
+                    }
+                    
+                    grid.appendChild(cell);
+                });
+            });
+        }
+        
+        function getUniqueVendors() {
+            const vendors = new Set();
+            matrixData.comparisons.forEach(comp => {
+                vendors.add(comp.vendor_a);
+                vendors.add(comp.vendor_b);
+            });
+            return Array.from(vendors).sort();
+        }
+        
+        function findComparison(vendorA, vendorB) {
+            return matrixData.comparisons.find(comp => 
+                (comp.vendor_a === vendorA && comp.vendor_b === vendorB) ||
+                (comp.vendor_a === vendorB && comp.vendor_b === vendorA)
+            );
+        }
+        
+        function showComparison(vendorA, vendorB) {
+            const comparison = findComparison(vendorA, vendorB);
+            if (!comparison) return;
+            
+            currentComparison = comparison;
+            
+            // Update comparison panel
+            document.getElementById('comparison-title').textContent = `${vendorA} vs ${vendorB}`;
+            document.getElementById('winner-badge').textContent = `Winner: ${comparison.overall_winner.split(' ')[0]}`;
+            document.getElementById('comparison-summary').textContent = comparison.summary;
+            
+            // Update vendor A
+            document.getElementById('vendor-a-name').textContent = vendorA;
+            document.getElementById('vendor-a-suitability').textContent = comparison.suitability[vendorA];
+            updateList('vendor-a-pros', comparison.pros_cons[vendorA].pros);
+            updateList('vendor-a-cons', comparison.pros_cons[vendorA].cons);
+            
+            // Update vendor B
+            document.getElementById('vendor-b-name').textContent = vendorB;
+            document.getElementById('vendor-b-suitability').textContent = comparison.suitability[vendorB];
+            updateList('vendor-b-pros', comparison.pros_cons[vendorB].pros);
+            updateList('vendor-b-cons', comparison.pros_cons[vendorB].cons);
+            
+            // Show panel
+            document.getElementById('comparison-panel').classList.add('active');
+        }
+        
+        function updateList(id, items) {
+            const list = document.getElementById(id);
+            list.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+        }
+        
+        function viewCode() {
+            if (!currentComparison) return;
+            
+            showView('code');
+            loadCodeComparison(currentComparison);
+        }
+        
+        function loadCodeComparison(comparison) {
+            console.log('Loading comparison:', comparison.vendor_a, 'vs', comparison.vendor_b);
+            
+            // Set headers
+            document.getElementById('code-header-a').textContent = comparison.vendor_a;
+            document.getElementById('code-header-b').textContent = comparison.vendor_b;
+            
+            // Load code
+            const codeA = codeFiles[comparison.vendor_a];
+            const codeB = codeFiles[comparison.vendor_b];
+            
+            console.log('Code A length:', codeA ? codeA.length : 'undefined');
+            console.log('Code B length:', codeB ? codeB.length : 'undefined');
+            
+            if (codeA && codeB) {
+                renderCode('code-content-a', codeA, comparison.vendor_a);
+                renderCode('code-content-b', codeB, comparison.vendor_b);
+                renderComparisons(comparison);
+            } else {
+                console.error('Missing code files:', !codeA ? comparison.vendor_a : '', !codeB ? comparison.vendor_b : '');
+            }
+        }
+        
+        function renderCode(elementId, code, vendor) {
+            const element = document.getElementById(elementId);
+            if (!element) {
+                console.error('Element not found:', elementId);
+                return;
+            }
+            
+            const lines = code.split('\n');
+            
+            element.innerHTML = lines.map((line, index) => {
+                const lineNum = index + 1;
+                const highlightedLine = highlightPython(line);
+                return `<div class="code-block" data-line="${lineNum}" data-vendor="${vendor}">` +
+                       `<span class="line-number">${lineNum}</span>` +
+                       `<span class="code-text">${highlightedLine}</span>` +
+                       `</div>`;
+            }).join('');
+        }
+        
+        // Simple Python syntax highlighter
+        function highlightPython(line) {
+            if (!line) return '';
+            
+            // Escape HTML first
+            let highlighted = escapeHtml(line);
+            
+            // Keywords
+            const keywords = /\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g;
+            highlighted = highlighted.replace(keywords, '<span class="token keyword">$1</span>');
+            
+            // Strings (simple version)
+            highlighted = highlighted.replace(/(["'])((?:\\.|(?!\1).)*?)\1/g, '<span class="token string">$1$2$1</span>');
+            
+            // Comments
+            highlighted = highlighted.replace(/(#.*)$/g, '<span class="token comment">$1</span>');
+            
+            // Functions
+            highlighted = highlighted.replace(/\b(\w+)(?=\s*\()/g, '<span class="token function">$1</span>');
+            
+            // Numbers
+            highlighted = highlighted.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="token number">$1</span>');
+            
+            return highlighted;
+        }
+        
+        function renderComparisons(comparison) {
+            const list = document.getElementById('comparison-list');
+            
+            list.innerHTML = comparison.block_mappings.map((mapping, index) => {
+                const color = blockColors[index % blockColors.length];
+                
+                return `<div class="block-comparison" data-index="${index}" 
+                         onclick="highlightBlocks(${index})"
+                         style="--block-color: ${color};">
+                    <div class="block-title">${mapping.description}</div>
+                    <div class="block-details">
+                        ${comparison.vendor_a}: lines ${mapping.vendor_a.lines[0]}-${mapping.vendor_a.lines[1]}<br>
+                        ${comparison.vendor_b}: lines ${mapping.vendor_b.lines[0]}-${mapping.vendor_b.lines[1]}
+                    </div>
+                    <div class="block-comparison-text">${mapping.comparison}</div>
+                </div>`;
+            }).join('');
+        }
+        
+        function highlightBlocks(index) {
+            if (!currentComparison) return;
+            
+            const mapping = currentComparison.block_mappings[index];
+            const color = blockColors[index % blockColors.length];
+            
+            // Clear previous highlights
+            document.querySelectorAll('.code-block').forEach(block => {
+                block.style.backgroundColor = '';
+                block.classList.remove('highlighted');
+            });
+            
+            // Clear previous active comparison
+            document.querySelectorAll('.block-comparison').forEach(block => {
+                block.classList.remove('active');
+            });
+            
+            // Mark comparison as active
+            document.querySelector(`[data-index="${index}"]`).classList.add('active');
+            
+            // Highlight and scroll vendor A
+            highlightAndScroll(currentComparison.vendor_a, mapping.vendor_a.lines, color);
+            
+            // Highlight and scroll vendor B
+            highlightAndScroll(currentComparison.vendor_b, mapping.vendor_b.lines, color);
+        }
+        
+        function highlightAndScroll(vendor, lines, color) {
+            const [start, end] = lines;
+            let firstBlock = null;
+            
+            for (let i = start; i <= end; i++) {
+                const block = document.querySelector(
+                    `.code-block[data-vendor="${vendor}"][data-line="${i}"]`
+                );
+                
+                if (block) {
+                    block.style.backgroundColor = color;
+                    block.classList.add('highlighted');
+                    
+                    if (!firstBlock) {
+                        firstBlock = block;
+                    }
+                }
+            }
+            
+            // Scroll to first highlighted block
+            if (firstBlock) {
+                firstBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        function showView(view, buttonElement) {
+            console.log('showView called:', view, 'currentComparison:', currentComparison);
+            currentView = view;
+            
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // If called from button click, highlight it
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            } else {
+                // Find and highlight the appropriate button
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    if ((view === 'matrix' && btn.textContent.includes('Matrix')) ||
+                        (view === 'code' && btn.textContent.includes('Code'))) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+            
+            // Show/hide views
+            if (view === 'matrix') {
+                document.getElementById('matrix-view').style.display = 'block';
+                document.getElementById('code-browser').classList.remove('active');
+            } else {
+                document.getElementById('matrix-view').style.display = 'none';
+                document.getElementById('code-browser').classList.add('active');
+                
+                // If switching to code view and we have a comparison, load it
+                if (currentComparison) {
+                    console.log('Loading current comparison in code view');
+                    loadCodeComparison(currentComparison);
+                } else {
+                    console.log('No comparison selected yet');
+                }
+            }
+        }
+        
+        function setupEventListeners() {
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    showView('matrix');
+                }
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Debug function
+        function debugCodeDisplay() {
+            console.log('=== Debug Info ===');
+            console.log('Current comparison:', currentComparison);
+            console.log('Current view:', currentView);
+            console.log('Code files available:', Object.keys(codeFiles));
+            
+            // Try to manually load first comparison
+            if (matrixData && matrixData.comparisons && matrixData.comparisons.length > 0) {
+                const comp = matrixData.comparisons[0];
+                console.log('Loading first comparison:', comp.vendor_a, 'vs', comp.vendor_b);
+                
+                currentComparison = comp;
+                showView('code');
+                loadCodeComparison(comp);
+                
+                // Check if content was rendered
+                setTimeout(() => {
+                    const contentA = document.getElementById('code-content-a');
+                    const contentB = document.getElementById('code-content-b');
+                    console.log('Content A HTML length:', contentA ? contentA.innerHTML.length : 'null');
+                    console.log('Content B HTML length:', contentB ? contentB.innerHTML.length : 'null');
+                }, 100);
+            }
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

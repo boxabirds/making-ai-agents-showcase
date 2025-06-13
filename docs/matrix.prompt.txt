@@ -1,0 +1,119 @@
+PROMPT TO REGENERATE TECH WRITER IMPLEMENTATION COMPARISON MATRIX
+
+Task: Create a comprehensive comparison matrix analyzing all Python tech-writer.py implementations for an interactive side-by-side code comparison application.
+
+Target output: docs/matrix.json
+
+Requirements:
+
+1. IMPLEMENTATIONS TO ANALYZE (Python only):
+   - baremetal/python/tech-writer.py
+   - oss-agent-makers/adk-python/tech-writer.py
+   - oss-agent-makers/dspy/tech-writer.py
+   - oss-agent-makers/agno/tech-writer.py
+   - oss-agent-makers/langgraph/tech-writer.py
+   - oss-agent-makers/pydantic-ai/tech-writer.py
+   - oss-agent-makers/autogen/tech-writer.py
+   - oss-agent-makers/atomic-agents/tech-writer.py
+
+2. COMPARISON STRUCTURE:
+   For each comparison pair, include:
+   - vendor_a: string (implementation name without path)
+   - vendor_b: string (implementation name without path)
+   - summary: One paragraph comparing the approaches
+   - suitability: Object with vendor_a and vendor_b keys explaining when to use each
+   - overall_winner: String explaining which is better and why
+   - pros_cons: Object with vendor_a and vendor_b keys, each containing pros and cons arrays
+   - block_mappings: Array of semantic block comparisons
+
+3. BLOCK MAPPING RULES:
+   - Only include mappings where code in vendor_a corresponds to code in vendor_b
+   - Each mapping must have:
+     * description: What the code block does
+     * vendor_a: {lines: [start, end], component: "description"}
+     * vendor_b: {lines: [start, end], component: "description"}
+     * comparison: Narrative explaining the difference (e.g., "vendor_a's implementation takes 87 lines whereas vendor_b's implementation is just 1")
+   - Focus on meaningful semantic blocks like:
+     * Agent/class definitions
+     * Tool definitions/wrappers
+     * Execution loops
+     * Client initialization
+     * Main analysis functions
+
+4. COMPARISON SELECTION:
+   Create ALL possible pairwise comparisons (28 total for 8 implementations).
+   Each implementation should be compared with every other implementation.
+   
+   Required comparisons (all 28 unique pairs):
+   - baremetal vs: adk-python, dspy, agno, langgraph, pydantic-ai, autogen, atomic-agents
+   - adk-python vs: dspy, agno, langgraph, pydantic-ai, autogen, atomic-agents
+   - dspy vs: agno, langgraph, pydantic-ai, autogen, atomic-agents
+   - agno vs: langgraph, pydantic-ai, autogen, atomic-agents
+   - langgraph vs: pydantic-ai, autogen, atomic-agents
+   - pydantic-ai vs: autogen, atomic-agents
+   - autogen vs: atomic-agents
+   
+   These comparisons should showcase:
+   - Manual implementation vs framework abstractions
+   - Verbose vs minimal approaches
+   - Sync vs async patterns
+   - Different framework philosophies
+   - Type-safe vs dynamic approaches
+
+5. ANALYSIS APPROACH:
+   For each implementation:
+   - Count total lines
+   - Identify major semantic blocks (imports, classes, tools, main logic)
+   - Note exact line ranges for each component
+   - Compare equivalent functionality across implementations
+   - Highlight where one implementation needs many lines vs another needs few
+
+6. JSON STRUCTURE:
+   {
+     "comparisons": [
+       {
+         "vendor_a": "implementation-name",
+         "vendor_b": "implementation-name",
+         "summary": "...",
+         "suitability": {
+           "vendor_a": "...",
+           "vendor_b": "..."
+         },
+         "overall_winner": "...",
+         "pros_cons": {
+           "vendor_a": {
+             "pros": ["..."],
+             "cons": ["..."]
+           },
+           "vendor_b": {
+             "pros": ["..."],
+             "cons": ["..."]
+           }
+         },
+         "block_mappings": [
+           {
+             "description": "...",
+             "vendor_a": {"lines": [start, end], "component": "..."},
+             "vendor_b": {"lines": [start, end], "component": "..."},
+             "comparison": "..."
+           }
+         ]
+       }
+     ],
+     "metadata": {
+       "generated": "YYYY-MM-DD",
+       "total_implementations": 8,
+       "comparison_count": 28,
+       "purpose": "Interactive side-by-side comparison of tech writer implementations"
+     }
+   }
+
+Key insights to capture:
+- Baremetal implements everything manually (315 lines)
+- DSPy is the most minimal (119 lines)
+- Frameworks abstract away boilerplate but add dependencies
+- Tool integration varies from direct usage to complex wrappers
+- Async vs sync patterns affect code structure
+- Type safety (Atomic Agents, Pydantic-AI) vs simplicity trade-offs
+
+The goal is to create data for an interactive UI where clicking a code block in one implementation highlights the corresponding block(s) in the comparison implementation, helping users understand different approaches to the same problem.

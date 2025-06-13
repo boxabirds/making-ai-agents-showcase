@@ -1,0 +1,2106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Writer Implementation Comparison Matrix</title>
+    <style>
+        /* Prism.js Tomorrow Night Theme */
+        code[class*="language-"],
+        pre[class*="language-"] {
+            color: #ccc;
+            background: none;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            text-align: left;
+            white-space: pre;
+            word-spacing: normal;
+            word-break: normal;
+            word-wrap: normal;
+            line-height: 1.5;
+            -moz-tab-size: 4;
+            -o-tab-size: 4;
+            tab-size: 4;
+            -webkit-hyphens: none;
+            -moz-hyphens: none;
+            -ms-hyphens: none;
+            hyphens: none;
+        }
+
+        /* Token colors for light theme */
+        .token.comment {
+            color: #008000;
+            font-style: italic;
+        }
+
+        .token.string {
+            color: #a31515;
+        }
+
+        .token.keyword {
+            color: #0000ff;
+            font-weight: bold;
+        }
+
+        .token.function {
+            color: #795e26;
+        }
+
+        .token.number {
+            color: #098658;
+        }
+
+        .token.important,
+        .token.bold {
+            font-weight: bold;
+        }
+        
+        .token.italic {
+            font-style: italic;
+        }
+
+        .token.entity {
+            cursor: help;
+        }
+
+        .token.inserted {
+            color: #7ec699;
+        }
+    </style>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --accent-color: #0066cc;
+            --winner-color: #28a745;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --font-mono: 'SF Mono', Monaco, Consolas, 'Courier New', monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        /* Matrix View */
+        .matrix-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 1px;
+            background: var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .matrix-cell {
+            background: var(--bg-primary);
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            position: relative;
+        }
+
+        .matrix-cell:hover {
+            background: var(--bg-tertiary);
+            transform: scale(1.02);
+            box-shadow: var(--shadow-sm);
+            z-index: 1;
+        }
+
+        .matrix-cell.header {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .matrix-cell.header:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .matrix-cell.disabled {
+            background: var(--bg-secondary);
+            cursor: default;
+            opacity: 0.5;
+        }
+
+        .matrix-cell.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Comparison Panel */
+        .comparison-panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+            display: none;
+        }
+
+        .comparison-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .comparison-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .comparison-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .winner-badge {
+            background: var(--winner-color);
+            color: white;
+            padding: 0.25rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .comparison-summary {
+            margin-bottom: 2rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .pros-cons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .vendor-section {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .vendor-name {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+        }
+
+        .suitability {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+
+        .pros-list, .cons-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .pros-list li, .cons-list li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .pros-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--winner-color);
+            font-weight: bold;
+        }
+
+        .cons-list li::before {
+            content: "×";
+            position: absolute;
+            left: 0;
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .view-code-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .view-code-btn:hover {
+            background: #0052a3;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Code Browser */
+        .code-browser {
+            display: none;
+            height: calc(100vh - 4rem);
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+
+        .code-browser.active {
+            display: grid;
+            grid-template-columns: 1fr 400px 1fr;
+            gap: 1px;
+            background: var(--border-color);
+        }
+
+        .code-panel {
+            background: var(--bg-primary);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-header {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            font-weight: 600;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .code-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.5;
+            background: #f8f8f8;
+            color: #333;
+        }
+
+        .comparison-list {
+            background: var(--bg-secondary);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .block-comparison {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .block-comparison:hover {
+            box-shadow: var(--shadow-sm);
+            transform: translateX(-2px);
+        }
+
+        .block-comparison.active {
+            border-left: 4px solid var(--accent-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .block-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .block-details {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .block-comparison-text {
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* Code highlighting */
+        .code-block {
+            margin: 0.5rem 0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .code-block.highlighted {
+            animation: highlight 0.5s ease;
+        }
+
+        @keyframes highlight {
+            0% { background: transparent; }
+            50% { background: rgba(0, 102, 204, 0.2); }
+            100% { background: var(--block-color); }
+        }
+
+        .line-number {
+            color: #858585;
+            margin-right: 1rem;
+            user-select: none;
+            display: inline-block;
+            width: 3em;
+            text-align: right;
+            opacity: 0.7;
+        }
+
+        /* Navigation */
+        .nav-buttons {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+        }
+
+        .nav-btn:hover {
+            background: var(--bg-secondary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nav-btn.active {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .code-browser.active {
+                grid-template-columns: 1fr 300px 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .pros-cons-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .code-browser.active {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+            }
+            
+            .comparison-list {
+                order: -1;
+                max-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-buttons">
+        <button class="nav-btn active" onclick="showView('matrix', this)">Matrix View</button>
+        <button class="nav-btn" onclick="showView('code', this)">Code Browser</button>
+    </div>
+
+    <div class="container">
+        <h1>Tech Writer Implementation Comparison</h1>
+        
+        <!-- Debug button -->
+        <button onclick="debugCodeDisplay()" style="position: fixed; bottom: 20px; right: 20px; background: #dc3545; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">Debug Code Display</button>
+        
+        <div id="matrix-view">
+            <div class="matrix-container">
+                <div id="matrix-grid" class="matrix-grid"></div>
+            </div>
+            
+            <div id="comparison-panel" class="comparison-panel">
+                <div class="comparison-header">
+                    <h2 class="comparison-title" id="comparison-title"></h2>
+                    <span class="winner-badge" id="winner-badge"></span>
+                </div>
+                
+                <p class="comparison-summary" id="comparison-summary"></p>
+                
+                <div class="pros-cons-grid">
+                    <div class="vendor-section">
+                        <h3 class="vendor-name" id="vendor-a-name"></h3>
+                        <p class="suitability" id="vendor-a-suitability"></p>
+                        <h4>Pros</h4>
+                        <ul class="pros-list" id="vendor-a-pros"></ul>
+                        <h4 style="margin-top: 1rem;">Cons</h4>
+                        <ul class="cons-list" id="vendor-a-cons"></ul>
+                    </div>
+                    
+                    <div class="vendor-section">
+                        <h3 class="vendor-name" id="vendor-b-name"></h3>
+                        <p class="suitability" id="vendor-b-suitability"></p>
+                        <h4>Pros</h4>
+                        <ul class="pros-list" id="vendor-b-pros"></ul>
+                        <h4 style="margin-top: 1rem;">Cons</h4>
+                        <ul class="cons-list" id="vendor-b-cons"></ul>
+                    </div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <button class="view-code-btn" onclick="viewCode()">View Code Comparison</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="code-browser" class="code-browser">
+            <div class="code-panel">
+                <div class="code-header" id="code-header-a">Select a comparison</div>
+                <div class="code-content" id="code-content-a">
+                    <div style="padding: 20px; color: #666; text-align: center;">
+                        <p>Please select a comparison from the Matrix View first.</p>
+                        <p>Click on any ⚖️ cell in the matrix to compare two implementations.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="comparison-list" id="comparison-list">
+                <div style="padding: 20px; color: #666; text-align: center;">
+                    <p>Comparisons will appear here</p>
+                </div>
+            </div>
+            
+            <div class="code-panel">
+                <div class="code-header" id="code-header-b">Select a comparison</div>
+                <div class="code-content" id="code-content-b">
+                    <div style="padding: 20px; color: #666; text-align: center;">
+                        <p>Please select a comparison from the Matrix View first.</p>
+                        <p>Click on any ⚖️ cell in the matrix to compare two implementations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Prism.js for syntax highlighting
+        var Prism = {languages: {}, plugins: {}};
+        !function(e){var t=/\b(?:False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/,n={comment:{pattern:/(^|[^\\])#.*/,lookbehind:!0},string:{pattern:/("""|''')[\s\S]+?\1|(?:[br]?(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'))/,greedy:!0},function:{pattern:/((?:^|\s)def[ \t]+)[a-zA-Z_]\w*(?=\s*\()/g,lookbehind:!0},"class-name":{pattern:/(\bclass\s+)\w+/i,lookbehind:!0},keyword:t,boolean:/\b(?:False|True)\b/,number:/\b0(?:b(?:_?[01])+|o(?:_?[0-7])+|x(?:_?[a-f0-9])+)\b|(?:\b\d+(?:_\d+)*(?:\.(?:\d+(?:_\d+)*)?)?|\B\.\d+(?:_\d+)*)(?:e[+-]?\d+(?:_\d+)*)?j?\b/i,operator:/[-+%=]=?|!=|\*\*?=?|\/\/?=?|<[<=>]?|>[=>]?|[&|^~]/,punctuation:/[{}[\];(),.:]/};e.languages.python={comment:n.comment,string:n.string,function:n.function,"class-name":n["class-name"],keyword:t,builtin:/\b(?:__import__|abs|all|any|ascii|bin|bool|breakpoint|bytearray|bytes|callable|chr|classmethod|compile|complex|delattr|dict|dir|divmod|enumerate|eval|exec|filter|float|format|frozenset|getattr|globals|hasattr|hash|help|hex|id|input|int|isinstance|issubclass|iter|len|list|locals|map|max|memoryview|min|next|object|oct|open|ord|pow|print|property|range|repr|reversed|round|set|setattr|slice|sorted|staticmethod|str|sum|super|tuple|type|vars|zip)\b/,boolean:n.boolean,number:n.number,operator:n.operator,punctuation:n.punctuation},e.languages.py=e.languages.python}(Prism);
+        
+        // Prism tokenize function
+        Prism.tokenize = function(text, grammar) {
+            var tokens = [];
+            var rest = text;
+            
+            tokenloop: while (rest) {
+                for (var token in grammar) {
+                    var pattern = grammar[token];
+                    pattern = pattern.pattern || pattern;
+                    
+                    var match = pattern.exec ? pattern.exec(rest) : rest.match(pattern);
+                    if (match && match.index === 0) {
+                        var content = match[0];
+                        var newToken = {
+                            type: token,
+                            content: content
+                        };
+                        tokens.push(newToken);
+                        rest = rest.slice(content.length);
+                        continue tokenloop;
+                    }
+                }
+                // No match found, treat first character as text
+                tokens.push(rest[0]);
+                rest = rest.slice(1);
+            }
+            
+            return tokens;
+        };
+        
+        // Prism highlight function
+        Prism.highlight = function(text, grammar) {
+            var tokens = Prism.tokenize(text, grammar);
+            return tokens.map(token => {
+                if (typeof token === 'string') {
+                    return escapeHtml(token);
+                }
+                return '<span class="token ' + token.type + '">' + escapeHtml(token.content) + '</span>';
+            }).join('');
+        };
+
+        // Matrix data will be injected here
+        const matrixData = {
+  "comparisons": [
+    {
+      "vendor_a": "baremetal",
+      "vendor_b": "atomic-agents",
+      "summary": "Baremetal implements a custom ReAct agent from scratch with 315 lines of detailed control flow, while Atomic Agents leverages a framework with Pydantic schemas and structured components in 234 lines. Baremetal offers complete control but requires more boilerplate, whereas Atomic Agents provides type safety and better separation of concerns.",
+      "suitability": {
+        "baremetal": "Better for educational purposes, custom agent behaviors, or when you need fine-grained control over the ReAct loop",
+        "atomic-agents": "Better for production systems requiring type safety, schema validation, and standardized agent patterns"
+      },
+      "overall_winner": "atomic-agents for most use cases due to better maintainability and type safety",
+      "pros_cons": {
+        "baremetal": {
+          "pros": ["Complete control over agent behavior", "No framework dependencies", "Educational value", "Direct API integration"],
+          "cons": ["More code to maintain", "Manual error handling", "No type safety", "Reinventing the wheel"]
+        },
+        "atomic-agents": {
+          "pros": ["Type-safe with Pydantic", "Structured tool definitions", "Framework handles boilerplate", "Better separation of concerns"],
+          "cons": ["Framework learning curve", "More dependencies", "Less flexibility for custom behaviors", "Heavier setup"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Agent class definition",
+          "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
+          "vendor_b": {"lines": [154, 196], "component": "TechWriterAgent class"},
+          "comparison": "Baremetal's 248-line class implements full ReAct logic manually, while Atomic's 42-line class leverages framework abstractions"
+        },
+        {
+          "description": "Tool definition approach",
+          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions method"},
+          "vendor_b": {"lines": [53, 123], "component": "Tool schema classes"},
+          "comparison": "Baremetal uses introspection to create OpenAI tool definitions (87 lines), Atomic uses Pydantic schemas (70 lines) for type-safe tools"
+        },
+        {
+          "description": "LLM client initialization",
+          "vendor_a": {"lines": [26, 49], "component": "__init__ with vendor detection"},
+          "vendor_b": {"lines": [158, 159], "component": "instructor.from_litellm"},
+          "comparison": "Baremetal manually handles vendor detection in 23 lines, Atomic delegates to LiteLLM in 2 lines"
+        },
+        {
+          "description": "Agent execution loop",
+          "vendor_a": {"lines": [226, 273], "component": "run method with ReAct loop"},
+          "vendor_b": {"lines": [192, 194], "component": "agent.run call"},
+          "comparison": "Baremetal implements full ReAct loop in 47 lines, Atomic delegates to framework in 3 lines"
+        },
+        {
+          "description": "Tool execution",
+          "vendor_a": {"lines": [192, 223], "component": "execute_tool method"},
+          "vendor_b": {"lines": [77, 92], "component": "Tool run methods"},
+          "comparison": "Baremetal has centralized tool execution (31 lines), Atomic has per-tool run methods (15 lines each)"
+        }
+      ]
+    },
+    {
+      "vendor_a": "baremetal",
+      "vendor_b": "dspy",
+      "summary": "Baremetal's 315-line implementation provides complete control over the ReAct pattern, while DSPy achieves the same functionality in just 119 lines using its declarative signature-based approach. DSPy's conciseness comes from abstracting away the agent loop entirely.",
+      "suitability": {
+        "baremetal": "When you need to understand or customize ReAct implementation details",
+        "dspy": "When you want the simplest possible implementation with minimal code"
+      },
+      "overall_winner": "dspy for simplicity and maintainability",
+      "pros_cons": {
+        "baremetal": {
+          "pros": ["Full visibility into ReAct logic", "Customizable behavior", "No DSPy learning curve"],
+          "cons": ["10x more code", "Manual implementation of standard patterns", "More potential for bugs"]
+        },
+        "dspy": {
+          "pros": ["Extremely concise", "Declarative approach", "Built-in ReAct", "Automatic optimization potential"],
+          "cons": ["Black box ReAct implementation", "DSPy-specific patterns", "Less control"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Entire agent implementation",
+          "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
+          "vendor_b": {"lines": [40, 81], "component": "TechWriterSignature class"},
+          "comparison": "Baremetal's 248-line class vs DSPy's 41-line signature - DSPy achieves same result with 83% less code"
+        },
+        {
+          "description": "ReAct pattern implementation",
+          "vendor_a": {"lines": [226, 273], "component": "run method"},
+          "vendor_b": {"lines": [91, 93], "component": "dspy.ReAct instantiation"},
+          "comparison": "Baremetal implements ReAct loop in 47 lines, DSPy uses built-in ReAct in 3 lines"
+        },
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
+          "vendor_b": {"lines": [93, 93], "component": "tools=TOOLS parameter"},
+          "comparison": "Baremetal converts tools in 87 lines, DSPy passes tools directly in 1 line"
+        }
+      ]
+    },
+    {
+      "vendor_a": "baremetal", 
+      "vendor_b": "langgraph",
+      "summary": "Baremetal's 315-line synchronous implementation contrasts with LangGraph's 166-line async implementation using pre-built components. LangGraph provides a middle ground between raw implementation and high abstraction.",
+      "suitability": {
+        "baremetal": "When async isn't needed and you want direct control",
+        "langgraph": "When building async workflows with LangChain ecosystem integration"
+      },
+      "overall_winner": "langgraph for modern async applications",
+      "pros_cons": {
+        "baremetal": {
+          "pros": ["Simpler synchronous model", "No LangChain dependencies", "Direct OpenAI integration"],
+          "cons": ["No async support", "Manual ReAct implementation", "More code"]
+        },
+        "langgraph": {
+          "pros": ["Async native", "Pre-built ReAct agent", "LangChain ecosystem", "Streaming support"],
+          "cons": ["LangChain dependency weight", "More complex setup", "Async complexity"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Main analysis function",
+          "vendor_a": {"lines": [276, 294], "component": "analyse_codebase (sync)"},
+          "vendor_b": {"lines": [36, 123], "component": "analyze_codebase (async)"},
+          "comparison": "Baremetal's 18-line sync function vs LangGraph's 87-line async function with streaming"
+        },
+        {
+          "description": "Tool wrapper approach",
+          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
+          "vendor_b": {"lines": [63, 96], "component": "Inline tool wrappers"},
+          "comparison": "Baremetal introspects in 87 lines, LangGraph wraps inline in 33 lines"
+        },
+        {
+          "description": "Agent creation",
+          "vendor_a": {"lines": [26, 54], "component": "Class __init__"},
+          "vendor_b": {"lines": [97, 118], "component": "create_react_agent call"},
+          "comparison": "Baremetal initializes in constructor (28 lines), LangGraph uses factory function (21 lines)"
+        }
+      ]
+    },
+    {
+      "vendor_a": "baremetal",
+      "vendor_b": "pydantic-ai",
+      "summary": "Baremetal's imperative 315-line implementation contrasts sharply with Pydantic-AI's decorator-based 136-line approach. Pydantic-AI offers a more Pythonic, type-safe solution with dependency injection.",
+      "suitability": {
+        "baremetal": "When you need explicit control flow and don't want framework magic",
+        "pydantic-ai": "When you want clean, testable code with dependency injection"
+      },
+      "overall_winner": "pydantic-ai for clean architecture and testability",
+      "pros_cons": {
+        "baremetal": {
+          "pros": ["Explicit control flow", "No decorator magic", "Clear execution path"],
+          "cons": ["Verbose implementation", "Manual dependency management", "Harder to test"]
+        },
+        "pydantic-ai": {
+          "pros": ["Clean decorator syntax", "Dependency injection", "Type-safe context", "Testable"],
+          "cons": ["Framework conventions", "Decorator complexity", "Hidden control flow"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Tool definition style",
+          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
+          "vendor_b": {"lines": [37, 66], "component": "@tech_writer.tool decorators"},
+          "comparison": "Baremetal's 87-line introspection vs Pydantic-AI's 29-line decorator approach"
+        },
+        {
+          "description": "Context management",
+          "vendor_a": {"lines": [29, 29], "component": "self.memory list"},
+          "vendor_b": {"lines": [25, 36], "component": "AnalysisContext model"},
+          "comparison": "Baremetal uses simple list, Pydantic-AI uses 11-line typed context model"
+        },
+        {
+          "description": "Agent execution",
+          "vendor_a": {"lines": [226, 273], "component": "run method"},
+          "vendor_b": {"lines": [84, 90], "component": "tech_writer.run"},
+          "comparison": "Baremetal's 47-line manual loop vs Pydantic-AI's 6-line framework call"
+        }
+      ]
+    },
+    {
+      "vendor_a": "atomic-agents",
+      "vendor_b": "dspy",
+      "summary": "Atomic Agents' 234-line enterprise-grade implementation with full type safety contrasts with DSPy's minimalist 119-line approach. This represents the spectrum from maximum structure to maximum simplicity.",
+      "suitability": {
+        "atomic-agents": "Large teams needing type safety and standardization",
+        "dspy": "Rapid prototyping and research applications"
+      },
+      "overall_winner": "Depends on context - atomic-agents for production, dspy for simplicity",
+      "pros_cons": {
+        "atomic-agents": {
+          "pros": ["Full type safety", "Structured schemas", "Enterprise patterns", "Tool validation"],
+          "cons": ["Verbose setup", "Heavy boilerplate", "Steeper learning curve"]
+        },
+        "dspy": {
+          "pros": ["Minimal code", "Quick to implement", "Clear intent", "Low overhead"],
+          "cons": ["No type checking", "Limited structure", "Less validation"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Schema definitions",
+          "vendor_a": {"lines": [34, 123], "component": "Multiple schema classes"},
+          "vendor_b": {"lines": [40, 81], "component": "Single signature class"},
+          "comparison": "Atomic's 89 lines of schemas vs DSPy's 41-line signature"
+        },
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [53, 123], "component": "Tool classes with schemas"},
+          "vendor_b": {"lines": [93, 93], "component": "tools=TOOLS"},
+          "comparison": "Atomic's 70-line tool classes vs DSPy's 1-line parameter"
+        },
+        {
+          "description": "Framework setup",
+          "vendor_a": {"lines": [154, 180], "component": "TechWriterAgent.__init__"},
+          "vendor_b": {"lines": [91, 93], "component": "dspy.ReAct creation"},
+          "comparison": "Atomic's 26-line setup vs DSPy's 3-line instantiation"
+        }
+      ]
+    },
+    {
+      "vendor_a": "langgraph",
+      "vendor_b": "autogen",
+      "summary": "Both async implementations take different approaches: LangGraph's 166 lines use LangChain's ecosystem with functional style, while AutoGen's 135 lines use Microsoft's agent framework with minimal wrapper functions.",
+      "suitability": {
+        "langgraph": "When already using LangChain or needing graph-based workflows",
+        "autogen": "When wanting Microsoft's agent patterns or simpler async integration"
+      },
+      "overall_winner": "autogen for simplicity, langgraph for ecosystem",
+      "pros_cons": {
+        "langgraph": {
+          "pros": ["Rich LangChain ecosystem", "Graph-based workflows", "Streaming support"],
+          "cons": ["Heavier dependencies", "More complex setup", "LangChain lock-in"]
+        },
+        "autogen": {
+          "pros": ["Simpler async model", "Microsoft backing", "Cleaner code", "Less dependencies"],
+          "cons": ["Less ecosystem", "Fewer advanced features", "Less documentation"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Async tool wrappers",
+          "vendor_a": {"lines": [63, 96], "component": "Inline async wrappers"},
+          "vendor_b": {"lines": [31, 50], "component": "Top-level async wrappers"},
+          "comparison": "LangGraph's 33-line inline wrappers vs AutoGen's 19-line module-level wrappers"
+        },
+        {
+          "description": "Agent creation",
+          "vendor_a": {"lines": [97, 118], "component": "create_react_agent"},
+          "vendor_b": {"lines": [70, 86], "component": "AssistantAgent creation"},
+          "comparison": "LangGraph's 21-line setup vs AutoGen's 16-line configuration"
+        },
+        {
+          "description": "Main async structure",
+          "vendor_a": {"lines": [125, 166], "component": "Nested async main"},
+          "vendor_b": {"lines": [84, 124], "component": "Nested async main"},
+          "comparison": "Both use similar 40-line nested async patterns"
+        }
+      ]
+    },
+    {
+      "vendor_a": "pydantic-ai",
+      "vendor_b": "agno",
+      "summary": "Pydantic-AI's 136-line decorator-based approach with dependency injection contrasts with Agno's ultra-minimal 104-line implementation. Agno achieves brevity through simplicity while Pydantic-AI adds structure.",
+      "suitability": {
+        "pydantic-ai": "When you want clean patterns and testability",
+        "agno": "When you want the absolute minimum code that works"
+      },
+      "overall_winner": "agno for simplicity, pydantic-ai for maintainability",
+      "pros_cons": {
+        "pydantic-ai": {
+          "pros": ["Dependency injection", "Decorator elegance", "Type-safe context", "Testable"],
+          "cons": ["More complex patterns", "Framework learning curve", "More lines of code"]
+        },
+        "agno": {
+          "pros": ["Minimal code", "Direct approach", "Easy to understand", "Few dependencies"],
+          "cons": ["Less structure", "No dependency injection", "Less extensible"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [37, 66], "component": "Decorated tool functions"},
+          "vendor_b": {"lines": [59, 59], "component": "tools parameter"},
+          "comparison": "Pydantic-AI's 29-line decorators vs Agno's 1-line parameter"
+        },
+        {
+          "description": "Model setup",
+          "vendor_a": {"lines": [31, 31], "component": "Direct model string"},
+          "vendor_b": {"lines": [36, 53], "component": "ModelFactory class"},
+          "comparison": "Pydantic-AI's 1-line model vs Agno's 17-line factory (for multi-vendor support)"
+        },
+        {
+          "description": "Context passing",
+          "vendor_a": {"lines": [25, 36], "component": "AnalysisContext class"},
+          "vendor_b": {"lines": [70, 70], "component": "Inline prompt"},
+          "comparison": "Pydantic-AI's 11-line context model vs Agno's inline approach"
+        }
+      ]
+    },
+    {
+      "vendor_a": "adk-python",
+      "vendor_b": "dspy",
+      "summary": "Google's ADK implementation (131 lines) uses async patterns and session management, while DSPy (119 lines) keeps everything synchronous and declarative. Both achieve similar brevity through framework abstractions.",
+      "suitability": {
+        "adk-python": "When building Google-cloud-first applications with async needs",
+        "dspy": "When you want maximum simplicity and don't need async"
+      },
+      "overall_winner": "dspy for simplicity, adk-python for Google ecosystem",
+      "pros_cons": {
+        "adk-python": {
+          "pros": ["Google integration", "Async support", "Session management", "Memory runner"],
+          "cons": ["Google-specific patterns", "Model naming workarounds", "More complex setup"]
+        },
+        "dspy": {
+          "pros": ["Simpler sync model", "Cleaner code", "No vendor lock-in", "Declarative"],
+          "cons": ["No async", "Less ecosystem integration", "Black-box ReAct"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Model setup approach",
+          "vendor_a": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
+          "vendor_b": {"lines": [89, 89], "component": "Direct dspy.configure"},
+          "comparison": "ADK's 13-line workaround vs DSPy's 1-line configuration"
+        },
+        {
+          "description": "Agent execution",
+          "vendor_a": {"lines": [83, 96], "component": "Runner with session"},
+          "vendor_b": {"lines": [91, 93], "component": "Direct ReAct call"},
+          "comparison": "ADK's 13-line session management vs DSPy's 3-line execution"
+        },
+        {
+          "description": "Main function structure",
+          "vendor_a": {"lines": [103, 131], "component": "Async main"},
+          "vendor_b": {"lines": [99, 119], "component": "Sync main"},
+          "comparison": "ADK's 28-line async main vs DSPy's 20-line sync main"
+        }
+      ]
+    },
+    {
+      "vendor_a": "baremetal",
+      "vendor_b": "adk-python",
+      "summary": "Baremetal's 315-line synchronous implementation with manual ReAct contrasts with ADK's 131-line async implementation using Google's agent framework. ADK provides session management and memory runners but requires Google-specific patterns.",
+      "suitability": {
+        "baremetal": "When you need vendor-agnostic implementation with full control",
+        "adk-python": "When building Google-cloud-first applications with built-in persistence"
+      },
+      "overall_winner": "baremetal for flexibility, adk-python for Google ecosystem",
+      "pros_cons": {
+        "baremetal": {
+          "pros": ["Vendor neutral", "Direct control", "No framework dependencies", "Simpler sync model"],
+          "cons": ["More boilerplate", "No built-in persistence", "Manual everything", "No async"]
+        },
+        "adk-python": {
+          "pros": ["Google integration", "Session management", "Memory persistence", "Async native"],
+          "cons": ["Google-specific", "Model naming hacks", "Framework complexity", "Limited to Google patterns"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Model initialization",
+          "vendor_a": {"lines": [26, 49], "component": "Vendor detection in __init__"},
+          "vendor_b": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
+          "comparison": "Baremetal's 23-line vendor detection vs ADK's 13-line hack for model compatibility"
+        },
+        {
+          "description": "Agent execution",
+          "vendor_a": {"lines": [226, 273], "component": "run method with ReAct loop"},
+          "vendor_b": {"lines": [83, 96], "component": "Runner async execution"},
+          "comparison": "Baremetal's 47-line manual ReAct vs ADK's 13-line framework execution"
+        },
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
+          "vendor_b": {"lines": [56, 56], "component": "tools parameter"},
+          "comparison": "Baremetal's 87-line tool conversion vs ADK's 1-line tool list"
+        }
+      ]
+    },
+    {
+      "vendor_a": "baremetal",
+      "vendor_b": "agno",
+      "summary": "Baremetal's 315-line explicit implementation contrasts sharply with Agno's 104-line minimalist approach. Agno achieves extreme brevity through its framework abstractions while Baremetal provides complete transparency.",
+      "suitability": {
+        "baremetal": "When you need to understand or customize every aspect of the agent",
+        "agno": "When you want the absolute minimum code that just works"
+      },
+      "overall_winner": "agno for simplicity, baremetal for control",
+      "pros_cons": {
+        "baremetal": {
+          "pros": ["Complete transparency", "No magic", "Educational value", "Full customization"],
+          "cons": ["3x more code", "Manual implementation", "More maintenance", "Verbose"]
+        },
+        "agno": {
+          "pros": ["Minimal code", "Quick setup", "Clean API", "Low cognitive load"],
+          "cons": ["Hidden complexity", "Less control", "Framework dependency", "Limited customization"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Entire implementation",
+          "vendor_a": {"lines": [1, 315], "component": "Full implementation"},
+          "vendor_b": {"lines": [1, 104], "component": "Full implementation"},
+          "comparison": "Baremetal uses 315 lines vs Agno's 104 lines - 67% reduction"
+        },
+        {
+          "description": "Agent setup and execution",
+          "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
+          "vendor_b": {"lines": [59, 67], "component": "Agent instantiation and run"},
+          "comparison": "Baremetal's 248-line class vs Agno's 8-line setup"
+        },
+        {
+          "description": "Model configuration",
+          "vendor_a": {"lines": [33, 49], "component": "Vendor-specific client setup"},
+          "vendor_b": {"lines": [36, 53], "component": "ModelFactory pattern"},
+          "comparison": "Both use similar lines (16-17) but different approaches"
+        }
+      ]
+    },
+    {
+      "vendor_a": "baremetal",
+      "vendor_b": "autogen",
+      "summary": "Baremetal's 315-line synchronous implementation with manual ReAct contrasts with AutoGen's 135-line async approach using Microsoft's agent framework. AutoGen provides cleaner async patterns with minimal wrapper code.",
+      "suitability": {
+        "baremetal": "When you need synchronous execution and full control",
+        "autogen": "When you want async support with Microsoft's agent patterns"
+      },
+      "overall_winner": "autogen for modern async applications",
+      "pros_cons": {
+        "baremetal": {
+          "pros": ["Sync simplicity", "No framework magic", "Direct control", "Clear execution flow"],
+          "cons": ["No async", "Manual ReAct", "More code", "No framework benefits"]
+        },
+        "autogen": {
+          "pros": ["Async native", "Clean code", "Microsoft backing", "Minimal boilerplate"],
+          "cons": ["Async complexity", "Framework dependency", "Less transparency", "Microsoft patterns"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Main execution pattern",
+          "vendor_a": {"lines": [276, 294], "component": "Sync analyse_codebase"},
+          "vendor_b": {"lines": [65, 92], "component": "Async analyze_codebase"},
+          "comparison": "Baremetal's 18-line sync vs AutoGen's 27-line async function"
+        },
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
+          "vendor_b": {"lines": [33, 62], "component": "Async tool wrappers"},
+          "comparison": "Baremetal's 87-line conversion vs AutoGen's 29-line async wrappers"
+        },
+        {
+          "description": "Agent creation",
+          "vendor_a": {"lines": [25, 54], "component": "TechWriterReActAgent.__init__"},
+          "vendor_b": {"lines": [79, 85], "component": "AssistantAgent creation"},
+          "comparison": "Baremetal's 29-line init vs AutoGen's 6-line agent setup"
+        }
+      ]
+    },
+    {
+      "vendor_a": "adk-python",
+      "vendor_b": "agno",
+      "summary": "Both achieve similar brevity (131 vs 104 lines) but through different means: ADK uses Google's async agent framework with sessions, while Agno uses a minimalist sync approach. ADK adds complexity for persistence features Agno doesn't offer.",
+      "suitability": {
+        "adk-python": "When you need Google Cloud integration and session persistence",
+        "agno": "When you want the simplest possible sync implementation"
+      },
+      "overall_winner": "agno for simplicity, adk-python for features",
+      "pros_cons": {
+        "adk-python": {
+          "pros": ["Session management", "Memory persistence", "Google ecosystem", "Async support"],
+          "cons": ["Model naming hacks", "More complex setup", "Google lock-in", "Async overhead"]
+        },
+        "agno": {
+          "pros": ["Simpler code", "Vendor neutral", "Sync simplicity", "Clean API"],
+          "cons": ["No persistence", "No sessions", "Limited features", "No async"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Model setup",
+          "vendor_a": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
+          "vendor_b": {"lines": [36, 53], "component": "ModelFactory.create"},
+          "comparison": "ADK's 13-line hack vs Agno's 17-line factory pattern"
+        },
+        {
+          "description": "Agent execution",
+          "vendor_a": {"lines": [83, 96], "component": "Runner with session"},
+          "vendor_b": {"lines": [67, 67], "component": "agent.run"},
+          "comparison": "ADK's 13-line session-based execution vs Agno's 1-line run"
+        },
+        {
+          "description": "Main function structure",
+          "vendor_a": {"lines": [103, 131], "component": "Async main"},
+          "vendor_b": {"lines": [77, 104], "component": "Sync main"},
+          "comparison": "ADK's 28-line async main vs Agno's 27-line sync main"
+        }
+      ]
+    },
+    {
+      "vendor_a": "adk-python",
+      "vendor_b": "langgraph",
+      "summary": "Both async implementations take different approaches: ADK's 131 lines use Google's session-based framework, while LangGraph's 166 lines leverage LangChain's graph-based agents. LangGraph offers more flexibility while ADK provides persistence.",
+      "suitability": {
+        "adk-python": "When building Google Cloud applications with persistence needs",
+        "langgraph": "When you need LangChain ecosystem and graph-based workflows"
+      },
+      "overall_winner": "langgraph for flexibility, adk-python for Google integration",
+      "pros_cons": {
+        "adk-python": {
+          "pros": ["Built-in persistence", "Session management", "Google integration", "Simpler setup"],
+          "cons": ["Google-specific", "Model naming issues", "Limited flexibility", "Framework lock-in"]
+        },
+        "langgraph": {
+          "pros": ["LangChain ecosystem", "Graph workflows", "More flexible", "Better tool handling"],
+          "cons": ["More dependencies", "Complex setup", "No built-in persistence", "Heavier framework"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [56, 56], "component": "tools parameter"},
+          "vendor_b": {"lines": [63, 96], "component": "Tool wrapper functions"},
+          "comparison": "ADK's 1-line tool list vs LangGraph's 33-line wrapper functions"
+        },
+        {
+          "description": "Agent creation",
+          "vendor_a": {"lines": [51, 60], "component": "Agent instantiation"},
+          "vendor_b": {"lines": [98, 101], "component": "create_react_agent"},
+          "comparison": "ADK's 9-line agent setup vs LangGraph's 3-line creation"
+        },
+        {
+          "description": "Execution pattern",
+          "vendor_a": {"lines": [89, 95], "component": "Streaming execution"},
+          "vendor_b": {"lines": [111, 118], "component": "Agent invoke"},
+          "comparison": "ADK's 6-line streaming vs LangGraph's 7-line invocation"
+        }
+      ]
+    },
+    {
+      "vendor_a": "adk-python",
+      "vendor_b": "pydantic-ai",
+      "summary": "ADK's 131-line Google-specific implementation contrasts with Pydantic-AI's 136-line decorator-based approach. Both are similar in length but Pydantic-AI offers cleaner patterns while ADK provides persistence.",
+      "suitability": {
+        "adk-python": "When you need Google Cloud features and session management",
+        "pydantic-ai": "When you want clean, testable code with dependency injection"
+      },
+      "overall_winner": "pydantic-ai for code quality, adk-python for Google features",
+      "pros_cons": {
+        "adk-python": {
+          "pros": ["Session persistence", "Google integration", "Memory runners", "Built-in state"],
+          "cons": ["Model naming hacks", "Google lock-in", "Complex setup", "Framework overhead"]
+        },
+        "pydantic-ai": {
+          "pros": ["Clean decorators", "Dependency injection", "Type safety", "Testable"],
+          "cons": ["No persistence", "No sessions", "Framework learning", "Hidden control flow"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Context/dependency handling",
+          "vendor_a": {"lines": [69, 73], "component": "Session creation"},
+          "vendor_b": {"lines": [25, 29], "component": "AnalysisContext model"},
+          "comparison": "ADK's 4-line session vs Pydantic-AI's 4-line context model"
+        },
+        {
+          "description": "Tool definition",
+          "vendor_a": {"lines": [56, 56], "component": "tools list"},
+          "vendor_b": {"lines": [37, 66], "component": "Decorated tool functions"},
+          "comparison": "ADK's 1-line list vs Pydantic-AI's 29-line decorators"
+        },
+        {
+          "description": "Agent execution",
+          "vendor_a": {"lines": [89, 95], "component": "Streaming runner"},
+          "vendor_b": {"lines": [86, 90], "component": "tech_writer.run"},
+          "comparison": "ADK's 6-line streaming vs Pydantic-AI's 4-line run"
+        }
+      ]
+    },
+    {
+      "vendor_a": "adk-python",
+      "vendor_b": "autogen",
+      "summary": "Both async implementations are similar in length (131 vs 135 lines) but differ in approach: ADK uses Google's session-based framework while AutoGen uses Microsoft's simpler agent patterns without persistence.",
+      "suitability": {
+        "adk-python": "When you need Google Cloud integration with state persistence",
+        "autogen": "When you want straightforward async agents without framework complexity"
+      },
+      "overall_winner": "autogen for simplicity, adk-python for features",
+      "pros_cons": {
+        "adk-python": {
+          "pros": ["Session management", "State persistence", "Google ecosystem", "Memory runners"],
+          "cons": ["Model naming hacks", "Complex setup", "Google-specific", "More boilerplate"]
+        },
+        "autogen": {
+          "pros": ["Cleaner code", "Simple async", "Vendor neutral", "Direct approach"],
+          "cons": ["No persistence", "No sessions", "Basic features", "Less ecosystem"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Model setup",
+          "vendor_a": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
+          "vendor_b": {"lines": [74, 76], "component": "OpenAIChatCompletionClient"},
+          "comparison": "ADK's 13-line hack vs AutoGen's 2-line client creation"
+        },
+        {
+          "description": "Agent initialization",
+          "vendor_a": {"lines": [51, 73], "component": "Agent + Runner + Session"},
+          "vendor_b": {"lines": [79, 85], "component": "AssistantAgent creation"},
+          "comparison": "ADK's 22-line setup vs AutoGen's 6-line agent"
+        },
+        {
+          "description": "Execution pattern",
+          "vendor_a": {"lines": [89, 95], "component": "Streaming with session"},
+          "vendor_b": {"lines": [88, 89], "component": "agent.run"},
+          "comparison": "ADK's 6-line streaming vs AutoGen's 1-line run"
+        }
+      ]
+    },
+    {
+      "vendor_a": "adk-python",
+      "vendor_b": "atomic-agents",
+      "summary": "ADK's 131-line Google-specific async implementation contrasts with Atomic Agents' 234-line type-safe sync approach. Atomic provides extensive type safety and structure while ADK focuses on Google Cloud integration.",
+      "suitability": {
+        "adk-python": "When building Google Cloud applications with async needs",
+        "atomic-agents": "When type safety and structured patterns are priorities"
+      },
+      "overall_winner": "atomic-agents for enterprise apps, adk-python for Google Cloud",
+      "pros_cons": {
+        "adk-python": {
+          "pros": ["Google integration", "Async native", "Session management", "Concise code"],
+          "cons": ["Model hacks", "Google lock-in", "Less type safety", "Limited structure"]
+        },
+        "atomic-agents": {
+          "pros": ["Full type safety", "Pydantic schemas", "Clear structure", "Enterprise patterns"],
+          "cons": ["More verbose", "Sync only", "Heavy boilerplate", "Complex setup"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Type definitions",
+          "vendor_a": {"lines": [50, 50], "component": "No explicit types"},
+          "vendor_b": {"lines": [34, 123], "component": "Schema definitions"},
+          "comparison": "ADK has no schemas vs Atomic's 89 lines of type definitions"
+        },
+        {
+          "description": "Agent setup",
+          "vendor_a": {"lines": [51, 60], "component": "Agent creation"},
+          "vendor_b": {"lines": [170, 182], "component": "BaseAgent config"},
+          "comparison": "ADK's 9-line setup vs Atomic's 12-line configuration"
+        },
+        {
+          "description": "Tool handling",
+          "vendor_a": {"lines": [56, 56], "component": "tools list"},
+          "vendor_b": {"lines": [66, 123], "component": "Tool classes"},
+          "comparison": "ADK's 1-line list vs Atomic's 57-line tool implementations"
+        }
+      ]
+    },
+    {
+      "vendor_a": "dspy",
+      "vendor_b": "agno",
+      "summary": "Both ultra-minimal implementations achieve similar brevity (119 vs 104 lines) through framework abstractions. DSPy uses declarative signatures while Agno uses direct agent instantiation.",
+      "suitability": {
+        "dspy": "When you want declarative patterns and potential optimization",
+        "agno": "When you want the absolute simplest imperative code"
+      },
+      "overall_winner": "agno for simplicity, dspy for advanced features",
+      "pros_cons": {
+        "dspy": {
+          "pros": ["Declarative approach", "Built-in ReAct", "Optimization potential", "Research-friendly"],
+          "cons": ["Docstring prompts", "Black box ReAct", "DSPy learning curve", "Less direct"]
+        },
+        "agno": {
+          "pros": ["Most concise", "Direct approach", "Easy to understand", "Minimal dependencies"],
+          "cons": ["Less features", "No optimization", "Basic functionality", "Limited extensibility"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Complete implementation",
+          "vendor_a": {"lines": [1, 119], "component": "Full file"},
+          "vendor_b": {"lines": [1, 104], "component": "Full file"},
+          "comparison": "DSPy uses 119 lines vs Agno's 104 lines - both extremely concise"
+        },
+        {
+          "description": "Agent/Signature definition",
+          "vendor_a": {"lines": [40, 81], "component": "TechWriterSignature class"},
+          "vendor_b": {"lines": [59, 64], "component": "Agent instantiation"},
+          "comparison": "DSPy's 41-line signature vs Agno's 5-line agent setup"
+        },
+        {
+          "description": "Execution",
+          "vendor_a": {"lines": [91, 93], "component": "ReAct execution"},
+          "vendor_b": {"lines": [67, 67], "component": "agent.run"},
+          "comparison": "DSPy's 3-line ReAct vs Agno's 1-line run"
+        }
+      ]
+    },
+    {
+      "vendor_a": "dspy",
+      "vendor_b": "langgraph",
+      "summary": "DSPy's 119-line declarative approach contrasts with LangGraph's 166-line async implementation. DSPy achieves brevity through signatures while LangGraph provides async graph-based workflows.",
+      "suitability": {
+        "dspy": "When you want minimal declarative code without async complexity",
+        "langgraph": "When you need async support and LangChain integration"
+      },
+      "overall_winner": "dspy for simplicity, langgraph for production async",
+      "pros_cons": {
+        "dspy": {
+          "pros": ["Extremely concise", "Declarative", "No async complexity", "Clear intent"],
+          "cons": ["No async", "Docstring prompts", "Limited control", "Black box"]
+        },
+        "langgraph": {
+          "pros": ["Async native", "LangChain ecosystem", "Graph workflows", "More control"],
+          "cons": ["More complex", "Heavier dependencies", "Verbose setup", "Async overhead"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [93, 93], "component": "tools parameter"},
+          "vendor_b": {"lines": [63, 96], "component": "Tool wrapper functions"},
+          "comparison": "DSPy's 1-line parameter vs LangGraph's 33-line wrappers"
+        },
+        {
+          "description": "Main execution",
+          "vendor_a": {"lines": [99, 119], "component": "Sync main"},
+          "vendor_b": {"lines": [125, 166], "component": "Async main"},
+          "comparison": "DSPy's 20-line sync main vs LangGraph's 41-line async main"
+        },
+        {
+          "description": "Agent pattern",
+          "vendor_a": {"lines": [40, 81], "component": "Signature-based"},
+          "vendor_b": {"lines": [98, 114], "component": "Graph-based agent"},
+          "comparison": "DSPy's 41-line signature vs LangGraph's 16-line agent setup"
+        }
+      ]
+    },
+    {
+      "vendor_a": "dspy",
+      "vendor_b": "pydantic-ai",
+      "summary": "Both achieve similar brevity (119 vs 136 lines) but through different patterns: DSPy uses declarative signatures while Pydantic-AI uses decorators and dependency injection for cleaner architecture.",
+      "suitability": {
+        "dspy": "When you want minimal declarative code",
+        "pydantic-ai": "When you want testable code with clean patterns"
+      },
+      "overall_winner": "pydantic-ai for maintainability, dspy for minimalism",
+      "pros_cons": {
+        "dspy": {
+          "pros": ["More concise", "Declarative", "Built-in ReAct", "Simple setup"],
+          "cons": ["Docstring prompts", "Less testable", "Black box", "Limited DI"]
+        },
+        "pydantic-ai": {
+          "pros": ["Dependency injection", "Decorator elegance", "Testable", "Type-safe context"],
+          "cons": ["Slightly more code", "Framework patterns", "Hidden flow", "More complex"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Prompt/Context definition",
+          "vendor_a": {"lines": [40, 81], "component": "Docstring prompt"},
+          "vendor_b": {"lines": [25, 29], "component": "Context class"},
+          "comparison": "DSPy's 41-line docstring vs Pydantic-AI's 4-line context"
+        },
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [93, 93], "component": "tools parameter"},
+          "vendor_b": {"lines": [37, 66], "component": "Decorated tools"},
+          "comparison": "DSPy's 1-line parameter vs Pydantic-AI's 29-line decorators"
+        },
+        {
+          "description": "Agent creation",
+          "vendor_a": {"lines": [91, 93], "component": "ReAct instantiation"},
+          "vendor_b": {"lines": [31, 35], "component": "Agent definition"},
+          "comparison": "DSPy's 3-line setup vs Pydantic-AI's 4-line agent"
+        }
+      ]
+    },
+    {
+      "vendor_a": "dspy",
+      "vendor_b": "autogen",
+      "summary": "DSPy's 119-line sync implementation with declarative signatures contrasts with AutoGen's 135-line async approach. Both are concise but AutoGen adds async complexity for modern applications.",
+      "suitability": {
+        "dspy": "When you want the simplest sync implementation",
+        "autogen": "When you need async support with minimal overhead"
+      },
+      "overall_winner": "dspy for simplicity, autogen for async needs",
+      "pros_cons": {
+        "dspy": {
+          "pros": ["More concise", "Simpler sync model", "Declarative", "No async complexity"],
+          "cons": ["No async support", "Docstring prompts", "Less flexible", "Black box"]
+        },
+        "autogen": {
+          "pros": ["Async native", "Clean patterns", "Microsoft backing", "More flexible"],
+          "cons": ["Async complexity", "Slightly more code", "Framework dependency", "More setup"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Implementation approach",
+          "vendor_a": {"lines": [40, 81], "component": "Signature class"},
+          "vendor_b": {"lines": [33, 62], "component": "Async wrappers"},
+          "comparison": "DSPy's 41-line signature vs AutoGen's 29-line async wrappers"
+        },
+        {
+          "description": "Agent setup",
+          "vendor_a": {"lines": [91, 93], "component": "ReAct creation"},
+          "vendor_b": {"lines": [79, 85], "component": "AssistantAgent"},
+          "comparison": "DSPy's 3-line setup vs AutoGen's 6-line configuration"
+        },
+        {
+          "description": "Main structure",
+          "vendor_a": {"lines": [99, 119], "component": "Sync main"},
+          "vendor_b": {"lines": [95, 135], "component": "Nested async main"},
+          "comparison": "DSPy's 20-line sync vs AutoGen's 40-line async pattern"
+        }
+      ]
+    },
+    {
+      "vendor_a": "agno",
+      "vendor_b": "langgraph",
+      "summary": "Agno's 104-line minimal sync implementation contrasts sharply with LangGraph's 166-line async approach. Agno wins on simplicity while LangGraph provides async and ecosystem benefits.",
+      "suitability": {
+        "agno": "When you want the absolute minimum working code",
+        "langgraph": "When you need async and LangChain ecosystem"
+      },
+      "overall_winner": "agno for simplicity, langgraph for features",
+      "pros_cons": {
+        "agno": {
+          "pros": ["Most concise", "Simple sync", "Direct approach", "Easy to understand"],
+          "cons": ["No async", "Limited features", "Basic functionality", "No ecosystem"]
+        },
+        "langgraph": {
+          "pros": ["Async support", "Rich ecosystem", "Graph workflows", "Streaming"],
+          "cons": ["60% more code", "Complex setup", "Heavy dependencies", "Async overhead"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Complete implementation",
+          "vendor_a": {"lines": [1, 104], "component": "Full file"},
+          "vendor_b": {"lines": [1, 166], "component": "Full file"},
+          "comparison": "Agno's 104 lines vs LangGraph's 166 lines - 60% more code"
+        },
+        {
+          "description": "Tool handling",
+          "vendor_a": {"lines": [62, 62], "component": "tools parameter"},
+          "vendor_b": {"lines": [63, 96], "component": "Tool wrappers"},
+          "comparison": "Agno's 1-line parameter vs LangGraph's 33-line wrappers"
+        },
+        {
+          "description": "Agent execution",
+          "vendor_a": {"lines": [67, 67], "component": "agent.run"},
+          "vendor_b": {"lines": [111, 118], "component": "agent.invoke"},
+          "comparison": "Agno's 1-line run vs LangGraph's 7-line invocation"
+        }
+      ]
+    },
+    {
+      "vendor_a": "agno",
+      "vendor_b": "autogen",
+      "summary": "Agno's 104-line sync implementation is even more minimal than AutoGen's 135-line async approach. Both are clean but serve different needs: Agno for simplicity, AutoGen for async.",
+      "suitability": {
+        "agno": "When sync is fine and you want minimal code",
+        "autogen": "When you need async with clean patterns"
+      },
+      "overall_winner": "agno for minimalism, autogen for async apps",
+      "pros_cons": {
+        "agno": {
+          "pros": ["Most minimal", "Sync simplicity", "Direct API", "Low complexity"],
+          "cons": ["No async", "Basic features", "Limited extensibility", "Less powerful"]
+        },
+        "autogen": {
+          "pros": ["Async support", "Clean code", "More features", "Microsoft patterns"],
+          "cons": ["More complex", "Async overhead", "More dependencies", "Verbose setup"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Model setup",
+          "vendor_a": {"lines": [36, 53], "component": "ModelFactory"},
+          "vendor_b": {"lines": [74, 76], "component": "OpenAIChatCompletionClient"},
+          "comparison": "Agno's 17-line factory vs AutoGen's 2-line client"
+        },
+        {
+          "description": "Main function",
+          "vendor_a": {"lines": [77, 104], "component": "Sync main"},
+          "vendor_b": {"lines": [95, 135], "component": "Async main wrapper"},
+          "comparison": "Agno's 27-line sync vs AutoGen's 40-line async"
+        },
+        {
+          "description": "Agent execution",
+          "vendor_a": {"lines": [59, 74], "component": "Agent setup and run"},
+          "vendor_b": {"lines": [79, 92], "component": "AssistantAgent and run"},
+          "comparison": "Agno's 15 lines vs AutoGen's 13 lines - similar complexity"
+        }
+      ]
+    },
+    {
+      "vendor_a": "agno",
+      "vendor_b": "atomic-agents",
+      "summary": "Agno's 104-line minimalist approach contrasts dramatically with Atomic Agents' 234-line enterprise-grade implementation. This represents the extreme ends of the simplicity vs structure spectrum.",
+      "suitability": {
+        "agno": "When you need something working quickly with minimal code",
+        "atomic-agents": "When building production systems requiring type safety and structure"
+      },
+      "overall_winner": "Context dependent - agno for prototypes, atomic-agents for production",
+      "pros_cons": {
+        "agno": {
+          "pros": ["Minimal code", "Quick setup", "Easy to understand", "Low overhead"],
+          "cons": ["No type safety", "Limited structure", "Basic features", "Less maintainable"]
+        },
+        "atomic-agents": {
+          "pros": ["Full type safety", "Enterprise patterns", "Structured tools", "Maintainable"],
+          "cons": ["2.25x more code", "Complex setup", "Heavy boilerplate", "Steep learning curve"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Type definitions",
+          "vendor_a": {"lines": [0, 0], "component": "No types"},
+          "vendor_b": {"lines": [34, 123], "component": "Schema classes"},
+          "comparison": "Agno has no type definitions vs Atomic's 89 lines of schemas"
+        },
+        {
+          "description": "Tool integration",
+          "vendor_a": {"lines": [62, 62], "component": "tools parameter"},
+          "vendor_b": {"lines": [66, 123], "component": "Tool class implementations"},
+          "comparison": "Agno's 1-line parameter vs Atomic's 57-line tool classes"
+        },
+        {
+          "description": "Agent setup",
+          "vendor_a": {"lines": [59, 64], "component": "Agent creation"},
+          "vendor_b": {"lines": [156, 196], "component": "TechWriterAgent class"},
+          "comparison": "Agno's 5-line setup vs Atomic's 40-line agent class"
+        }
+      ]
+    },
+    {
+      "vendor_a": "langgraph",
+      "vendor_b": "pydantic-ai",
+      "summary": "Both modern async implementations take different approaches: LangGraph's 166 lines focus on graph-based workflows, while Pydantic-AI's 136 lines emphasize clean patterns with dependency injection.",
+      "suitability": {
+        "langgraph": "When you need LangChain ecosystem and graph workflows",
+        "pydantic-ai": "When you want clean, testable code with DI patterns"
+      },
+      "overall_winner": "pydantic-ai for clean code, langgraph for ecosystem",
+      "pros_cons": {
+        "langgraph": {
+          "pros": ["Rich ecosystem", "Graph workflows", "Streaming support", "LangChain integration"],
+          "cons": ["More complex", "Heavier dependencies", "Verbose setup", "Framework lock-in"]
+        },
+        "pydantic-ai": {
+          "pros": ["Cleaner patterns", "Dependency injection", "More concise", "Testable"],
+          "cons": ["Less ecosystem", "No graph features", "Framework patterns", "Hidden control"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Tool definition style",
+          "vendor_a": {"lines": [63, 96], "component": "Wrapper functions"},
+          "vendor_b": {"lines": [37, 66], "component": "Decorated methods"},
+          "comparison": "LangGraph's 33-line wrappers vs Pydantic-AI's 29-line decorators"
+        },
+        {
+          "description": "Context handling",
+          "vendor_a": {"lines": [74, 74], "component": "Closure binding"},
+          "vendor_b": {"lines": [25, 29], "component": "Context class"},
+          "comparison": "LangGraph uses closures vs Pydantic-AI's typed context"
+        },
+        {
+          "description": "Agent execution",
+          "vendor_a": {"lines": [111, 118], "component": "agent.invoke"},
+          "vendor_b": {"lines": [86, 90], "component": "tech_writer.run"},
+          "comparison": "LangGraph's 7-line invoke vs Pydantic-AI's 4-line run"
+        }
+      ]
+    },
+    {
+      "vendor_a": "langgraph",
+      "vendor_b": "atomic-agents",
+      "summary": "LangGraph's 166-line async graph-based approach contrasts with Atomic Agents' 234-line sync type-safe implementation. Both are production-ready but optimize for different concerns.",
+      "suitability": {
+        "langgraph": "When you need async and LangChain ecosystem integration",
+        "atomic-agents": "When type safety and structured patterns are paramount"
+      },
+      "overall_winner": "langgraph for modern async apps, atomic-agents for type safety",
+      "pros_cons": {
+        "langgraph": {
+          "pros": ["Async native", "Graph workflows", "LangChain ecosystem", "More concise"],
+          "cons": ["Less type safety", "Framework dependency", "Complex setup", "Less structure"]
+        },
+        "atomic-agents": {
+          "pros": ["Full type safety", "Clear structure", "Schema validation", "Enterprise patterns"],
+          "cons": ["No async", "More verbose", "Heavy boilerplate", "Complex schemas"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Type safety approach",
+          "vendor_a": {"lines": [0, 0], "component": "No schemas"},
+          "vendor_b": {"lines": [34, 123], "component": "Pydantic schemas"},
+          "comparison": "LangGraph has no schemas vs Atomic's 89 lines of type definitions"
+        },
+        {
+          "description": "Tool implementation",
+          "vendor_a": {"lines": [63, 96], "component": "Function wrappers"},
+          "vendor_b": {"lines": [66, 123], "component": "Tool classes"},
+          "comparison": "LangGraph's 33-line wrappers vs Atomic's 57-line classes"
+        },
+        {
+          "description": "Async vs sync",
+          "vendor_a": {"lines": [36, 123], "component": "Async analyze_codebase"},
+          "vendor_b": {"lines": [198, 206], "component": "Sync analyse_codebase"},
+          "comparison": "LangGraph's 87-line async vs Atomic's 8-line sync function"
+        }
+      ]
+    },
+    {
+      "vendor_a": "pydantic-ai",
+      "vendor_b": "autogen",
+      "summary": "Both clean async implementations are similar in length (136 vs 135 lines) but differ in patterns: Pydantic-AI uses decorators and DI while AutoGen uses straightforward async wrappers.",
+      "suitability": {
+        "pydantic-ai": "When you want elegant patterns and testability",
+        "autogen": "When you prefer simple, direct async code"
+      },
+      "overall_winner": "pydantic-ai for architecture, autogen for simplicity",
+      "pros_cons": {
+        "pydantic-ai": {
+          "pros": ["Dependency injection", "Decorator elegance", "Testable design", "Clean patterns"],
+          "cons": ["Framework conventions", "Hidden control flow", "Learning curve", "More abstraction"]
+        },
+        "autogen": {
+          "pros": ["Direct approach", "Simple async", "Clear flow", "Less magic"],
+          "cons": ["Less elegant", "No DI", "Basic patterns", "Less testable"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Tool definition approach",
+          "vendor_a": {"lines": [37, 66], "component": "Decorated tools"},
+          "vendor_b": {"lines": [33, 62], "component": "Async wrappers"},
+          "comparison": "Both use ~29 lines but different patterns"
+        },
+        {
+          "description": "Context/state management",
+          "vendor_a": {"lines": [25, 29], "component": "AnalysisContext"},
+          "vendor_b": {"lines": [0, 0], "component": "No explicit context"},
+          "comparison": "Pydantic-AI's typed context vs AutoGen's implicit state"
+        },
+        {
+          "description": "Agent pattern",
+          "vendor_a": {"lines": [31, 35], "component": "Global agent with DI"},
+          "vendor_b": {"lines": [79, 85], "component": "Local agent creation"},
+          "comparison": "Pydantic-AI's 4-line global vs AutoGen's 6-line local"
+        }
+      ]
+    },
+    {
+      "vendor_a": "pydantic-ai",
+      "vendor_b": "atomic-agents",
+      "summary": "Pydantic-AI's 136-line decorator-based async approach contrasts with Atomic Agents' 234-line schema-heavy sync implementation. Both prioritize clean architecture but through different means.",
+      "suitability": {
+        "pydantic-ai": "When you want clean async code with minimal boilerplate",
+        "atomic-agents": "When you need maximum type safety and structure"
+      },
+      "overall_winner": "pydantic-ai for elegance, atomic-agents for enterprise",
+      "pros_cons": {
+        "pydantic-ai": {
+          "pros": ["More concise", "Async support", "Clean decorators", "Less boilerplate"],
+          "cons": ["Less structured", "Fewer schemas", "Hidden magic", "Less explicit"]
+        },
+        "atomic-agents": {
+          "pros": ["Maximum type safety", "Explicit structure", "Clear patterns", "Schema validation"],
+          "cons": ["Very verbose", "No async", "Heavy setup", "Complex inheritance"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Schema definitions",
+          "vendor_a": {"lines": [25, 29], "component": "Single context class"},
+          "vendor_b": {"lines": [34, 123], "component": "Multiple schema classes"},
+          "comparison": "Pydantic-AI's 4-line context vs Atomic's 89 lines of schemas"
+        },
+        {
+          "description": "Tool implementation",
+          "vendor_a": {"lines": [37, 66], "component": "Decorated functions"},
+          "vendor_b": {"lines": [66, 123], "component": "Tool classes"},
+          "comparison": "Pydantic-AI's 29-line decorators vs Atomic's 57-line classes"
+        },
+        {
+          "description": "Agent setup",
+          "vendor_a": {"lines": [31, 35], "component": "Simple agent"},
+          "vendor_b": {"lines": [170, 182], "component": "Complex config"},
+          "comparison": "Pydantic-AI's 4 lines vs Atomic's 12-line configuration"
+        }
+      ]
+    },
+    {
+      "vendor_a": "autogen",
+      "vendor_b": "atomic-agents",
+      "summary": "AutoGen's 135-line minimal async implementation contrasts sharply with Atomic Agents' 234-line type-safe sync approach. AutoGen prioritizes simplicity while Atomic emphasizes structure.",
+      "suitability": {
+        "autogen": "When you need simple async agents with minimal overhead",
+        "atomic-agents": "When building enterprise systems requiring full type safety"
+      },
+      "overall_winner": "autogen for simplicity, atomic-agents for robustness",
+      "pros_cons": {
+        "autogen": {
+          "pros": ["Async support", "Minimal code", "Direct approach", "Easy to understand"],
+          "cons": ["No type safety", "Basic structure", "Limited validation", "Less extensible"]
+        },
+        "atomic-agents": {
+          "pros": ["Full type safety", "Rich schemas", "Enterprise patterns", "Highly structured"],
+          "cons": ["No async", "73% more code", "Complex setup", "Steep learning curve"]
+        }
+      },
+      "block_mappings": [
+        {
+          "description": "Type definitions",
+          "vendor_a": {"lines": [0, 0], "component": "No schemas"},
+          "vendor_b": {"lines": [34, 123], "component": "Schema classes"},
+          "comparison": "AutoGen has no schemas vs Atomic's 89 lines of types"
+        },
+        {
+          "description": "Tool approach",
+          "vendor_a": {"lines": [33, 62], "component": "Simple wrappers"},
+          "vendor_b": {"lines": [66, 123], "component": "Tool classes"},
+          "comparison": "AutoGen's 29-line wrappers vs Atomic's 57-line classes"
+        },
+        {
+          "description": "Agent creation",
+          "vendor_a": {"lines": [79, 85], "component": "AssistantAgent"},
+          "vendor_b": {"lines": [156, 196], "component": "TechWriterAgent class"},
+          "comparison": "AutoGen's 6-line setup vs Atomic's 40-line class"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "generated": "2024-12-12",
+    "total_implementations": 8,
+    "comparison_count": 28,
+    "purpose": "Interactive side-by-side comparison of tech writer implementations"
+  }
+};
+        
+        // Code content will be injected here
+        const codeFiles = {
+        "baremetal": "from pathlib import Path\nimport json\nimport re\nfrom openai import OpenAI\nimport inspect\nimport typing\nimport sys\n\n# Import from common/utils.py\nfrom common.utils import (\n    read_prompt_file,\n    save_results,\n    create_metadata,\n    REACT_SYSTEM_PROMPT,\n    CustomEncoder,\n    configure_code_base_source,\n    get_command_line_args,\n    OPENAI_API_KEY,\n    GEMINI_API_KEY,\n    GEMINI_MODELS\n)\n\nfrom common.tools import TOOLS\nfrom common.logging import logger, configure_logging\nclass TechWriterReActAgent:\n    def __init__(self, model_name=\"openai/gpt-4.1-mini\", base_url=None):\n        \"\"\"Initialise the agent with the specified model.\"\"\"\n        self.model_name = model_name\n        self.memory = []\n        self.final_answer = None\n        self.system_prompt = None  # To be defined by subclasses\n        \n        vendor, self.model_id = model_name.split(\"/\", 1)\n            \n        # Determine which API to use based on vendor\n        # TODO v2: delegate this to LiteLLM that everyone uses now\n        if vendor == \"google\":\n            if not GEMINI_API_KEY:\n                raise ValueError(\"GEMINI_API_KEY environment variable is not set but a Google model was specified.\")\n            self.client = OpenAI(\n                api_key=GEMINI_API_KEY,\n                base_url=base_url or \"https://generativelanguage.googleapis.com/v1beta/openai/\"\n            )\n        elif vendor == \"openai\":\n            if not OPENAI_API_KEY:\n                raise ValueError(\"OPENAI_API_KEY environment variable is not set but an OpenAI model was specified.\")\n            self.client = OpenAI(api_key=OPENAI_API_KEY, base_url=base_url)\n        else:\n            raise ValueError(f\"Unknown model vendor: {vendor}\")\n\n        \"\"\"Initialise the ReAct agent with the specified model.\"\"\"\n        self.system_prompt = REACT_SYSTEM_PROMPT\n\n        self.tools = self.create_openai_tool_definitions(TOOLS)\n   \n    def create_openai_tool_definitions(self, tools_dict):\n        \"\"\"\n        Create tool definitions from a dictionary of Python functions.\n        \n        Args:\n            tools_dict: Dictionary mapping tool names to Python functions\n            \n        Returns:\n            List of tool definitions formatted for the OpenAI API\n        \"\"\"\n        tools = []\n        \n        for name, func in tools_dict.items():\n            # Extract function signature\n            sig = inspect.signature(func)\n            \n            # Get docstring and parse it\n            docstring = inspect.getdoc(func) or \"\"\n            description = docstring.split(\"\\n\\n\")[0] if docstring else \"\"\n            \n            # Build parameters\n            parameters = {\n                \"type\": \"object\",\n                \"properties\": {},\n                \"required\": []\n            }\n            \n            for param_name, param in sig.parameters.items():\n                if param_name == \"self\":\n                    continue\n                \n                param_type = param.annotation\n                if param_type is inspect.Parameter.empty:\n                    param_type = str\n                \n                # Get origin and args for generic types\n                origin = typing.get_origin(param_type)\n                args = typing.get_args(param_type)\n                \n                # Convert Python types to JSON Schema types\n                if param_type == str:\n                    json_type = \"string\"\n                elif param_type == int:\n                    json_type = \"integer\"\n                elif param_type == float or param_type == \"number\":\n                    json_type = \"number\"\n                elif param_type == bool:\n                    json_type = \"boolean\"\n                elif origin is list or param_type == list:\n                    json_type = \"array\"\n                elif origin is dict or param_type == dict:\n                    json_type = \"object\"\n                else:\n                    # For complex types, default to string\n                    json_type = \"string\"\n                \n                # Extract parameter description from docstring\n                param_desc = \"\"\n                if docstring:\n                    # Look for parameter in docstring (format: param_name: description)\n                    param_pattern = rf\"{param_name}:\\s*(.*?)(?:\\n\\s*\\w+:|$)\"\n                    param_match = re.search(param_pattern, docstring, re.DOTALL)\n                    if param_match:\n                        param_desc = param_match.group(1).strip()\n                \n                # Add parameter to schema\n                parameters[\"properties\"][param_name] = {\n                    \"type\": json_type,\n                    \"description\": param_desc\n                }\n                \n                # Mark required parameters\n                if param.default is inspect.Parameter.empty:\n                    parameters[\"required\"].append(param_name)\n            \n            # Create tool definition\n            tool_def = {\n                \"type\": \"function\",\n                \"function\": {\n                    \"name\": name,\n                    \"description\": description,\n                    \"parameters\": parameters\n                }\n            }\n            \n            tools.append(tool_def)\n        \n        return tools\n    \n    def initialise_memory(self, prompt, directory):\n        \"\"\"Initialise the agent's memory with the prompt and directory.\"\"\"\n        if not self.system_prompt:\n            raise ValueError(\"System prompt must be defined by subclasses\")\n            \n        self.memory = [{\"role\": \"system\", \"content\": self.system_prompt}]\n        self.memory.append({\"role\": \"user\", \"content\": f\"Base directory: {directory}\\n\\n{prompt}\"})\n        self.final_answer = None\n    \n    def call_llm(self):\n        \"\"\"\n        Call the LLM with the current memory and tools.\n        \n        Uses the OpenAI client with appropriate base_url for all models.\n        \"\"\"\n        try:\n            response = self.client.chat.completions.create(\n                model=self.model_id,\n                messages=self.memory,\n                tools=self.tools,\n                temperature=0\n            )\n            return response.choices[0].message\n        except Exception as e:\n            error_msg = f\"Error calling API: {str(e)}\"\n            logger.error(error_msg)\n            raise ValueError(error_msg)\n    \n    def check_llm_result(self, assistant_message):\n        \"\"\"\n        Check if the LLM result is a final answer or a tool call.\n        \n        Args:\n            assistant_message: The message from the assistant\n            \n        Returns:\n            tuple: (result_type, result_data)\n                result_type: \"final_answer\" or \"tool_calls\"\n                result_data: The final answer string or list of tool calls\n        \"\"\"\n        self.memory.append(assistant_message)\n        \n        if assistant_message.tool_calls:\n            return \"tool_calls\", assistant_message.tool_calls\n        else:\n            return \"final_answer\", assistant_message.content\n    \n    def execute_tool(self, tool_call):\n        \"\"\"\n        Execute a tool call and return the result.\n        \n        Args:\n            tool_call: The tool call object from the LLM\n            \n        Returns:\n            str: The result of the tool execution\n        \"\"\"\n        tool_name = tool_call.function.name\n        \n        if tool_name not in TOOLS:\n            return f\"Error: Unknown tool {tool_name}\"\n        \n        try:\n            # Parse the arguments\n            args = json.loads(tool_call.function.arguments)\n            \n            # Call the tool function\n            result = TOOLS[tool_name](**args)\n            \n            # Convert result to JSON string\n            return json.dumps(result, cls=CustomEncoder, indent=2)\n        except json.JSONDecodeError as e:\n            return f\"Error: Invalid JSON in tool arguments: {str(e)}\"\n        except TypeError as e:\n            return f\"Error: Invalid argument types: {str(e)}\"\n        except ValueError as e:\n            return f\"Error: Invalid argument values: {str(e)}\"\n        except Exception as e:\n            return f\"Error executing tool {tool_name}: {str(e)}\"\n    \n\n    def run(self, prompt, directory):\n        \"\"\"Run the agent to analyse a codebase using the ReAct pattern.\"\"\"\n        self.initialise_memory(prompt, directory)\n        max_steps = 50\n        \n        for step in range(max_steps):\n            logger.info(f\"\\n--- Step {step + 1} ---\")\n            logger.debug(f\"Current memory size: {len(self.memory)} messages\")\n            \n            # Call the LLM\n            try:\n                assistant_message = self.call_llm()\n                \n                # Check the result\n                result_type, result_data = self.check_llm_result(assistant_message)\n                \n                if result_type == \"final_answer\":\n                    logger.info(\"Received final answer from LLM\")\n                    self.final_answer = result_data\n                    break\n                elif result_type == \"tool_calls\":\n                    logger.info(f\"Processing {len(result_data)} tool calls\")\n                    # Execute each tool call\n                    for tool_call in result_data:\n                        logger.debug(f\"Executing tool: {tool_call.function.name} with args: {tool_call.function.arguments}\")\n                        # Execute the tool\n                        observation = self.execute_tool(tool_call)\n                        logger.debug(f\"Tool result length: {len(observation) if observation else 0} chars\")\n                        \n                        # Add the observation to memory\n                        self.memory.append({\n                            \"role\": \"tool\",\n                            \"tool_call_id\": tool_call.id,\n                            \"name\": tool_call.function.name,\n                            \"content\": observation\n                        })\n            except Exception as e:\n                logger.error(f\"Unexpected error in step {step + 1}: {e}\", exc_info=True)\n                raise RuntimeError(f\"Error running code analysis: {e}\") from e\n            \n            logger.info(f\"Memory length: {len(self.memory)} messages\")\n            logger.debug(f\"Current memory content size: {sum(len(str(msg)) for msg in self.memory)} chars\")\n        \n        if self.final_answer is None:\n            logger.warning(f\"Failed to complete analysis within {max_steps} steps\")\n            raise RuntimeError(\"Failed to complete the analysis within the step limit.\")\n        \n        return self.final_answer\n\n\ndef analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:\n    \"\"\"\n    Analyse a codebase using the specified agent type with a prompt from an external file.\n    \n    Args:\n        directory_path: Path to directory containing codebase\n        prompt_file_path: Path to file containing analysis prompt\n        model_name: Name of model to use for analysis\n        base_url: Base URL for API (optional)\n        repo_url: GitHub repository URL if cloned from GitHub (optional)\n        \n    Returns:\n        tuple: (analysis_result, repo_name, repo_url)\n    \"\"\"\n    prompt = read_prompt_file(prompt_file_path)\n    agent = TechWriterReActAgent(model_name, base_url)\n    analysis_result = agent.run(prompt, directory_path)\n    repo_name = Path(directory_path).name\n    return analysis_result, repo_name, repo_url or \"\"\n\n\ndef main():\n    try:\n        configure_logging()\n        args = get_command_line_args()\n        repo_url, directory_path = configure_code_base_source(args.repo, args.directory, args.cache_dir)\n            \n        analysis_result, repo_name, _ = analyse_codebase(directory_path, args.prompt_file, args.model, args.base_url, repo_url)\n\n        output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name)\n        logger.info(f\"Analysis complete. Results saved to: {output_file}\")\n\n        create_metadata(output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt)\n        \n    except Exception as e:\n        logger.error(f\"Error: {str(e)}\")\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    main()",
+        "adk-python": "#!/usr/bin/env python3\n\"\"\"\nTech Writer Agent using Google ADK\nDirect port of baseline/tech-writer.py to use ADK framework\n\"\"\"\n\nimport asyncio\nimport sys\nfrom pathlib import Path\nfrom typing import List\nfrom google.adk.agents import Agent\nfrom google.adk.runners import InMemoryRunner\nfrom google.adk.models.lite_llm import LiteLlm\nfrom google.genai import types\n\n# Add baremetal/python to path to import common modules\nsys.path.insert(0, str(Path(__file__).parent.parent.parent / \"baremetal\" / \"python\"))\n\n# Import from common modules - reuse everything possible\nfrom common.utils import (\n    REACT_SYSTEM_PROMPT,\n    read_prompt_file,\n    save_results,\n    create_metadata,\n    configure_code_base_source,\n    get_command_line_args,\n    \n)\nfrom common.tools import TOOLS_JSON \nfrom common.logging import logger, configure_logging\n\nasync def stupid_adk_hack_to_get_model(vendor_model_id_combo):\n    # This feels like marketing getting in the way of clean API design\n    # openrouter and liteLLM both support <vendor>/<model id> but does ADK? \n    # CONDITIONALLY\n\n    vendor, model_id = vendor_model_id_combo.split(\"/\", 1)\n    if vendor == \"google\":\n        # Gemini models can be used directly without vendor prefix\n        # Yeah this is some crappy DevUX for sure\n        return model_id\n    else:\n        # Non-Google models need LiteLLM wrapper with full vendor/model string\n        return LiteLlm(model=vendor_model_id_combo)\n\n\nasync def analyse_codebase(directory_path: str, prompt_file_path: str, vendor_model_id_combo: str, repo_url: str = None) -> tuple[str, str, str]:\n    prompt = read_prompt_file(prompt_file_path)\n    \n    model = await stupid_adk_hack_to_get_model(vendor_model_id_combo)\n    tech_writer_agent = Agent(\n        name=\"tech_writer\",\n        model=model,\n        instruction=REACT_SYSTEM_PROMPT,\n        description=\"A technical documentation agent that analyzes codebases using ReAct pattern\",\n        tools=list(TOOLS_JSON.values()),\n        generate_content_config=types.GenerateContentConfig(\n            temperature=0,  # Use 0 for \"more deterministic 😉\"\n        )\n    )\n    \n    # ADK uses runners to manage agent execution and state persistence\n    # InMemoryRunner stores conversation history and artifacts in memory (lost on exit)\n    runner = InMemoryRunner(agent=tech_writer_agent, app_name='tech_writer')\n    \n    # Sessions track conversations and state for a specific user\n    # user_id identifies who is running the agent (used for multi-user scenarios)\n    # In our CLI tool, we use a fixed 'cli_user' since it's single-user\n    session = await runner.session_service.create_session(\n        app_name='tech_writer',\n        user_id='cli_user'\n    )\n    \n    # Prepare the full prompt with directory context\n    full_prompt = f\"Base directory: {directory_path}\\n\\n{prompt}\"\n    \n    # Create user content\n    content = types.Content(\n        role='user',\n        parts=[types.Part.from_text(text=full_prompt)]\n    )\n    \n    logger.info(\"Running analysis...\")\n    full_response = \"\"\n    # run_async requires both user_id and session_id to:\n    # - user_id: groups sessions by user (for organizing multi-user scenarios)\n    # - session_id: links to a specific conversation's history and state\n    # The session stores tool results, conversation context, and agent memory\n    async for event in runner.run_async(\n        user_id='cli_user',\n        session_id=session.id,\n        new_message=content\n    ):\n        if event.content.parts and event.content.parts[0].text:\n            full_response += event.content.parts[0].text\n    \n    # Get repository name for output file\n    repo_name = Path(directory_path).name\n    \n    return full_response, repo_name, repo_url or \"\"\n\n\nasync def main():\n    try:\n        configure_logging()\n        args = get_command_line_args()\n        \n        # Configure codebase source (repo or directory)\n        repo_url, directory_path = configure_code_base_source(args.repo, args.directory, args.cache_dir)\n            \n        analysis_result, repo_name, _ = await analyse_codebase(\n            directory_path, \n            args.prompt_file, \n            args.model, \n            repo_url\n        )\n        \n        # Save the results\n        output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name)\n        logger.info(f\"Analysis complete. Results saved to: {output_file}\")\n        \n        # Always create metadata (with optional evaluation)\n        create_metadata(output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt)\n        \n    except Exception as e:\n        logger.error(f\"Error: {str(e)}\", exc_info=True)\n        sys.exit(1)\n\n\nif __name__ == \"__main__\":\n    asyncio.run(main())",
+        "dspy": "#!/usr/bin/env python3\n\"\"\"\nTech Writer Agent using DSPy's built-in ReAct module.\n\nThis implementation uses DSPy's native ReAct agent for tool-based reasoning.\n\"\"\"\n\nimport sys\nimport os\nimport json\nfrom pathlib import Path\nfrom typing import List, Dict, Any\n\n# Add baremetal/python to path to import common modules\nsys.path.insert(0, str(Path(__file__).parent.parent.parent / \"baremetal\" / \"python\"))\n\nimport dspy\nfrom common.utils import (\n    get_command_line_args,\n    read_prompt_file,\n    save_results,\n    create_metadata,\n    configure_code_base_source,\n    logger,\n    CustomEncoder,\n)\nfrom common.tools import TOOLS\n\n# DSPy uses docstrings as functional units -- it uses it as the main prompt. \n# This approach can be very problematic because it prevents you from easily\n# being able to use variables for your prompt, which is clearly nonsense.\n# You'd have to do this hack below to modify the __doc__ variable:\n# class TechWriterSignature(dspy.Signature):\n\n#     TechWriterSignature.__doc__ = TECH_WRITER_SYSTEM_PROMPT\n#     😱\n# So I've inlined the text prompts. \n\n\nclass TechWriterSignature(dspy.Signature):\n    \"\"\"\n    You are an expert tech writer that helps teams understand codebases with accurate and concise supporting analysis and documentation. \n    Your task is to analyse the local filesystem to understand the structure and functionality of a codebase.\n\n     Follow these guidelines:\n    - Use the available tools to explore the filesystem, read files, and gather information.\n    - Make no assumptions about file types or formats - analyse each file based on its content and extension.\n    - Focus on providing a comprehensive, accurate, and well-structured analysis.\n    - Include code snippets and examples where relevant.\n    - Organize your response with clear headings and sections.\n    - Cite specific files and line numbers to support your observations.\n\n    Important guidelines:\n    - The user's analysis prompt will be provided in the initial message, prefixed with the base directory of the codebase (e.g., \"Base directory: /path/to/codebase\").\n    - Analyse the codebase based on the instructions in the prompt, using the base directory as the root for all relative paths.\n    - Make no assumptions about file types or formats - analyse each file based on its content and extension.\n    - Adapt your analysis approach based on the codebase and the prompt's requirements.\n    - Be thorough but focus on the most important aspects as specified in the prompt.\n    - Provide clear, structured summaries of your findings in your final response.\n    - Handle errors gracefully and report them clearly if they occur but don't let them halt the rest of the analysis.\n\n    When analysing code:\n    - Start by exploring the directory structure to understand the project organisation.\n    - Identify key files like README, configuration files, or main entry points.\n    - Ignore temporary files and directories like node_modules, .git, etc.\n    - Analyse relationships between components (e.g., imports, function calls).\n    - Look for patterns in the code organisation (e.g., line counts, TODOs).\n    - Summarise your findings to help someone understand the codebase quickly, tailored to the prompt.\n\n    When you've completed your analysis, provide a final answer in the form of a comprehensive Markdown document \n    that provides a mutually exclusive and collectively exhaustive (MECE) analysis of the codebase using the user prompt.\n\n    Your analysis should be thorough, accurate, and helpful for someone trying to understand this codebase.\n\n    \"\"\"\n\n    # TODO the prompt above is a copy of the master prompt in TECH_WRITER_SYSTEM_PROMPT so if that changes, this has to be updated manually\n    \n    prompt: str = dspy.InputField(desc=\"The analysis prompt and base directory\")\n    analysis: str = dspy.OutputField(desc=\"Comprehensive markdown analysis of the codebase\")\n\ndef analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:\n    dspy.configure(lm=dspy.LM(model=model_name))\n    \n    prompt_content = read_prompt_file(prompt_file_path)\n    full_prompt = f\"Base directory for analysis: {directory_path}\\n\\n{prompt_content}\"\n    \n    logger.info(f\"Starting DSPy ReAct tech writer with model: {model_name}\")\n    logger.info(f\"Analyzing directory: {directory_path}\")\n    \n    react_agent = dspy.ReAct(TechWriterSignature, tools=list(TOOLS.values()), max_iters=20)\n    result = react_agent(prompt=full_prompt)\n    analysis = result.analysis\n    \n    repo_name = Path(directory_path).name\n    return analysis, repo_name, repo_url or \"\"\n\n\ndef main():\n    try:\n        from common.logging import configure_logging\n        configure_logging()\n        args = get_command_line_args()\n        repo_url, directory_path = configure_code_base_source(args.repo, args.directory, args.cache_dir)\n            \n        analysis_result, repo_name, _ = analyse_codebase(directory_path, args.prompt_file, args.model, args.base_url, repo_url)\n\n        output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name)\n        logger.info(f\"Analysis complete. Results saved to: {output_file}\")\n\n        create_metadata(output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt)\n        \n    except Exception as e:\n        logger.error(f\"Error: {str(e)}\")\n        sys.exit(1)\n\n\nif __name__ == \"__main__\":\n    main()",
+        "agno": "#!/usr/bin/env python3\n\"\"\"\nTech Writer Agent using Agno (phidata)\nDirect port of baseline/tech-writer.py to Agno framework\n\"\"\"\n\nimport json\nimport os\nimport sys\nfrom pathlib import Path\nfrom typing import Any, Dict\n\n# Handle environment variable compatibility\n# Agno expects GOOGLE_API_KEY but we use GEMINI_API_KEY\nif os.environ.get(\"GEMINI_API_KEY\") and not os.environ.get(\"GOOGLE_API_KEY\"):\n    os.environ[\"GOOGLE_API_KEY\"] = os.environ[\"GEMINI_API_KEY\"]\n\nfrom agno.agent import Agent\nfrom agno.models.openai import OpenAIChat\nfrom agno.models.google import Gemini\n\n# Import from common directory\nsys.path.insert(0, str(Path(__file__).parent.parent.parent / \"baremetal\" / \"python\"))\nfrom common.utils import (\n    read_prompt_file,\n    save_results,\n    create_metadata,\n    TECH_WRITER_SYSTEM_PROMPT,\n    configure_code_base_source,\n    get_command_line_args\n)\nfrom common.logging import logger, configure_logging\nfrom common.tools import TOOLS_JSON\n\n\nclass ModelFactory:\n    \"\"\"Factory for creating Agno models using vendor/model format.\"\"\"\n    \n    # Map of vendors to their model classes\n    VENDOR_MAP = {\n        'openai': OpenAIChat,\n        'google': Gemini,\n    }\n    \n    @classmethod\n    def create(cls, model_name: str, **kwargs):\n        if not model_name:\n            raise ValueError(\"Model name cannot be None or empty\")\n        \n        vendor, model_id = model_name.split(\"/\", 1)    \n        model_class = cls.VENDOR_MAP.get(vendor)\n        return model_class(id=model_id, **kwargs)\n\n\ndef analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:\n    prompt = read_prompt_file(prompt_file_path)\n    model = ModelFactory.create(model_name)\n\n    agent = Agent(\n        model=model,\n        instructions=TECH_WRITER_SYSTEM_PROMPT,\n        tools=TOOLS_JSON,\n        markdown=False,  # We want plain text output for consistency\n    )\n    agent.model.generate_content_config = {\"temperature\": 0}\n    full_prompt = f\"Base directory: {directory_path}\\n\\n{prompt}\"\n    response = agent.run(full_prompt)\n    if hasattr(response, 'content'):\n        analysis_result = response.content\n    else:\n        analysis_result = str(response)\n    \n    repo_name = Path(directory_path).name\n    return analysis_result, repo_name, repo_url or \"\"\n\n\ndef main():\n    try:\n        configure_logging()\n        args = get_command_line_args()\n        repo_url, directory_path = configure_code_base_source(\n            args.repo, args.directory, args.cache_dir\n        )\n        \n        analysis_result, repo_name, _ = analyse_codebase(\n            directory_path, args.prompt_file, args.model, args.base_url, repo_url\n        )\n        \n        output_file = save_results(\n            analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name\n        )\n        logger.info(f\"Analysis complete. Results saved to: {output_file}\")\n        \n        create_metadata(\n            output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt\n        )\n        \n    except Exception as e:\n        logger.error(f\"Error: {str(e)}\", exc_info=True)\n        sys.exit(1)\n\n\nif __name__ == \"__main__\":\n    main()",
+        "langgraph": "#!/usr/bin/env python3\n\"\"\"Tech Writer implementation using LangGraph.\"\"\"\n\nfrom pathlib import Path\nimport sys\nfrom typing import Tuple, List, Dict, Any\nimport json\n\nfrom langgraph.prebuilt import create_react_agent\nfrom langchain_openai import ChatOpenAI\nfrom langchain_google_genai import ChatGoogleGenerativeAI\nfrom langchain_core.messages import SystemMessage, HumanMessage\n\n\n# Add baremetal/python to path to import common modules\nsys.path.insert(0, str(Path(__file__).parent.parent.parent / \"baremetal\" / \"python\"))\n\nfrom common.tools import find_all_matching_files, read_file\nfrom common.utils import (\n    read_prompt_file,\n    save_results,\n    create_metadata,\n    TECH_WRITER_SYSTEM_PROMPT,\n    configure_code_base_source,\n    get_command_line_args,\n    MAX_ITERATIONS,\n    OPENAI_API_KEY,\n    GEMINI_API_KEY,\n    vendor_model_with_colons\n)\nfrom common.tools import TOOLS_JSON\nfrom common.logging import logger, configure_logging\n\n\n\nasync def analyze_codebase(\n    directory_path: str, \n    prompt_file_path: str, \n    model_name: str, \n    base_url: str = None, \n    repo_url: str = None,\n    max_iterations: int = MAX_ITERATIONS\n) -> Tuple[str, str, str]:\n    \"\"\"Analyze a codebase using LangGraph agent.\n    \n    Args:\n        directory_path: Path to directory containing codebase\n        prompt_file_path: Path to file containing analysis prompt\n        model_name: Name of model to use for analysis\n        base_url: Base URL for API (optional)\n        repo_url: GitHub repository URL if cloned from GitHub (optional)\n        max_iterations: Maximum iterations for the agent\n        \n    Returns:\n        tuple: (analysis_result, repo_name, repo_url)\n    \"\"\"\n    prompt = read_prompt_file(prompt_file_path)\n    \n    \n    # Import the tools we need\n\n    \n    # find_files REQUIRES a wrapper because find_all_matching_files expects a 'directory' parameter\n    # that the LLM won't reliably extract from the prompt\n    def find_files(pattern: str = \"*\", respect_gitignore: bool = True, \n                   include_hidden: bool = False, include_subdirs: bool = True) -> List[str]:\n        \"\"\"Find files matching a pattern in the codebase.\n        \n        Use this to discover files by pattern (e.g., '*.py' for Python files,\n        '*.md' for markdown). Respects .gitignore by default to avoid \n        temporary/build files.\n        \"\"\"\n        return find_all_matching_files(\n            directory=directory_path,  # Bound from closure - this is why we need the wrapper\n            pattern=pattern,\n            respect_gitignore=respect_gitignore,\n            include_hidden=include_hidden,\n            include_subdirs=include_subdirs,\n            return_paths_as=\"str\"\n        )\n    \n    # read_file doesn't REQUIRE a wrapper (it only takes file_path), but we add one \n    # for convenience to handle relative paths. Without this, the LLM would need to \n    # always provide absolute paths.\n    def read_file_with_path_resolution(file_path: str) -> Dict[str, Any]:\n        \"\"\"Read the contents of a specific file.\n        \n        Use this when you need to examine the actual content of a file.\n        Provide either an absolute path or a path relative to the base directory.\n        Returns the file content or an error message.\n        \"\"\"\n        # Convert relative paths to absolute paths based on the base directory\n        if not Path(file_path).is_absolute():\n            file_path = str(Path(directory_path) / file_path)\n        return read_file(file_path)\n    \n    # Create agent with tools\n    agent = create_react_agent(\n        model=vendor_model_with_colons(model_name),\n        tools=[find_files, read_file_with_path_resolution],\n    )\n    \n    # Prepare messages\n    messages = [\n        SystemMessage(content=TECH_WRITER_SYSTEM_PROMPT),\n        HumanMessage(content=f\"Base directory: {directory_path}\\n\\n{prompt}\")\n    ]\n    \n    # Run agent\n    logger.info(\"Starting LangGraph agent analysis\")\n    result = agent.invoke(\n        {\"messages\": messages},\n        config={\"recursion_limit\": max_iterations}\n    )\n    \n    # Extract final answer from messages\n    final_message = result[\"messages\"][-1]\n    analysis_result = final_message.content\n    \n    # Extract results\n    repo_name = Path(directory_path).name\n    return analysis_result, repo_name, repo_url or \"\"\n\n\ndef main():\n    \"\"\"Main entry point.\"\"\"\n    import asyncio\n    \n    async def async_main():\n        try:\n            configure_logging()\n            args = get_command_line_args()\n            \n            repo_url, directory_path = configure_code_base_source(\n                args.repo, args.directory, args.cache_dir\n            )\n            \n            analysis_result, repo_name, _ = await analyze_codebase(\n                directory_path, \n                args.prompt_file, \n                args.model, \n                args.base_url, \n                repo_url,\n                getattr(args, 'max_iters', MAX_ITERATIONS)\n            )\n            \n            output_file = save_results(\n                analysis_result, args.model, repo_name, \n                args.output_dir, args.extension, args.file_name\n            )\n            logger.info(f\"Analysis complete. Results saved to: {output_file}\")\n            \n            create_metadata(\n                output_file, args.model, repo_url, repo_name, \n                analysis_result, getattr(args, 'eval_prompt', None)\n            )\n            \n        except Exception as e:\n            logger.error(f\"Error: {str(e)}\")\n            sys.exit(1)\n    \n    asyncio.run(async_main())\n\n\nif __name__ == \"__main__\":\n    main()",
+        "pydantic-ai": "from pathlib import Path\nimport sys\nfrom typing import Tuple\nfrom pydantic import BaseModel\nfrom pydantic_ai import Agent, RunContext\n\n# Add baremetal/python to path to import common modules\nsys.path.insert(0, str(Path(__file__).parent.parent.parent / 'baremetal' / 'python'))\n\nfrom common.utils import (\n    read_prompt_file,\n    save_results,\n    create_metadata,\n    TECH_WRITER_SYSTEM_PROMPT,\n    configure_code_base_source,\n    get_command_line_args,\n    MAX_ITERATIONS,\n    vendor_model_with_colons,\n)\n\nfrom common.tools import find_all_matching_files, read_file\nfrom common.logging import logger, configure_logging\n\n\nclass AnalysisContext(BaseModel):\n    \"\"\"Context dependencies for the analysis.\"\"\"\n    base_directory: str\n    analysis_prompt: str\n\n\ntech_writer = Agent(\n    deps_type=AnalysisContext,\n    result_type=str,\n    system_prompt=TECH_WRITER_SYSTEM_PROMPT,\n)\n\n@tech_writer.tool\nasync def find_files(\n    ctx: RunContext[AnalysisContext], \n    pattern: str = \"*\", \n    respect_gitignore: bool = True, \n    include_hidden: bool = False,\n    include_subdirs: bool = True\n) -> list[str]:\n    return find_all_matching_files(\n        directory=ctx.deps.base_directory,\n        pattern=pattern,\n        respect_gitignore=respect_gitignore,\n        include_hidden=include_hidden,\n        include_subdirs=include_subdirs,\n        return_paths_as=\"str\"\n    )\n\n@tech_writer.tool\nasync def read_file_content(ctx: RunContext[AnalysisContext], file_path: str) -> dict:\n    \"\"\"Read the contents of a specific file.\n    \n    Use this when you need to examine the actual content of a file.\n    Provide either an absolute path or a path relative to the base directory.\n    Returns the file content or an error message.\n    \"\"\"\n\n    if not Path(file_path).is_absolute():\n        file_path = str(Path(ctx.deps.base_directory) / file_path)\n    return read_file(file_path)\n\n\nasync def analyze_codebase(\n    directory_path: str, \n    prompt_file_path: str, \n    model_name: str, \n    base_url: str = None, \n    repo_url: str = None,\n    max_iterations: int = MAX_ITERATIONS # not used in this framework\n) -> Tuple[str, str, str]:\n\n    prompt = read_prompt_file(prompt_file_path)\n    \n    context = AnalysisContext(\n        base_directory=directory_path,\n        analysis_prompt=prompt\n    )\n    \n    colon_delimited_vendor_model_pair = vendor_model_with_colons(model_name)\n    \n    result = await tech_writer.run(\n        f\"Base directory: {directory_path}\\n\\n{prompt}\",\n        deps=context,\n        model=colon_delimited_vendor_model_pair\n    )\n    \n    repo_name = Path(directory_path).name\n    return result.output, repo_name, repo_url or \"\"\n\n\ndef main():\n    import asyncio\n    \n    async def async_main():\n        try:\n            configure_logging()\n            args = get_command_line_args()\n            \n            repo_url, directory_path = configure_code_base_source(\n                args.repo, args.directory, args.cache_dir\n            )\n            \n            analysis_result, repo_name, _ = await analyze_codebase(\n                directory_path, \n                args.prompt_file, \n                args.model, \n                args.base_url, \n                repo_url,\n                getattr(args, 'max_iters', MAX_ITERATIONS)\n            )\n            \n            output_file = save_results(\n                analysis_result, args.model, repo_name, \n                args.output_dir, args.extension, args.file_name\n            )\n            logger.info(f\"Analysis complete. Results saved to: {output_file}\")\n            \n            create_metadata(\n                output_file, args.model, repo_url, repo_name, \n                analysis_result, getattr(args, 'eval_prompt', None)\n            )\n            \n        except Exception as e:\n            logger.error(f\"Error: {str(e)}\")\n            sys.exit(1)\n    \n    asyncio.run(async_main())\n\n\nif __name__ == \"__main__\":\n    main()",
+        "autogen": "import asyncio\nimport sys\nfrom pathlib import Path\nfrom typing import List, Dict, Any\nfrom autogen_agentchat.agents import AssistantAgent\n\n# Works with any OpenAI API compatible LLM which is most of them \nfrom autogen_ext.models.openai import OpenAIChatCompletionClient\nimport argparse\n\n# Add the baremetal/python directory to sys.path to import common modules\nbaremetal_path = Path(__file__).parent.parent.parent / \"baremetal\" / \"python\"\nsys.path.insert(0, str(baremetal_path))\n\nfrom common.utils import (\n    read_prompt_file,\n    save_results,\n    create_metadata,\n    #REACT_SYSTEM_PROMPT,\n    TECH_WRITER_SYSTEM_PROMPT,\n    configure_code_base_source,\n    get_command_line_args,\n    MAX_ITERATIONS,\n    vendor_model_with_colons,\n    OPENAI_API_KEY,\n    GEMINI_API_KEY,\n)\n\nfrom common.tools import find_all_matching_files, read_file\nfrom common.logging import logger, configure_logging\n\n\n# Async wrapper functions for AutoGen compatibility\nasync def find_all_matching_files_async(\n    directory: str, \n    pattern: str = \"*\", \n    respect_gitignore: bool = True, \n    include_hidden: bool = False,\n    include_subdirs: bool = True\n) -> List[str]:\n    \"\"\"Find all the files in a given directory matching a certain regex pattern \n    optionally recursively (on by default),\n    optionally include hidden files (off by default),\n    respecting git's .gitignore file (on by default)\n    \"\"\"\n    return find_all_matching_files(\n        directory=directory,\n        pattern=pattern,\n        respect_gitignore=respect_gitignore,\n        include_hidden=include_hidden,\n        include_subdirs=include_subdirs,\n        return_paths_as=\"str\"\n    )\n\nasync def read_file_async(file_path: str) -> Dict[str, Any]:\n    \"\"\"Read the contents of a specific file.\n    \n    Use this when you need to examine the actual content of a file.\n    Provide either an absolute path or a path relative to the base directory.\n    Returns the file content or an error message.\n    \"\"\"\n    return read_file(file_path)\n\n\nasync def analyze_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None, max_iters = MAX_ITERATIONS) -> tuple[str, str, str]:\n    prompt = read_prompt_file(prompt_file_path)\n    \n    # Autogen relies 100% on OpenAI-compatible endpoints, which is most of them\n    # but it does have a hard-coded list of models that limits things a bit  \n    # default string sent is openai/gpt-4.1-mini which is SOTA cheap model currently\n    _, model_id = model_name.split(\"/\", 1)\n    \n    # Configure the model client based on vendor\n    model_client = OpenAIChatCompletionClient(\n        model=model_id,\n    )\n  \n    # Create the agent with tools\n    agent = AssistantAgent(\n        name=\"tech_writer\",\n        model_client=model_client,\n        tools=[find_all_matching_files_async, read_file_async],\n        system_message=TECH_WRITER_SYSTEM_PROMPT,\n        reflect_on_tool_use=True\n    )\n    \n    task_message = f\"Base directory: {directory_path}\\n\\n{prompt}\"\n    result = await agent.run(task=task_message)\n    analysis_result = result.messages[-1].content\n        \n    repo_name = Path(directory_path).name\n    return analysis_result, repo_name, repo_url or \"\"\n\n\ndef main():\n    import asyncio\n    \n    async def async_main():\n        try:\n            configure_logging()\n            args = get_command_line_args()\n            \n            repo_url, directory_path = configure_code_base_source(\n                args.repo, args.directory, args.cache_dir\n            )\n            \n            analysis_result, repo_name, _ = await analyze_codebase(\n                directory_path, \n                args.prompt_file, \n                args.model, \n                args.base_url, \n                repo_url,\n                getattr(args, 'max_iters', MAX_ITERATIONS)\n            )\n            \n            output_file = save_results(\n                analysis_result, args.model, repo_name, \n                args.output_dir, args.extension, args.file_name\n            )\n            logger.info(f\"Analysis complete. Results saved to: {output_file}\")\n            \n            create_metadata(\n                output_file, args.model, repo_url, repo_name, \n                analysis_result, getattr(args, 'eval_prompt', None)\n            )\n            \n        except Exception as e:\n            logger.error(f\"Error: {str(e)}\")\n            sys.exit(1)\n    \n    asyncio.run(async_main())\n\n\nif __name__ == \"__main__\":\n    main()",
+        "atomic-agents": "import sys  \nimport os  \nimport textwrap  \nimport instructor  \nimport json  \nfrom pathlib import Path  \nfrom typing import Optional, List, Dict, Any, Union  \nfrom pydantic import Field  \n  \nfrom atomic_agents.agents.base_agent import BaseAgent, BaseAgentConfig, BaseIOSchema  \nfrom atomic_agents.lib.components.system_prompt_generator import SystemPromptGenerator, SystemPromptContextProviderBase  \nfrom atomic_agents.lib.components.agent_memory import AgentMemory  \nfrom atomic_agents.lib.base.base_tool import BaseTool, BaseToolConfig  \n  \nsys.path.insert(0, str(Path(__file__).parent.parent.parent / \"baremetal\" / \"python\"))  \nfrom common.utils import (  \n    read_prompt_file,  \n    save_results,  \n    create_metadata,  \n    ROLE_AND_TASK,  \n    GENERAL_ANALYSIS_GUIDELINES,  \n    INPUT_PROCESSING_GUIDELINES,  \n    CODE_ANALYSIS_STRATEGIES,  \n    QUALITY_REQUIREMENTS,  \n    REACT_PLANNING_STRATEGY,  \n    configure_code_base_source,  \n    get_command_line_args,  \n    CustomEncoder  \n)  \nfrom common.logging import logger, configure_logging  \nfrom common.tools import TOOLS  \n  \n# Atomic Agents Schema Definitions  \nclass TechWriterInputSchema(BaseIOSchema):  \n    \"\"\"Input schema for the tech writer agent.\"\"\"  \n    prompt: str = Field(..., description=\"The analysis prompt\")  \n    directory: str = Field(..., description=\"Base directory path to analyze\")  \n  \nclass TechWriterOutputSchema(BaseIOSchema):  \n    \"\"\"Output schema for the tech writer agent.\"\"\"  \n    analysis_result: str = Field(..., description=\"The final analysis result\")  \n  \n# Context Provider for dynamic codebase information  \nclass CodebaseContextProvider(SystemPromptContextProviderBase):  \n    def __init__(self, title: str):  \n        super().__init__(title=title)  \n        self.base_directory = None  \n        self.analysis_prompt = None  \n      \n    def get_info(self) -> str:  \n        return f\"Base directory: {self.base_directory}\\n\\nAnalysis prompt: {self.analysis_prompt}\"  \n  \n# FindAllMatchingFilesTool  \nclass FindAllMatchingFilesInputSchema(BaseIOSchema):  \n    \"\"\"Input schema for finding matching files.\"\"\"  \n    directory: str = Field(..., description=\"Directory to search in\")  \n    pattern: str = Field(default=\"*\", description=\"File pattern to match (glob format)\")  \n    respect_gitignore: bool = Field(default=True, description=\"Whether to respect .gitignore patterns\")  \n    include_hidden: bool = Field(default=False, description=\"Whether to include hidden files and directories\")  \n    include_subdirs: bool = Field(default=True, description=\"Whether to include files in subdirectories\")  \n  \nclass FindAllMatchingFilesOutputSchema(BaseIOSchema):  \n    \"\"\"Output schema for finding matching files.\"\"\"  \n    result: str = Field(..., description=\"JSON string containing list of matching file paths\")  \n  \nclass FindAllMatchingFilesTool(BaseTool):  \n    \"\"\"Tool for finding files matching a pattern while respecting .gitignore.\"\"\"  \n    input_schema = FindAllMatchingFilesInputSchema  \n    output_schema = FindAllMatchingFilesOutputSchema  \n      \n    def __init__(self, config: BaseToolConfig = None):  \n        super().__init__(config or BaseToolConfig(  \n            title=\"FindAllMatchingFilesTool\",  \n            description=\"Find files matching a pattern while respecting .gitignore\"  \n        ))  \n      \n    def run(self, params: FindAllMatchingFilesInputSchema) -> FindAllMatchingFilesOutputSchema:  \n        logger.info(f\"FindAllMatchingFilesTool invoked with directory={params.directory}, pattern={params.pattern}\")\n        try:  \n            # Call your original function from TOOLS  \n            tool_func = TOOLS[\"find_all_matching_files\"]  \n            result = tool_func(  \n                directory=params.directory,  \n                pattern=params.pattern,  \n                respect_gitignore=params.respect_gitignore,  \n                include_hidden=params.include_hidden,  \n                include_subdirs=params.include_subdirs,  \n                return_paths_as=\"str\"  # Always return strings for JSON compatibility  \n            )  \n            return FindAllMatchingFilesOutputSchema(result=json.dumps(result, cls=CustomEncoder, indent=2))  \n        except Exception as e:  \n            return FindAllMatchingFilesOutputSchema(result=f\"Error finding files: {str(e)}\")  \n  \n# FileReaderTool  \nclass FileReaderInputSchema(BaseIOSchema):  \n    \"\"\"Input schema for reading file contents.\"\"\"  \n    file_path: str = Field(..., description=\"Path to the file to read\")  \n  \nclass FileReaderOutputSchema(BaseIOSchema):  \n    \"\"\"Output schema for reading file contents.\"\"\"  \n    result: str = Field(..., description=\"JSON string containing file content or error message\")  \n  \nclass FileReaderTool(BaseTool):  \n    \"\"\"Tool for reading the contents of a file.\"\"\"  \n    input_schema = FileReaderInputSchema  \n    output_schema = FileReaderOutputSchema  \n      \n    def __init__(self, config: BaseToolConfig = None):  \n        super().__init__(config or BaseToolConfig(  \n            title=\"FileReaderTool\",  \n            description=\"Read the contents of a file\"  \n        ))  \n      \n    def run(self, params: FileReaderInputSchema) -> FileReaderOutputSchema:  \n        logger.info(f\"FileReaderTool invoked with file_path={params.file_path}\")\n        try:  \n            # Call your original function from TOOLS  \n            tool_func = TOOLS[\"read_file\"]  \n            result = tool_func(params.file_path)  \n            return FileReaderOutputSchema(result=json.dumps(result, cls=CustomEncoder, indent=2))  \n        except Exception as e:  \n            return FileReaderOutputSchema(result=f\"Error reading file: {str(e)}\")  \n  \ndef create_system_prompt_generator():  \n    \"\"\"Create system prompt generator using existing constants.\"\"\"  \n    background_lines = [  \n        line.strip() for line in ROLE_AND_TASK.strip().split('\\n') if line.strip()  \n    ] + [  \n        line.strip() for line in GENERAL_ANALYSIS_GUIDELINES.strip().split('\\n')  \n        if line.strip() and not line.strip().startswith('Follow these guidelines:') and line.strip() != '-'  \n    ]  \n      \n    strategy = REACT_PLANNING_STRATEGY  \n    steps = [  \n        line.strip() for line in strategy.strip().split('\\n')  \n        if line.strip() and (line.strip().startswith(('1.', '2.', '3.', '4.', '5.')))  \n    ] + [  \n        line.strip() for line in CODE_ANALYSIS_STRATEGIES.strip().split('\\n')  \n        if line.strip() and line.strip().startswith('-')  \n    ]  \n      \n    output_instructions = [  \n        line.strip() for line in INPUT_PROCESSING_GUIDELINES.strip().split('\\n')  \n        if line.strip() and line.strip().startswith('-')  \n    ] + [  \n        line.strip() for line in QUALITY_REQUIREMENTS.strip().split('\\n')  \n        if line.strip()  \n    ]  \n      \n    return SystemPromptGenerator(  \n        background=background_lines,  \n        steps=steps,  \n        output_instructions=output_instructions  \n    )  \n  \nclass TechWriterAgent:  \n    def __init__(self, vendor_model: str = \"openai/gpt-4o-mini\"):  \n        \"\"\"Initialize the TechWriter agent with atomic-agents using LiteLLM.\"\"\"  \n          \n        import litellm\n        client = instructor.from_litellm(litellm.completion)  \n          \n        self.tools = [FindAllMatchingFilesTool(), FileReaderTool()]  \n          \n        self.codebase_context = CodebaseContextProvider(\"Codebase Analysis Context\")  \n          \n        system_prompt_generator = create_system_prompt_generator()  \n        system_prompt_generator.context_providers[\"codebase_context\"] = self.codebase_context  \n\n        self.agent = BaseAgent(  \n            BaseAgentConfig(  \n                client=client,  \n                model=vendor_model,  \n                system_prompt_generator=system_prompt_generator,  \n                input_schema=TechWriterInputSchema,  \n                output_schema=TechWriterOutputSchema,  \n                memory=AgentMemory(),  \n                model_api_parameters={\"temperature\": 0},  \n                tools=self.tools,\n                max_tool_iterations=50 \n            )  \n        )  \n      \n    def run(self, prompt: str, directory: str) -> str:  \n        self.codebase_context.base_directory = directory  \n        self.codebase_context.analysis_prompt = prompt  \n          \n        input_data = TechWriterInputSchema(prompt=prompt, directory=directory)  \n        \n        logger.info(f\"Running agent with {len(self.tools)} tools\")\n        for tool in self.tools:\n            logger.info(f\"Tool: {tool.__class__.__name__}\")\n        \n        result = self.agent.run(input_data)  \n          \n        return result.analysis_result  \n  \ndef analyse_codebase(directory_path: str, prompt_file_path: str, vendor_model: str,  \n                    base_url: str = None, repo_url: str = None) -> tuple[str, str, str]:  \n    # TODO base_url support not needed -- it's only required for ollama\n    prompt = read_prompt_file(prompt_file_path)  \n    agent = TechWriterAgent(vendor_model)  \n    analysis_result = agent.run(prompt, directory_path)  \n      \n    repo_name = Path(directory_path).name  \n    return analysis_result, repo_name, repo_url or \"\"  \n  \ndef main():  \n    try:  \n        configure_logging()  \n        args = get_command_line_args()  \n        repo_url, directory_path = configure_code_base_source(  \n            args.repo, args.directory, args.cache_dir  \n        )  \n          \n        analysis_result, repo_name, _ = analyse_codebase(  \n            directory_path, args.prompt_file, args.model, args.base_url, repo_url  \n        )  \n          \n        output_file = save_results(  \n            analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name  \n        )  \n        logger.info(f\"Analysis complete. Results saved to: {output_file}\")  \n          \n        create_metadata(  \n            output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt  \n        )  \n          \n    except Exception as e:  \n        logger.error(f\"Error: {str(e)}\", exc_info=True)  \n        sys.exit(1)  \n  \nif __name__ == \"__main__\":  \n    main()"
+};
+        
+        // Color palette for block mappings
+        const blockColors = [
+            '#e3f2fd', '#f3e5f5', '#e8f5e9', '#fff3e0', '#fce4ec',
+            '#e0f2f1', '#f1f8e9', '#ede7f6', '#e0f7fa', '#fff8e1'
+        ];
+        
+        let currentComparison = null;
+        let currentView = 'matrix';
+        
+        // Initialize the app
+        function init() {
+            console.log('Initializing app...');
+            console.log('Matrix data:', matrixData);
+            console.log('Code files:', Object.keys(codeFiles));
+            
+            buildMatrix();
+            setupEventListeners();
+            
+            // Load a default comparison for testing
+            if (matrixData && matrixData.comparisons && matrixData.comparisons.length > 0) {
+                const firstComparison = matrixData.comparisons[0];
+                showComparison(firstComparison.vendor_a, firstComparison.vendor_b);
+            }
+        }
+        
+        function buildMatrix() {
+            const vendors = getUniqueVendors();
+            const grid = document.getElementById('matrix-grid');
+            const gridSize = vendors.length + 1;
+            
+            grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+            
+            // Empty top-left cell
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'matrix-cell header';
+            grid.appendChild(emptyCell);
+            
+            // Column headers
+            vendors.forEach(vendor => {
+                const cell = document.createElement('div');
+                cell.className = 'matrix-cell header';
+                cell.textContent = vendor;
+                grid.appendChild(cell);
+            });
+            
+            // Rows
+            vendors.forEach(vendorA => {
+                // Row header
+                const rowHeader = document.createElement('div');
+                rowHeader.className = 'matrix-cell header';
+                rowHeader.textContent = vendorA;
+                grid.appendChild(rowHeader);
+                
+                // Cells
+                vendors.forEach(vendorB => {
+                    const cell = document.createElement('div');
+                    
+                    if (vendorA === vendorB) {
+                        cell.className = 'matrix-cell disabled';
+                        cell.textContent = '—';
+                    } else {
+                        const comparison = findComparison(vendorA, vendorB);
+                        if (comparison) {
+                            cell.className = 'matrix-cell';
+                            cell.textContent = '⚖️';
+                            cell.dataset.vendorA = vendorA;
+                            cell.dataset.vendorB = vendorB;
+                            cell.onclick = () => showComparison(vendorA, vendorB);
+                        } else {
+                            cell.className = 'matrix-cell disabled';
+                            cell.textContent = '·';
+                        }
+                    }
+                    
+                    grid.appendChild(cell);
+                });
+            });
+        }
+        
+        function getUniqueVendors() {
+            const vendors = new Set();
+            matrixData.comparisons.forEach(comp => {
+                vendors.add(comp.vendor_a);
+                vendors.add(comp.vendor_b);
+            });
+            return Array.from(vendors).sort();
+        }
+        
+        function findComparison(vendorA, vendorB) {
+            return matrixData.comparisons.find(comp => 
+                (comp.vendor_a === vendorA && comp.vendor_b === vendorB) ||
+                (comp.vendor_a === vendorB && comp.vendor_b === vendorA)
+            );
+        }
+        
+        function showComparison(vendorA, vendorB) {
+            const comparison = findComparison(vendorA, vendorB);
+            if (!comparison) return;
+            
+            currentComparison = comparison;
+            
+            // Update comparison panel
+            document.getElementById('comparison-title').textContent = `${vendorA} vs ${vendorB}`;
+            document.getElementById('winner-badge').textContent = `Winner: ${comparison.overall_winner.split(' ')[0]}`;
+            document.getElementById('comparison-summary').textContent = comparison.summary;
+            
+            // Update vendor A
+            document.getElementById('vendor-a-name').textContent = vendorA;
+            document.getElementById('vendor-a-suitability').textContent = comparison.suitability[vendorA];
+            updateList('vendor-a-pros', comparison.pros_cons[vendorA].pros);
+            updateList('vendor-a-cons', comparison.pros_cons[vendorA].cons);
+            
+            // Update vendor B
+            document.getElementById('vendor-b-name').textContent = vendorB;
+            document.getElementById('vendor-b-suitability').textContent = comparison.suitability[vendorB];
+            updateList('vendor-b-pros', comparison.pros_cons[vendorB].pros);
+            updateList('vendor-b-cons', comparison.pros_cons[vendorB].cons);
+            
+            // Show panel
+            document.getElementById('comparison-panel').classList.add('active');
+        }
+        
+        function updateList(id, items) {
+            const list = document.getElementById(id);
+            list.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+        }
+        
+        function viewCode() {
+            if (!currentComparison) return;
+            
+            showView('code');
+            loadCodeComparison(currentComparison);
+        }
+        
+        function loadCodeComparison(comparison) {
+            console.log('Loading comparison:', comparison.vendor_a, 'vs', comparison.vendor_b);
+            
+            // Set headers
+            document.getElementById('code-header-a').textContent = comparison.vendor_a;
+            document.getElementById('code-header-b').textContent = comparison.vendor_b;
+            
+            // Load code
+            const codeA = codeFiles[comparison.vendor_a];
+            const codeB = codeFiles[comparison.vendor_b];
+            
+            console.log('Code A length:', codeA ? codeA.length : 'undefined');
+            console.log('Code B length:', codeB ? codeB.length : 'undefined');
+            
+            if (codeA && codeB) {
+                renderCode('code-content-a', codeA, comparison.vendor_a);
+                renderCode('code-content-b', codeB, comparison.vendor_b);
+                renderComparisons(comparison);
+            } else {
+                console.error('Missing code files:', !codeA ? comparison.vendor_a : '', !codeB ? comparison.vendor_b : '');
+            }
+        }
+        
+        function renderCode(elementId, code, vendor) {
+            const element = document.getElementById(elementId);
+            if (!element) {
+                console.error('Element not found:', elementId);
+                return;
+            }
+            
+            const lines = code.split('\n');
+            
+            element.innerHTML = lines.map((line, index) => {
+                const lineNum = index + 1;
+                const highlightedLine = highlightPython(line);
+                return `<div class="code-block" data-line="${lineNum}" data-vendor="${vendor}">` +
+                       `<span class="line-number">${lineNum}</span>` +
+                       `<span class="code-text">${highlightedLine}</span>` +
+                       `</div>`;
+            }).join('');
+        }
+        
+        // Simple Python syntax highlighter
+        function highlightPython(line) {
+            if (!line) return '';
+            
+            // Escape HTML first
+            let highlighted = escapeHtml(line);
+            
+            // Keywords
+            const keywords = /\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g;
+            highlighted = highlighted.replace(keywords, '<span class="token keyword">$1</span>');
+            
+            // Strings (simple version)
+            highlighted = highlighted.replace(/(["'])((?:\\.|(?!\1).)*?)\1/g, '<span class="token string">$1$2$1</span>');
+            
+            // Comments
+            highlighted = highlighted.replace(/(#.*)$/g, '<span class="token comment">$1</span>');
+            
+            // Functions
+            highlighted = highlighted.replace(/\b(\w+)(?=\s*\()/g, '<span class="token function">$1</span>');
+            
+            // Numbers
+            highlighted = highlighted.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="token number">$1</span>');
+            
+            return highlighted;
+        }
+        
+        function renderComparisons(comparison) {
+            const list = document.getElementById('comparison-list');
+            
+            list.innerHTML = comparison.block_mappings.map((mapping, index) => {
+                const color = blockColors[index % blockColors.length];
+                
+                return `<div class="block-comparison" data-index="${index}" 
+                         onclick="highlightBlocks(${index})"
+                         style="--block-color: ${color};">
+                    <div class="block-title">${mapping.description}</div>
+                    <div class="block-details">
+                        ${comparison.vendor_a}: lines ${mapping.vendor_a.lines[0]}-${mapping.vendor_a.lines[1]}<br>
+                        ${comparison.vendor_b}: lines ${mapping.vendor_b.lines[0]}-${mapping.vendor_b.lines[1]}
+                    </div>
+                    <div class="block-comparison-text">${mapping.comparison}</div>
+                </div>`;
+            }).join('');
+        }
+        
+        function highlightBlocks(index) {
+            if (!currentComparison) return;
+            
+            const mapping = currentComparison.block_mappings[index];
+            const color = blockColors[index % blockColors.length];
+            
+            // Clear previous highlights
+            document.querySelectorAll('.code-block').forEach(block => {
+                block.style.backgroundColor = '';
+                block.classList.remove('highlighted');
+            });
+            
+            // Clear previous active comparison
+            document.querySelectorAll('.block-comparison').forEach(block => {
+                block.classList.remove('active');
+            });
+            
+            // Mark comparison as active
+            document.querySelector(`[data-index="${index}"]`).classList.add('active');
+            
+            // Highlight and scroll vendor A
+            highlightAndScroll(currentComparison.vendor_a, mapping.vendor_a.lines, color);
+            
+            // Highlight and scroll vendor B
+            highlightAndScroll(currentComparison.vendor_b, mapping.vendor_b.lines, color);
+        }
+        
+        function highlightAndScroll(vendor, lines, color) {
+            const [start, end] = lines;
+            let firstBlock = null;
+            
+            for (let i = start; i <= end; i++) {
+                const block = document.querySelector(
+                    `.code-block[data-vendor="${vendor}"][data-line="${i}"]`
+                );
+                
+                if (block) {
+                    block.style.backgroundColor = color;
+                    block.classList.add('highlighted');
+                    
+                    if (!firstBlock) {
+                        firstBlock = block;
+                    }
+                }
+            }
+            
+            // Scroll to first highlighted block
+            if (firstBlock) {
+                firstBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
+        function showView(view, buttonElement) {
+            console.log('showView called:', view, 'currentComparison:', currentComparison);
+            currentView = view;
+            
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // If called from button click, highlight it
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            } else {
+                // Find and highlight the appropriate button
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    if ((view === 'matrix' && btn.textContent.includes('Matrix')) ||
+                        (view === 'code' && btn.textContent.includes('Code'))) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+            
+            // Show/hide views
+            if (view === 'matrix') {
+                document.getElementById('matrix-view').style.display = 'block';
+                document.getElementById('code-browser').classList.remove('active');
+            } else {
+                document.getElementById('matrix-view').style.display = 'none';
+                document.getElementById('code-browser').classList.add('active');
+                
+                // If switching to code view and we have a comparison, load it
+                if (currentComparison) {
+                    console.log('Loading current comparison in code view');
+                    loadCodeComparison(currentComparison);
+                } else {
+                    console.log('No comparison selected yet');
+                }
+            }
+        }
+        
+        function setupEventListeners() {
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    showView('matrix');
+                }
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Debug function
+        function debugCodeDisplay() {
+            console.log('=== Debug Info ===');
+            console.log('Current comparison:', currentComparison);
+            console.log('Current view:', currentView);
+            console.log('Code files available:', Object.keys(codeFiles));
+            
+            // Try to manually load first comparison
+            if (matrixData && matrixData.comparisons && matrixData.comparisons.length > 0) {
+                const comp = matrixData.comparisons[0];
+                console.log('Loading first comparison:', comp.vendor_a, 'vs', comp.vendor_b);
+                
+                currentComparison = comp;
+                showView('code');
+                loadCodeComparison(comp);
+                
+                // Check if content was rendered
+                setTimeout(() => {
+                    const contentA = document.getElementById('code-content-a');
+                    const contentB = document.getElementById('code-content-b');
+                    console.log('Content A HTML length:', contentA ? contentA.innerHTML.length : 'null');
+                    console.log('Content B HTML length:', contentB ? contentB.innerHTML.length : 'null');
+                }, 100);
+            }
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

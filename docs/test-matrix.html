@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Matrix Viewer</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .code-panel { border: 1px solid #ccc; margin: 10px; padding: 10px; }
+        .nav-btn { padding: 10px; margin: 5px; cursor: pointer; }
+        .nav-btn.active { background: #007bff; color: white; }
+        .hidden { display: none; }
+        .code-browser { display: grid; grid-template-columns: 1fr 300px 1fr; gap: 10px; }
+        .code-content { background: #f5f5f5; padding: 10px; height: 400px; overflow-y: auto; }
+        .code-block { font-family: monospace; white-space: pre; }
+        .line-number { color: #999; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Test Matrix Viewer</h1>
+    
+    <div>
+        <button class="nav-btn active" onclick="showView('matrix', this)">Matrix View</button>
+        <button class="nav-btn" onclick="showView('code', this)">Code Browser</button>
+    </div>
+    
+    <div id="matrix-view">
+        <h2>Matrix View</h2>
+        <p>Select a comparison:</p>
+        <button onclick="testComparison()">Test: baremetal vs dspy</button>
+    </div>
+    
+    <div id="code-browser" class="code-browser hidden">
+        <div class="code-panel">
+            <h3 id="code-header-a">Vendor A</h3>
+            <div id="code-content-a" class="code-content"></div>
+        </div>
+        
+        <div class="code-panel">
+            <h3>Comparisons</h3>
+            <div id="comparison-list"></div>
+        </div>
+        
+        <div class="code-panel">
+            <h3 id="code-header-b">Vendor B</h3>
+            <div id="code-content-b" class="code-content"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Test data
+        const testComparison = {
+            vendor_a: "baremetal",
+            vendor_b: "dspy",
+            summary: "Test comparison"
+        };
+        
+        const codeFiles = {
+            baremetal: "# Baremetal implementation\ndef main():\n    print('Hello from baremetal')\n    # More code here",
+            dspy: "# DSPy implementation\nimport dspy\n\nclass Agent:\n    pass"
+        };
+        
+        function showView(view, btn) {
+            console.log('Showing view:', view);
+            
+            // Update buttons
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            // Show/hide views
+            if (view === 'matrix') {
+                document.getElementById('matrix-view').classList.remove('hidden');
+                document.getElementById('code-browser').classList.add('hidden');
+            } else {
+                document.getElementById('matrix-view').classList.add('hidden');
+                document.getElementById('code-browser').classList.remove('hidden');
+            }
+        }
+        
+        function testComparison() {
+            console.log('Testing comparison...');
+            
+            // Switch to code view
+            showView('code', document.querySelector('.nav-btn:nth-child(2)'));
+            
+            // Load comparison
+            loadCodeComparison(testComparison);
+        }
+        
+        function loadCodeComparison(comparison) {
+            console.log('Loading:', comparison);
+            
+            // Set headers
+            document.getElementById('code-header-a').textContent = comparison.vendor_a;
+            document.getElementById('code-header-b').textContent = comparison.vendor_b;
+            
+            // Get code
+            const codeA = codeFiles[comparison.vendor_a];
+            const codeB = codeFiles[comparison.vendor_b];
+            
+            console.log('Code A:', codeA);
+            console.log('Code B:', codeB);
+            
+            // Render code
+            if (codeA) renderCode('code-content-a', codeA);
+            if (codeB) renderCode('code-content-b', codeB);
+        }
+        
+        function renderCode(elementId, code) {
+            const element = document.getElementById(elementId);
+            if (!element) {
+                console.error('Element not found:', elementId);
+                return;
+            }
+            
+            const lines = code.split('\n');
+            element.innerHTML = lines.map((line, i) => 
+                `<div class="code-block"><span class="line-number">${i+1}</span>${escapeHtml(line)}</div>`
+            ).join('');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        console.log('Test page loaded');
+    </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diagnose Matrix Viewer</title>
+</head>
+<body>
+    <h1>Matrix Viewer Diagnostics</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Load the matrix viewer HTML and check what's happening
+        fetch('matrix-viewer.html')
+            .then(response => response.text())
+            .then(html => {
+                const results = document.getElementById('results');
+                
+                // Check if code files are present
+                const codeFilesMatch = html.match(/const codeFiles = (\{[\s\S]*?\});/);
+                if (codeFilesMatch) {
+                    try {
+                        // Extract just the first part to see structure
+                        const codeFilesStr = codeFilesMatch[1];
+                        const firstPart = codeFilesStr.substring(0, 200);
+                        results.innerHTML += `<p><strong>Code files found:</strong> ${firstPart}...</p>`;
+                        
+                        // Check for each vendor
+                        const vendors = ['baremetal', 'adk-python', 'dspy', 'agno', 'langgraph', 'pydantic-ai', 'autogen', 'atomic-agents'];
+                        vendors.forEach(vendor => {
+                            const hasVendor = codeFilesStr.includes(`"${vendor}":`);
+                            results.innerHTML += `<p>${vendor}: ${hasVendor ? '✓' : '✗'}</p>`;
+                        });
+                    } catch (e) {
+                        results.innerHTML += `<p style="color: red;">Error parsing code files: ${e}</p>`;
+                    }
+                } else {
+                    results.innerHTML += '<p style="color: red;">Code files not found!</p>';
+                }
+                
+                // Check if matrix data is present
+                const matrixMatch = html.match(/const matrixData = (\{[\s\S]*?\});/);
+                if (matrixMatch) {
+                    results.innerHTML += '<p><strong>Matrix data found:</strong> ✓</p>';
+                } else {
+                    results.innerHTML += '<p style="color: red;">Matrix data not found!</p>';
+                }
+                
+                // Check functions
+                const functions = ['renderCode', 'loadCodeComparison', 'viewCode', 'showComparison'];
+                functions.forEach(fn => {
+                    const hasFunction = html.includes(`function ${fn}`);
+                    results.innerHTML += `<p>Function ${fn}: ${hasFunction ? '✓' : '✗'}</p>`;
+                });
+            })
+            .catch(error => {
+                document.getElementById('results').innerHTML = `<p style="color: red;">Error: ${error}</p>`;
+            });
+    </script>
+</body>
+</html>
