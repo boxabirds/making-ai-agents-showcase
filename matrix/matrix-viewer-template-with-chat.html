@@ -1228,7 +1228,42 @@
             
             // Hide empty state, show comparison details
             document.getElementById('empty-state').style.display = 'none';
-            document.getElementById('comparison-details').style.display = 'block';
+            
+            const comparisonDetails = document.getElementById('comparison-details');
+            comparisonDetails.style.display = 'block';
+            
+            // Check if we need to restore the comparison structure (after showing framework view)
+            if (comparisonDetails.querySelector('.framework-overview')) {
+                // Restore the comparison panel structure
+                comparisonDetails.innerHTML = `
+                    <div class="comparison-header">
+                        <h2 class="comparison-title" id="comparison-title"></h2>
+                        <span class="winner-badge" id="winner-badge"></span>
+                    </div>
+                    
+                    <p class="comparison-summary" id="comparison-summary"></p>
+                    
+                    <div class="pros-cons-grid">
+                        <div class="vendor-section">
+                            <h3 class="vendor-name" id="vendor-a-name"></h3>
+                            <p class="suitability" id="vendor-a-suitability"></p>
+                            <h4>Pros</h4>
+                            <ul class="pros-list" id="vendor-a-pros"></ul>
+                            <h4 style="margin-top: 1rem;">Cons</h4>
+                            <ul class="cons-list" id="vendor-a-cons"></ul>
+                        </div>
+                        
+                        <div class="vendor-section">
+                            <h3 class="vendor-name" id="vendor-b-name"></h3>
+                            <p class="suitability" id="vendor-b-suitability"></p>
+                            <h4>Pros</h4>
+                            <ul class="pros-list" id="vendor-b-pros"></ul>
+                            <h4 style="margin-top: 1rem;">Cons</h4>
+                            <ul class="cons-list" id="vendor-b-cons"></ul>
+                        </div>
+                    </div>
+                `;
+            }
             
             // Update comparison panel
             document.getElementById('comparison-title').textContent = `${vendorA} vs ${vendorB}`;
@@ -1294,9 +1329,18 @@
                 codeElements = {};
             }
             
+            // Ensure elements exist before setting headers
+            const headerA = document.getElementById('code-header-a');
+            const headerB = document.getElementById('code-header-b');
+            
+            if (!headerA || !headerB) {
+                console.error('Code headers not found after restoring two-panel view');
+                return;
+            }
+            
             // Set headers
-            document.getElementById('code-header-a').textContent = comparison.vendor_a;
-            document.getElementById('code-header-b').textContent = comparison.vendor_b;
+            headerA.textContent = comparison.vendor_a;
+            headerB.textContent = comparison.vendor_b;
             
             // Load code
             const codeA = codeFiles[comparison.vendor_a];
