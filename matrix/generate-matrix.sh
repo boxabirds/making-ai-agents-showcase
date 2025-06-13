@@ -261,7 +261,7 @@ echo "$MATRIX_DATA" > "$MATRIX_TMP"
 echo "$CODE_FILES_JSON" > "$CODE_TMP"
 
 # Process template line by line
-while IFS= read -r line; do
+while IFS= read -r line || [ -n "$line" ]; do
     if [[ "$line" == *"/* MATRIX_DATA_PLACEHOLDER */"* ]]; then
         # Replace the placeholder with the actual data
         echo "${line/\/\* MATRIX_DATA_PLACEHOLDER \*\//$(<"$MATRIX_TMP")}"

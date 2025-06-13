@@ -130,9 +130,11 @@
         .matrix-container {
             background: var(--bg-secondary);
             border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
             box-shadow: var(--shadow-sm);
+            overflow: auto;
+            max-height: 100%;
         }
 
         .matrix-grid {
@@ -145,11 +147,11 @@
 
         .matrix-cell {
             background: var(--bg-primary);
-            padding: 1rem;
+            padding: 0.33rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            font-size: 0.875rem;
+            font-size: 0.7rem;
             position: relative;
             border: 2px solid transparent;
         }
@@ -415,27 +417,36 @@
         }
 
         .matrix-section {
-            flex: 1;
-            min-width: 300px;
-            overflow: auto;
+            flex: 0 0 30%;
+            min-width: 250px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         .details-section {
-            flex: 1;
-            min-width: 400px;
+            flex: 0 0 40%;
+            min-width: 300px;
             overflow: auto;
             background: var(--bg-secondary);
             border-radius: 12px;
             padding: 2rem;
         }
+        
+        .chat-section {
+            flex: 0 0 30%;
+            min-width: 350px;
+        }
 
         /* Draggable separators */
         .separator {
             width: 8px;
-            background: var(--bg-tertiary);
+            background: #c5c9cd;
             cursor: col-resize;
             position: relative;
             transition: background 0.2s;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
         }
 
         .separator:hover {
@@ -448,17 +459,19 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: var(--text-secondary);
+            color: #666;
             font-size: 1.2rem;
         }
 
         .separator-horizontal {
             height: 8px;
             width: 100%;
-            background: var(--bg-tertiary);
+            background: #c5c9cd;
             cursor: row-resize;
             position: relative;
             transition: background 0.2s;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
         }
 
         .separator-horizontal:hover {
@@ -471,7 +484,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: var(--text-secondary);
+            color: #666;
             font-size: 1.2rem;
             letter-spacing: 2px;
         }
@@ -503,151 +516,34 @@
             }
         }
 
-        /* Chat Widget Styles */
-        .chat-widget {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
 
-        /* Chat Bubble Button */
-        .chat-bubble {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-            cursor: pointer;
+        .chat-panel {
+            height: 100%;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .chat-bubble:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .chat-bubble svg {
-            width: 30px;
-            height: 30px;
-            fill: white;
-        }
-
-        /* Notification Badge */
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            width: 20px;
-            height: 20px;
-            background-color: #ff4757;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: white;
-            font-weight: bold;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-                opacity: 1;
-            }
-            50% {
-                transform: scale(1.1);
-                opacity: 0.7;
-            }
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-
-        /* Chat Window */
-        .chat-window {
-            position: fixed;
-            bottom: 100px;
-            right: 20px;
-            width: 380px;
-            height: 600px;
-            min-width: 300px;
-            min-height: 400px;
-            max-width: 90vw;
-            max-height: 90vh;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            display: none;
             flex-direction: column;
+            background: var(--bg-primary);
+            border-radius: 12px;
             overflow: hidden;
-            animation: slideUp 0.3s ease;
-            resize: both;
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .chat-window.active {
-            display: flex;
         }
 
         /* Chat Header */
         .chat-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: move;
-            user-select: none;
+            padding: 1.5rem;
+            flex-shrink: 0;
         }
 
         .chat-header h3 {
-            font-size: 18px;
+            font-size: 1.125rem;
             font-weight: 600;
             margin: 0;
         }
 
         .chat-header p {
-            font-size: 12px;
+            font-size: 0.75rem;
             opacity: 0.9;
             margin: 4px 0 0 0;
-        }
-
-        .close-button {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: background-color 0.3s;
-        }
-
-        .close-button:hover {
-            background-color: rgba(255, 255, 255, 0.2);
         }
 
         /* Messages Area */
@@ -872,44 +768,6 @@
             box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
         }
 
-        /* Resize Handle */
-        .resize-handle {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 20px;
-            height: 20px;
-            cursor: nwse-resize;
-            background: linear-gradient(135deg, transparent 50%, #667eea 50%);
-            border-bottom-right-radius: 15px;
-            opacity: 0.5;
-            transition: opacity 0.3s;
-        }
-
-        .resize-handle:hover {
-            opacity: 0.8;
-        }
-
-        /* Responsive for chat */
-        @media (max-width: 480px) {
-            .chat-window {
-                width: 100%;
-                height: 100%;
-                right: 0;
-                bottom: 0;
-                border-radius: 0;
-                resize: none;
-            }
-
-            .chat-bubble {
-                bottom: 10px;
-                right: 10px;
-            }
-            
-            .resize-handle {
-                display: none;
-            }
-        }
     </style>
 </head>
 <body>
@@ -917,7 +775,7 @@
         <h1>Tech Writer Implementation Comparison</h1>
         
         <div class="main-layout">
-            <!-- Top row: Matrix and Comparison Details -->
+            <!-- Top row: Matrix, Comparison Details, and Chat -->
             <div class="top-row">
                 <div class="matrix-section">
                     <div class="matrix-container">
@@ -925,7 +783,7 @@
                     </div>
                 </div>
                 
-                <div class="separator" id="separator"></div>
+                <div class="separator" id="separator1"></div>
                 
                 <div class="details-section">
                     <div id="empty-state" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
@@ -958,6 +816,57 @@
                                 <ul class="pros-list" id="vendor-b-pros"></ul>
                                 <h4 style="margin-top: 1rem;">Cons</h4>
                                 <ul class="cons-list" id="vendor-b-cons"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="separator" id="separator2"></div>
+                
+                <div class="chat-section">
+                    <div class="chat-panel">
+                        
+                        <div class="messages-container" id="messagesContainer">
+                            <div class="welcome-message">
+                                <h4>Welcome! 👋</h4>
+                                <p>Here you can explore how a tech writer agent was implemented in a range of frameworks.</p>
+                                <div class="quick-questions">
+                                    <div class="quick-question" onclick="window.chatWidget.sendQuickQuestion('What\'s the simplest implementation available?')">
+                                        What's the simplest implementation?
+                                    </div>
+                                    <div class="quick-question" onclick="window.chatWidget.sendQuickQuestion('Which framework offers the best type safety?')">
+                                        Which has the best type safety?
+                                    </div>
+                                    <div class="quick-question" onclick="window.chatWidget.sendQuickQuestion('Compare LangGraph and Pydantic-AI')">
+                                        Compare LangGraph vs Pydantic-AI
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="typing-indicator" id="typingIndicator">
+                            <div class="typing-bubble">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="input-container">
+                            <div class="input-wrapper">
+                                <input 
+                                    type="text" 
+                                    class="chat-input" 
+                                    id="chatInput" 
+                                    placeholder="Ask about tech writer implementations..."
+                                    autocomplete="off"
+                                    autofocus
+                                >
+                                <button class="send-button" id="sendButton">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -995,72 +904,6 @@
         </div>
     </div>
 
-    <!-- Chat Widget -->
-    <div class="chat-widget">
-        <!-- Chat Bubble -->
-        <div class="chat-bubble" id="chatBubble">
-            <span class="notification-badge">1</span>
-            <svg viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.54.36 3 .97 4.29L1 23l6.71-1.97C9 21.64 10.46 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.41 0-2.73-.36-3.88-.99l-.28-.15-2.94.85.85-2.94-.15-.28C4.36 14.73 4 13.41 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z"/>
-            </svg>
-        </div>
-
-        <!-- Chat Window -->
-        <div class="chat-window" id="chatWindow">
-            <div class="chat-header">
-                <div>
-                    <h3>Tech Writer Agent Assistant</h3>
-                    <p>Powered by Gemini AI</p>
-                </div>
-                <button class="close-button" id="closeButton">×</button>
-            </div>
-
-            <div class="messages-container" id="messagesContainer">
-                <div class="welcome-message">
-                    <h4>Welcome! 👋</h4>
-                    <p>I can help you choose the best Python package for your AI-powered documentation needs.</p>
-                    <div class="quick-questions">
-                        <div class="quick-question" onclick="window.chatWidget.sendQuickQuestion('What\'s the simplest implementation available?')">
-                            What's the simplest implementation?
-                        </div>
-                        <div class="quick-question" onclick="window.chatWidget.sendQuickQuestion('Which framework offers the best type safety?')">
-                            Which has the best type safety?
-                        </div>
-                        <div class="quick-question" onclick="window.chatWidget.sendQuickQuestion('Compare LangGraph and Pydantic-AI')">
-                            Compare LangGraph vs Pydantic-AI
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="typing-indicator" id="typingIndicator">
-                <div class="typing-bubble">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
-            </div>
-
-            <div class="input-container">
-                <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        class="chat-input" 
-                        id="chatInput" 
-                        placeholder="Ask about tech writer implementations..."
-                        autocomplete="off"
-                    >
-                    <button class="send-button" id="sendButton">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="resize-handle" id="resizeHandle"></div>
-        </div>
-    </div>
 
     <script>
         // Matrix data will be injected here
@@ -2240,18 +2083,27 @@
             setupDraggableSeparator();
         }
         
-        // Setup draggable separator
+        // Setup draggable separators
         function setupDraggableSeparator() {
-            // Vertical separator
-            const separator = document.getElementById('separator');
+            // First vertical separator (between matrix and details)
+            const separator1 = document.getElementById('separator1');
+            const separator2 = document.getElementById('separator2');
             const topRow = document.querySelector('.top-row');
             const matrixSection = document.querySelector('.matrix-section');
             const detailsSection = document.querySelector('.details-section');
+            const chatSection = document.querySelector('.chat-section');
             
-            let isResizingVertical = false;
+            let isResizing1 = false;
+            let isResizing2 = false;
             
-            separator.addEventListener('mousedown', (e) => {
-                isResizingVertical = true;
+            separator1.addEventListener('mousedown', (e) => {
+                isResizing1 = true;
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+            
+            separator2.addEventListener('mousedown', (e) => {
+                isResizing2 = true;
                 document.body.style.cursor = 'col-resize';
                 e.preventDefault();
             });
@@ -2270,16 +2122,34 @@
             });
             
             document.addEventListener('mousemove', (e) => {
-                if (isResizingVertical) {
-                    const containerLeft = topRow.getBoundingClientRect().left;
-                    const containerWidth = topRow.getBoundingClientRect().width;
-                    const newLeftWidth = e.clientX - containerLeft;
-                    const leftPercent = (newLeftWidth / containerWidth) * 100;
-                    const rightPercent = 100 - leftPercent;
+                if (isResizing1) {
+                    const containerRect = topRow.getBoundingClientRect();
+                    const matrixWidth = e.clientX - containerRect.left;
+                    const totalWidth = containerRect.width;
+                    const matrixPercent = (matrixWidth / totalWidth) * 100;
                     
-                    if (leftPercent > 20 && leftPercent < 80) {
-                        matrixSection.style.flex = `0 0 ${leftPercent}%`;
-                        detailsSection.style.flex = `0 0 ${rightPercent}%`;
+                    if (matrixPercent > 15 && matrixPercent < 50) {
+                        matrixSection.style.flex = `0 0 ${matrixPercent}%`;
+                        // Recalculate remaining space for details and chat
+                        const remaining = 100 - matrixPercent;
+                        const detailsPercent = remaining * 0.5;
+                        const chatPercent = remaining * 0.5;
+                        detailsSection.style.flex = `0 0 ${detailsPercent}%`;
+                        chatSection.style.flex = `0 0 ${chatPercent}%`;
+                    }
+                } else if (isResizing2) {
+                    const containerRect = topRow.getBoundingClientRect();
+                    const sep2Rect = separator2.getBoundingClientRect();
+                    const detailsWidth = sep2Rect.left - containerRect.left - matrixSection.offsetWidth - separator1.offsetWidth;
+                    const totalWidth = containerRect.width;
+                    const detailsPercent = (detailsWidth / totalWidth) * 100;
+                    
+                    const matrixPercent = (matrixSection.offsetWidth / totalWidth) * 100;
+                    const remaining = 100 - matrixPercent;
+                    
+                    if (detailsPercent > 15 && detailsPercent < remaining - 15) {
+                        detailsSection.style.flex = `0 0 ${detailsPercent}%`;
+                        chatSection.style.flex = `0 0 ${remaining - detailsPercent}%`;
                     }
                 } else if (isResizingHorizontal) {
                     const containerTop = mainLayout.getBoundingClientRect().top;
@@ -2296,7 +2166,8 @@
             });
             
             document.addEventListener('mouseup', () => {
-                isResizingVertical = false;
+                isResizing1 = false;
+                isResizing2 = false;
                 isResizingHorizontal = false;
                 document.body.style.cursor = 'default';
             });
@@ -2593,36 +2464,20 @@
 
         class ChatWidget {
             constructor() {
-                this.chatBubble = document.getElementById('chatBubble');
-                this.chatWindow = document.getElementById('chatWindow');
-                this.closeButton = document.getElementById('closeButton');
                 this.messagesContainer = document.getElementById('messagesContainer');
                 this.input = document.getElementById('chatInput');
                 this.sendBtn = document.getElementById('sendButton');
                 this.typingIndicator = document.getElementById('typingIndicator');
-                this.chatHeader = document.querySelector('.chat-header');
-                this.resizeHandle = document.getElementById('resizeHandle');
                 
-                this.isOpen = false;
                 this.conversationHistory = [];
                 this.isProcessing = false;
                 this.hasInitialSystemPrompt = false;
-                
-                // Dragging state
-                this.isDragging = false;
-                this.dragOffset = { x: 0, y: 0 };
-                
-                // Resizing state  
-                this.isResizing = false;
-                this.resizeStart = { x: 0, y: 0, width: 0, height: 0 };
                 
                 this.init();
             }
 
             init() {
                 // Event listeners
-                this.chatBubble.addEventListener('click', () => this.toggle());
-                this.closeButton.addEventListener('click', () => this.close());
                 this.sendBtn.addEventListener('click', () => this.sendMessage());
                 this.input.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -2630,35 +2485,9 @@
                         this.sendMessage();
                     }
                 });
-
-                // Remove notification badge after first open
-                this.chatBubble.addEventListener('click', () => {
-                    const badge = this.chatBubble.querySelector('.notification-badge');
-                    if (badge) badge.remove();
-                }, { once: true });
                 
-                // Initialize drag functionality
-                this.initDragging();
-                
-                // Initialize resize functionality
-                this.initResizing();
-            }
-
-            toggle() {
-                this.isOpen ? this.close() : this.open();
-            }
-
-            open() {
-                this.chatWindow.classList.add('active');
-                this.chatBubble.style.display = 'none';
-                this.isOpen = true;
+                // Set focus to input on load
                 this.input.focus();
-            }
-
-            close() {
-                this.chatWindow.classList.remove('active');
-                this.chatBubble.style.display = 'flex';
-                this.isOpen = false;
             }
 
             sendQuickQuestion(question) {
@@ -2856,75 +2685,6 @@ Remember: Always base your answers on the comparison data provided above. Be acc
                 
                 return data.candidates[0].content.parts[0].text;
             }
-            
-            // Dragging functionality
-            initDragging() {
-                this.chatHeader.addEventListener('mousedown', (e) => {
-                    // Don't drag if clicking the close button
-                    if (e.target.closest('.close-button')) return;
-                    
-                    this.isDragging = true;
-                    const rect = this.chatWindow.getBoundingClientRect();
-                    this.dragOffset.x = e.clientX - rect.left;
-                    this.dragOffset.y = e.clientY - rect.top;
-                    
-                    // Prevent text selection while dragging
-                    e.preventDefault();
-                });
-                
-                document.addEventListener('mousemove', (e) => {
-                    if (!this.isDragging) return;
-                    
-                    const newLeft = e.clientX - this.dragOffset.x;
-                    const newTop = e.clientY - this.dragOffset.y;
-                    
-                    // Keep window within viewport bounds
-                    const maxLeft = window.innerWidth - this.chatWindow.offsetWidth;
-                    const maxTop = window.innerHeight - this.chatWindow.offsetHeight;
-                    
-                    this.chatWindow.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + 'px';
-                    this.chatWindow.style.top = Math.max(0, Math.min(newTop, maxTop)) + 'px';
-                    this.chatWindow.style.right = 'auto';
-                    this.chatWindow.style.bottom = 'auto';
-                });
-                
-                document.addEventListener('mouseup', () => {
-                    this.isDragging = false;
-                });
-            }
-            
-            // Resizing functionality
-            initResizing() {
-                this.resizeHandle.addEventListener('mousedown', (e) => {
-                    this.isResizing = true;
-                    this.resizeStart.x = e.clientX;
-                    this.resizeStart.y = e.clientY;
-                    this.resizeStart.width = this.chatWindow.offsetWidth;
-                    this.resizeStart.height = this.chatWindow.offsetHeight;
-                    
-                    e.preventDefault();
-                });
-                
-                document.addEventListener('mousemove', (e) => {
-                    if (!this.isResizing) return;
-                    
-                    const newWidth = this.resizeStart.width + (e.clientX - this.resizeStart.x);
-                    const newHeight = this.resizeStart.height + (e.clientY - this.resizeStart.y);
-                    
-                    // Apply constraints
-                    const minWidth = 300;
-                    const minHeight = 400;
-                    const maxWidth = window.innerWidth * 0.9;
-                    const maxHeight = window.innerHeight * 0.9;
-                    
-                    this.chatWindow.style.width = Math.max(minWidth, Math.min(newWidth, maxWidth)) + 'px';
-                    this.chatWindow.style.height = Math.max(minHeight, Math.min(newHeight, maxHeight)) + 'px';
-                });
-                
-                document.addEventListener('mouseup', () => {
-                    this.isResizing = false;
-                });
-            }
         }
 
         // Initialize chat widget when DOM is ready
@@ -2933,3 +2693,4 @@ Remember: Always base your answers on the comparison data provided above. Be acc
         });
     </script>
 </body>
+</html>
