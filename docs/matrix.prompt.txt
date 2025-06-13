@@ -32,13 +32,15 @@ Requirements:
      * description: What the code block does
      * vendor_a: {lines: [start, end], component: "description"}
      * vendor_b: {lines: [start, end], component: "description"}
-     * comparison: Narrative explaining the difference (e.g., "vendor_a's implementation takes 87 lines whereas vendor_b's implementation is just 1")
+     * comparison: Narrative comparing size, utility and friction (e.g., "vendor_a's implementation takes 87 lines whereas vendor_b's implementation is just 1 but that 1 line hides a lot of opaque capability")
    - Focus on meaningful semantic blocks like:
      * Agent/class definitions
      * Tool definitions/wrappers
      * Execution loops
      * Client initialization
      * Main analysis functions
+     * Memory management (if exposed at all)
+     * LLM integration
 
 4. COMPARISON SELECTION:
    Create ALL possible pairwise comparisons (28 total for 8 implementations).

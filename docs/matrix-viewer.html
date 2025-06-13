@@ -134,6 +134,7 @@
             transition: all 0.2s ease;
             font-size: 0.875rem;
             position: relative;
+            border: 2px solid transparent;
         }
 
         .matrix-cell:hover {
@@ -141,6 +142,18 @@
             transform: scale(1.02);
             box-shadow: var(--shadow-sm);
             z-index: 1;
+        }
+
+        .matrix-cell.selected {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .matrix-cell.selected:hover {
+            background: #0052a3;
+            transform: scale(1.05);
         }
 
         .matrix-cell.header {
@@ -293,15 +306,11 @@
 
         /* Code Browser */
         .code-browser {
-            display: none;
-            height: calc(100vh - 4rem);
+            height: 50%;
             background: var(--bg-secondary);
             border-radius: 12px;
             overflow: hidden;
             box-shadow: var(--shadow-md);
-        }
-
-        .code-browser.active {
             display: grid;
             grid-template-columns: 1fr 400px 1fr;
             gap: 1px;
@@ -403,35 +412,58 @@
             opacity: 0.7;
         }
 
-        /* Navigation */
-        .nav-buttons {
-            position: fixed;
-            top: 2rem;
-            right: 2rem;
+        /* Layout Structure */
+        .main-layout {
             display: flex;
+            flex-direction: column;
+            height: calc(100vh - 6rem);
             gap: 1rem;
-            z-index: 100;
         }
 
-        .nav-btn {
-            background: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 0.875rem;
+        .top-row {
+            display: flex;
+            gap: 0;
+            height: 45%;
+            min-height: 400px;
+            position: relative;
         }
 
-        .nav-btn:hover {
+        .matrix-section {
+            flex: 1;
+            min-width: 300px;
+            overflow: auto;
+        }
+
+        .details-section {
+            flex: 1;
+            min-width: 400px;
+            overflow: auto;
             background: var(--bg-secondary);
-            box-shadow: var(--shadow-sm);
+            border-radius: 12px;
+            padding: 2rem;
         }
 
-        .nav-btn.active {
+        /* Draggable separator */
+        .separator {
+            width: 8px;
+            background: var(--bg-tertiary);
+            cursor: col-resize;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .separator:hover {
             background: var(--accent-color);
-            color: white;
-            border-color: var(--accent-color);
+        }
+
+        .separator::after {
+            content: '⋮';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-secondary);
+            font-size: 1.2rem;
         }
 
         /* Responsive */
@@ -463,79 +495,80 @@
     </style>
 </head>
 <body>
-    <div class="nav-buttons">
-        <button class="nav-btn active" onclick="showView('matrix', this)">Matrix View</button>
-        <button class="nav-btn" onclick="showView('code', this)">Code Browser</button>
-    </div>
-
     <div class="container">
         <h1>Tech Writer Implementation Comparison</h1>
         
-        <!-- Debug button -->
-        <button onclick="debugCodeDisplay()" style="position: fixed; bottom: 20px; right: 20px; background: #dc3545; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">Debug Code Display</button>
-        
-        <div id="matrix-view">
-            <div class="matrix-container">
-                <div id="matrix-grid" class="matrix-grid"></div>
-            </div>
-            
-            <div id="comparison-panel" class="comparison-panel">
-                <div class="comparison-header">
-                    <h2 class="comparison-title" id="comparison-title"></h2>
-                    <span class="winner-badge" id="winner-badge"></span>
+        <div class="main-layout">
+            <!-- Top row: Matrix and Comparison Details -->
+            <div class="top-row">
+                <div class="matrix-section">
+                    <div class="matrix-container">
+                        <div id="matrix-grid" class="matrix-grid"></div>
+                    </div>
                 </div>
                 
-                <p class="comparison-summary" id="comparison-summary"></p>
+                <div class="separator" id="separator"></div>
                 
-                <div class="pros-cons-grid">
-                    <div class="vendor-section">
-                        <h3 class="vendor-name" id="vendor-a-name"></h3>
-                        <p class="suitability" id="vendor-a-suitability"></p>
-                        <h4>Pros</h4>
-                        <ul class="pros-list" id="vendor-a-pros"></ul>
-                        <h4 style="margin-top: 1rem;">Cons</h4>
-                        <ul class="cons-list" id="vendor-a-cons"></ul>
+                <div class="details-section">
+                    <div id="empty-state" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+                        <h2 style="margin-bottom: 1rem;">Select Two Frameworks to Compare</h2>
+                        <p>Click on any ⚖️ cell in the matrix to see a detailed comparison</p>
                     </div>
                     
-                    <div class="vendor-section">
-                        <h3 class="vendor-name" id="vendor-b-name"></h3>
-                        <p class="suitability" id="vendor-b-suitability"></p>
-                        <h4>Pros</h4>
-                        <ul class="pros-list" id="vendor-b-pros"></ul>
-                        <h4 style="margin-top: 1rem;">Cons</h4>
-                        <ul class="cons-list" id="vendor-b-cons"></ul>
+                    <div id="comparison-details" style="display: none;">
+                        <div class="comparison-header">
+                            <h2 class="comparison-title" id="comparison-title"></h2>
+                            <span class="winner-badge" id="winner-badge"></span>
+                        </div>
+                        
+                        <p class="comparison-summary" id="comparison-summary"></p>
+                        
+                        <div class="pros-cons-grid">
+                            <div class="vendor-section">
+                                <h3 class="vendor-name" id="vendor-a-name"></h3>
+                                <p class="suitability" id="vendor-a-suitability"></p>
+                                <h4>Pros</h4>
+                                <ul class="pros-list" id="vendor-a-pros"></ul>
+                                <h4 style="margin-top: 1rem;">Cons</h4>
+                                <ul class="cons-list" id="vendor-a-cons"></ul>
+                            </div>
+                            
+                            <div class="vendor-section">
+                                <h3 class="vendor-name" id="vendor-b-name"></h3>
+                                <p class="suitability" id="vendor-b-suitability"></p>
+                                <h4>Pros</h4>
+                                <ul class="pros-list" id="vendor-b-pros"></ul>
+                                <h4 style="margin-top: 1rem;">Cons</h4>
+                                <ul class="cons-list" id="vendor-b-cons"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bottom row: Code Browser -->
+            <div id="code-browser" class="code-browser">
+                <div class="code-panel">
+                    <div class="code-header" id="code-header-a">Select a comparison</div>
+                    <div class="code-content" id="code-content-a">
+                        <div id="code-empty-a" style="padding: 20px; color: #666; text-align: center;">
+                            <p>Select two frameworks to compare</p>
+                        </div>
                     </div>
                 </div>
                 
-                <div style="text-align: center;">
-                    <button class="view-code-btn" onclick="viewCode()">View Code Comparison</button>
-                </div>
-            </div>
-        </div>
-        
-        <div id="code-browser" class="code-browser">
-            <div class="code-panel">
-                <div class="code-header" id="code-header-a">Select a comparison</div>
-                <div class="code-content" id="code-content-a">
-                    <div style="padding: 20px; color: #666; text-align: center;">
-                        <p>Please select a comparison from the Matrix View first.</p>
-                        <p>Click on any ⚖️ cell in the matrix to compare two implementations.</p>
+                <div class="comparison-list" id="comparison-list">
+                    <div id="comparison-empty" style="padding: 20px; color: #666; text-align: center;">
+                        <p>Code comparisons will appear here</p>
                     </div>
                 </div>
-            </div>
-            
-            <div class="comparison-list" id="comparison-list">
-                <div style="padding: 20px; color: #666; text-align: center;">
-                    <p>Comparisons will appear here</p>
-                </div>
-            </div>
-            
-            <div class="code-panel">
-                <div class="code-header" id="code-header-b">Select a comparison</div>
-                <div class="code-content" id="code-content-b">
-                    <div style="padding: 20px; color: #666; text-align: center;">
-                        <p>Please select a comparison from the Matrix View first.</p>
-                        <p>Click on any ⚖️ cell in the matrix to compare two implementations.</p>
+                
+                <div class="code-panel">
+                    <div class="code-header" id="code-header-b">Select a comparison</div>
+                    <div class="code-content" id="code-content-b">
+                        <div id="code-empty-b" style="padding: 20px; color: #666; text-align: center;">
+                            <p>Select two frameworks to compare</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1761,12 +1794,43 @@
             
             buildMatrix();
             setupEventListeners();
+            setupDraggableSeparator();
+        }
+        
+        // Setup draggable separator
+        function setupDraggableSeparator() {
+            const separator = document.getElementById('separator');
+            const topRow = document.querySelector('.top-row');
+            const matrixSection = document.querySelector('.matrix-section');
+            const detailsSection = document.querySelector('.details-section');
             
-            // Load a default comparison for testing
-            if (matrixData && matrixData.comparisons && matrixData.comparisons.length > 0) {
-                const firstComparison = matrixData.comparisons[0];
-                showComparison(firstComparison.vendor_a, firstComparison.vendor_b);
-            }
+            let isResizing = false;
+            
+            separator.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                
+                const containerLeft = topRow.getBoundingClientRect().left;
+                const containerWidth = topRow.getBoundingClientRect().width;
+                const newLeftWidth = e.clientX - containerLeft;
+                const leftPercent = (newLeftWidth / containerWidth) * 100;
+                const rightPercent = 100 - leftPercent;
+                
+                if (leftPercent > 20 && leftPercent < 80) {
+                    matrixSection.style.flex = `0 0 ${leftPercent}%`;
+                    detailsSection.style.flex = `0 0 ${rightPercent}%`;
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+            });
         }
         
         function buildMatrix() {
@@ -1846,6 +1910,22 @@
             
             currentComparison = comparison;
             
+            // Clear previous selection
+            document.querySelectorAll('.matrix-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            
+            // Mark current cell as selected
+            const currentCell = document.querySelector(`.matrix-cell[data-vendor-a="${vendorA}"][data-vendor-b="${vendorB}"]`) ||
+                               document.querySelector(`.matrix-cell[data-vendor-a="${vendorB}"][data-vendor-b="${vendorA}"]`);
+            if (currentCell) {
+                currentCell.classList.add('selected');
+            }
+            
+            // Hide empty state, show comparison details
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('comparison-details').style.display = 'block';
+            
             // Update comparison panel
             document.getElementById('comparison-title').textContent = `${vendorA} vs ${vendorB}`;
             document.getElementById('winner-badge').textContent = `Winner: ${comparison.overall_winner.split(' ')[0]}`;
@@ -1863,8 +1943,8 @@
             updateList('vendor-b-pros', comparison.pros_cons[vendorB].pros);
             updateList('vendor-b-cons', comparison.pros_cons[vendorB].cons);
             
-            // Show panel
-            document.getElementById('comparison-panel').classList.add('active');
+            // Automatically load code comparison
+            loadCodeComparison(comparison);
         }
         
         function updateList(id, items) {
@@ -1872,12 +1952,6 @@
             list.innerHTML = items.map(item => `<li>${item}</li>`).join('');
         }
         
-        function viewCode() {
-            if (!currentComparison) return;
-            
-            showView('code');
-            loadCodeComparison(currentComparison);
-        }
         
         function loadCodeComparison(comparison) {
             console.log('Loading comparison:', comparison.vendor_a, 'vs', comparison.vendor_b);
@@ -1907,6 +1981,13 @@
             if (!element) {
                 console.error('Element not found:', elementId);
                 return;
+            }
+            
+            // Hide empty state
+            const emptyStateId = elementId.replace('code-content-', 'code-empty-');
+            const emptyState = document.getElementById(emptyStateId);
+            if (emptyState) {
+                emptyState.style.display = 'none';
             }
             
             const lines = code.split('\n');
@@ -1949,6 +2030,12 @@
         
         function renderComparisons(comparison) {
             const list = document.getElementById('comparison-list');
+            
+            // Hide empty state
+            const emptyState = document.getElementById('comparison-empty');
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
             
             list.innerHTML = comparison.block_mappings.map((mapping, index) => {
                 const color = blockColors[index % blockColors.length];
@@ -2018,53 +2105,9 @@
             }
         }
         
-        function showView(view, buttonElement) {
-            console.log('showView called:', view, 'currentComparison:', currentComparison);
-            currentView = view;
-            
-            // Update nav buttons
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // If called from button click, highlight it
-            if (buttonElement) {
-                buttonElement.classList.add('active');
-            } else {
-                // Find and highlight the appropriate button
-                document.querySelectorAll('.nav-btn').forEach(btn => {
-                    if ((view === 'matrix' && btn.textContent.includes('Matrix')) ||
-                        (view === 'code' && btn.textContent.includes('Code'))) {
-                        btn.classList.add('active');
-                    }
-                });
-            }
-            
-            // Show/hide views
-            if (view === 'matrix') {
-                document.getElementById('matrix-view').style.display = 'block';
-                document.getElementById('code-browser').classList.remove('active');
-            } else {
-                document.getElementById('matrix-view').style.display = 'none';
-                document.getElementById('code-browser').classList.add('active');
-                
-                // If switching to code view and we have a comparison, load it
-                if (currentComparison) {
-                    console.log('Loading current comparison in code view');
-                    loadCodeComparison(currentComparison);
-                } else {
-                    console.log('No comparison selected yet');
-                }
-            }
-        }
         
         function setupEventListeners() {
-            // Keyboard navigation
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    showView('matrix');
-                }
-            });
+            // Add any additional event listeners here if needed
         }
         
         function escapeHtml(text) {
@@ -2073,31 +2116,6 @@
             return div.innerHTML;
         }
         
-        // Debug function
-        function debugCodeDisplay() {
-            console.log('=== Debug Info ===');
-            console.log('Current comparison:', currentComparison);
-            console.log('Current view:', currentView);
-            console.log('Code files available:', Object.keys(codeFiles));
-            
-            // Try to manually load first comparison
-            if (matrixData && matrixData.comparisons && matrixData.comparisons.length > 0) {
-                const comp = matrixData.comparisons[0];
-                console.log('Loading first comparison:', comp.vendor_a, 'vs', comp.vendor_b);
-                
-                currentComparison = comp;
-                showView('code');
-                loadCodeComparison(comp);
-                
-                // Check if content was rendered
-                setTimeout(() => {
-                    const contentA = document.getElementById('code-content-a');
-                    const contentB = document.getElementById('code-content-b');
-                    console.log('Content A HTML length:', contentA ? contentA.innerHTML.length : 'null');
-                    console.log('Content B HTML length:', contentB ? contentB.innerHTML.length : 'null');
-                }, 100);
-            }
-        }
         
         // Initialize on load
         document.addEventListener('DOMContentLoaded', init);
