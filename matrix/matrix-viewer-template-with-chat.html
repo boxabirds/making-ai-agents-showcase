@@ -193,9 +193,29 @@
             cursor: default;
         }
 
-        .matrix-cell.header:hover {
-            transform: none;
-            box-shadow: none;
+        .matrix-cell.header.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .matrix-cell.header.clickable:hover {
+            background: var(--accent-color);
+            color: white;
+            transform: scale(1.02);
+            box-shadow: var(--shadow-sm);
+            z-index: 2;
+        }
+        
+        /* Row and column highlighting */
+        .matrix-cell.row-highlight,
+        .matrix-cell.col-highlight {
+            background: rgba(0, 102, 204, 0.1);
+            border-color: var(--accent-color);
+        }
+        
+        .matrix-cell.row-col-highlight {
+            background: rgba(0, 102, 204, 0.2);
+            font-weight: 600;
         }
 
         .matrix-cell.disabled {
@@ -333,6 +353,83 @@
             background: #0052a3;
             transform: translateY(-1px);
             box-shadow: var(--shadow-md);
+        }
+        
+        /* Framework Overview Styles */
+        .framework-overview {
+            padding: 1rem;
+        }
+        
+        .framework-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .framework-header h2 {
+            font-size: 2rem;
+            margin: 0;
+            color: var(--accent-color);
+        }
+        
+        .framework-tagline {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        
+        .when-to-choose {
+            background: var(--bg-primary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .when-to-choose h3 {
+            margin-top: 0;
+            color: var(--accent-color);
+        }
+        
+        .standout-features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .strengths, .weaknesses {
+            background: var(--bg-primary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .strengths h3 {
+            color: var(--winner-color);
+            margin-top: 0;
+        }
+        
+        .weaknesses h3 {
+            color: #dc3545;
+            margin-top: 0;
+        }
+        
+        .strengths ul, .weaknesses ul {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+        
+        .strengths li, .weaknesses li {
+            margin: 0.5rem 0;
+        }
+        
+        /* Single framework code view */
+        .code-panel.single-framework {
+            grid-column: 1 / -1;
         }
 
         /* Code Browser */
@@ -931,7 +1028,8 @@
         ];
         
         let currentComparison = null;
-        let currentView = 'matrix';
+        let currentFramework = null; // For single framework view
+        let currentView = 'comparison'; // 'comparison' or 'framework'
         let codeElements = {}; // Store highlighted code elements
         
         // Initialize the app
@@ -1051,8 +1149,10 @@
             // Column headers
             vendors.forEach(vendor => {
                 const cell = document.createElement('div');
-                cell.className = 'matrix-cell header';
+                cell.className = 'matrix-cell header clickable';
                 cell.textContent = vendor;
+                cell.dataset.vendor = vendor;
+                cell.onclick = () => showFrameworkAssessment(vendor);
                 grid.appendChild(cell);
             });
             
@@ -1060,8 +1160,10 @@
             vendors.forEach(vendorA => {
                 // Row header
                 const rowHeader = document.createElement('div');
-                rowHeader.className = 'matrix-cell header';
+                rowHeader.className = 'matrix-cell header clickable';
                 rowHeader.textContent = vendorA;
+                rowHeader.dataset.vendor = vendorA;
+                rowHeader.onclick = () => showFrameworkAssessment(vendorA);
                 grid.appendChild(rowHeader);
                 
                 // Cells
@@ -1111,11 +1213,11 @@
             if (!comparison) return;
             
             currentComparison = comparison;
+            currentView = 'comparison';
+            currentFramework = null;
             
-            // Clear previous selection
-            document.querySelectorAll('.matrix-cell.selected').forEach(cell => {
-                cell.classList.remove('selected');
-            });
+            // Clear all selections
+            clearAllSelections();
             
             // Mark current cell as selected
             const currentCell = document.querySelector(`.matrix-cell[data-vendor-a="${vendorA}"][data-vendor-b="${vendorB}"]`) ||
@@ -1157,6 +1259,40 @@
         
         function loadCodeComparison(comparison) {
             console.log('Loading comparison:', comparison.vendor_a, 'vs', comparison.vendor_b);
+            
+            // Restore two-panel view if needed
+            const codeBrowser = document.getElementById('code-browser');
+            if (codeBrowser.querySelector('.single-framework')) {
+                // Restore the original two-panel layout
+                codeBrowser.innerHTML = `
+                    <div class="code-panel">
+                        <div class="code-header" id="code-header-a">Select a comparison</div>
+                        <div class="code-content" id="code-content-a">
+                            <div id="code-empty-a" style="padding: 20px; color: #666; text-align: center;">
+                                <p>Select two frameworks to compare</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="comparison-list" id="comparison-list">
+                        <div id="comparison-empty" style="padding: 20px; color: #666; text-align: center;">
+                            <p>Code comparisons will appear here</p>
+                        </div>
+                    </div>
+                    
+                    <div class="code-panel">
+                        <div class="code-header" id="code-header-b">Select a comparison</div>
+                        <div class="code-content" id="code-content-b">
+                            <div id="code-empty-b" style="padding: 20px; color: #666; text-align: center;">
+                                <p>Select two frameworks to compare</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Reset code elements cache
+                codeElements = {};
+            }
             
             // Set headers
             document.getElementById('code-header-a').textContent = comparison.vendor_a;
@@ -1337,6 +1473,150 @@
         }
         
         
+        function showFrameworkAssessment(vendor) {
+            console.log(`Showing framework assessment for ${vendor}`);
+            
+            currentFramework = vendor;
+            currentView = 'framework';
+            
+            // Clear previous selections
+            clearAllSelections();
+            
+            // Highlight row and column for this vendor
+            highlightVendorRowColumn(vendor);
+            
+            // Display framework assessment
+            displayFrameworkOverview(vendor);
+            
+            // Load single framework code
+            loadSingleFrameworkCode(vendor);
+        }
+        
+        function clearAllSelections() {
+            // Clear cell selections
+            document.querySelectorAll('.matrix-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            
+            // Clear row/column highlights
+            document.querySelectorAll('.matrix-cell').forEach(cell => {
+                cell.classList.remove('row-highlight', 'col-highlight', 'row-col-highlight');
+            });
+        }
+        
+        function highlightVendorRowColumn(vendor) {
+            const cells = document.querySelectorAll('.matrix-cell');
+            const vendors = getUniqueVendors();
+            const vendorIndex = vendors.indexOf(vendor);
+            
+            if (vendorIndex === -1) return;
+            
+            cells.forEach((cell, index) => {
+                const row = Math.floor(index / (vendors.length + 1));
+                const col = index % (vendors.length + 1);
+                
+                // Highlight row (skip first column which is headers)
+                if (row === vendorIndex + 1 && col > 0) {
+                    cell.classList.add('row-highlight');
+                }
+                
+                // Highlight column (skip first row which is headers)
+                if (col === vendorIndex + 1 && row > 0) {
+                    cell.classList.add('col-highlight');
+                }
+                
+                // Highlight intersection
+                if (row === vendorIndex + 1 && col === vendorIndex + 1) {
+                    cell.classList.add('row-col-highlight');
+                }
+            });
+        }
+        
+        function displayFrameworkOverview(vendor) {
+            // Hide empty state
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('comparison-details').style.display = 'block';
+            
+            // Check if we have framework assessments
+            const assessment = matrixData.framework_assessments && matrixData.framework_assessments[vendor];
+            
+            if (!assessment) {
+                // Fallback display if no assessment data
+                document.getElementById('comparison-details').innerHTML = `
+                    <div class="framework-overview">
+                        <h2>${vendor} Framework Overview</h2>
+                        <p>Framework assessment data not available. Please regenerate matrix.json with the updated prompt.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Build the framework overview HTML
+            const overviewHTML = `
+                <div class="framework-overview">
+                    <div class="framework-header">
+                        <h2>${vendor}</h2>
+                        <span class="framework-tagline">${assessment.tagline}</span>
+                    </div>
+                    
+                    <div class="when-to-choose">
+                        <h3>When to Choose</h3>
+                        <p>${assessment.when_to_choose}</p>
+                    </div>
+                    
+                    <div class="standout-features">
+                        <div class="strengths">
+                            <h3>Strengths</h3>
+                            <ul>
+                                ${assessment.standout_features.strengths.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                        
+                        <div class="weaknesses">
+                            <h3>Weaknesses</h3>
+                            <ul>
+                                ${assessment.standout_features.weaknesses.map(w => `<li>${w}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <button class="view-code-btn" onclick="focusOnCode()">View Full Implementation</button>
+                </div>
+            `;
+            
+            document.getElementById('comparison-details').innerHTML = overviewHTML;
+        }
+        
+        function loadSingleFrameworkCode(vendor) {
+            const codeBrowser = document.getElementById('code-browser');
+            const code = codeFiles[vendor];
+            
+            if (!code) {
+                console.error(`No code found for ${vendor}`);
+                return;
+            }
+            
+            // Reconfigure code browser for single panel view
+            codeBrowser.innerHTML = `
+                <div class="code-panel single-framework">
+                    <div class="code-header">${vendor} Implementation</div>
+                    <div class="code-content" id="code-content-single">
+                        <pre><code id="code-single" class="language-python">${escapeHtml(code)}</code></pre>
+                    </div>
+                </div>
+            `;
+            
+            // Apply syntax highlighting
+            const codeEl = document.getElementById('code-single');
+            hljs.highlightElement(codeEl);
+            hljs.lineNumbersBlock(codeEl);
+        }
+        
+        function focusOnCode() {
+            const codeBrowser = document.getElementById('code-browser');
+            codeBrowser.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
         function setupEventListeners() {
             // Add any additional event listeners here if needed
         }
@@ -1507,12 +1787,48 @@
                 // Build system prompt using the already-loaded matrixData
                 const systemPrompt = `You are a tech writer agent support agent. You host an app that helps a user compare implementations of a tech writer agent using various different open source python packages. You respond to the questions in a tone of voice profile as defined below, in response to the tech writer agent data provided, also below. Regarding answer content, as a chatbot your answers are incredibly accurate, concise and to the point.
 
+<acceptable-topics>
+    Only respond to discussions about the tech writer implementations provided. Anything off topic, politely decline and ask to keep discussions on topic. 
+</acceptable-topics>
 <tech-writer-comparison>
 ${JSON.stringify(matrixData, null, 2)}
 </tech-writer-comparison>
 
 <tone-profile>
-You are helpful, knowledgeable, and concise. You provide direct answers without unnecessary elaboration. When comparing implementations, you focus on practical differences that matter to developers. You avoid marketing speak and stick to factual comparisons based on the data provided.
+Skeptical Optimism (Core Dimension):
+Description: A foundational tone that approaches claims with healthy skepticism but maintains an underlying optimism about the potential of Vibe Coding and AI agents. It questions hype while looking for genuine value and practical applications.
+Example from User: "truthful skeptical but optimistic."
+Application: Critically evaluate tools and success stories, acknowledge limitations and potential pitfalls, but ultimately highlight the empowering aspects and future possibilities in a positive light.
+Upbeat & Engaging:
+Description: The overall energy should be positive, enthusiastic, and engaging, drawing the reader in rather than presenting information dryly.
+Example from User: "more upbeat."
+Application: Use active voice, varied sentence structure, and a generally positive framing, even when discussing complex or challenging topics.
+Truthful & Accurate (Evidence-Based):
+Description: All information, especially claims and technical descriptions, must be grounded in verifiable facts and evidence. Avoid making unsubstantiated statements.
+Example from User: "still very truthful."
+Application: Prioritize accuracy in describing tools, technologies, and case studies. Clearly distinguish between established facts, reported claims (with sources), and speculative future trends.
+Slightly Sarcastic / Witty Humor:
+Description: Incorporate occasional, subtle sarcasm or witty observations to add personality and make the content more relatable and entertaining. The humor should be intelligent and not overly broad or offensive.
+Example from User: "slightly sarcastic, funny occasionally."
+Application: Use sparingly in appropriate contexts, perhaps when commenting on industry hype, common misconceptions, or the quirks of technology. It should lighten the tone without undermining credibility.
+Analytical & Discerning:
+Description: A critical thinking approach that dissects information, compares and contrasts, and doesn't take claims at face value. This aligns with the "skeptical" aspect.
+Application: When discussing tools, provide balanced comparisons. When analyzing case studies, look for underlying factors of success or failure, and question the generalizability of results.
+Clear & Accessible (Non-Technical Focus):
+Description: While the author is knowledgeable, the language must remain accessible to the target audience of non-technical people with business ideas. Avoid jargon where possible, or explain it clearly.
+Application: Break down complex concepts into simpler terms. Use analogies or relatable examples. Focus on the implications and value for the reader, not just the technical details.
+Direct & Experiential:
+Description: The Substack conveys a sense of sharing direct experience and personal insights. The book should echo this by feeling authentic and based on real understanding, even if it's synthesizing broader research.
+Application: Frame advice and analysis in a way that feels like it's coming from someone who has navigated this space. Use phrases that suggest firsthand knowledge or deep consideration.
+Pragmatic & Action-Oriented:
+Description: While analytical, the tone should also be practical, offering readers actionable insights and takeaways they can apply to their own ideas and projects.
+Application: Conclude sections or chapters with clear summaries of key lessons or actionable steps. Focus on what the reader can do with the information.
+Confident but Humble:
+Description: The author's expertise should come through confidently, but without arrogance. Acknowledge the rapidly evolving nature of the field and the possibility of different perspectives.
+Application: Present information with conviction where it's well-supported, but be open about areas of uncertainty or ongoing debate.
+Conversational & Relatable:
+Description: Avoid overly academic or formal language. The tone should feel more like an engaging conversation with a knowledgeable guide.
+Application: Use contractions where appropriate. Address the reader directly at times (e.g., "you might find that..."). Incorporate rhetorical questions to stimulate thought.
 </tone-profile>
 
 Remember: Always base your answers on the comparison data provided above. Be accurate and specific when referencing implementation details, line counts, and feature comparisons.`;

@@ -7,7 +7,7 @@ Target output: docs/matrix.json
 Requirements:
 
 1. IMPLEMENTATIONS TO ANALYZE (Python only):
-   - baremetal/python/tech-writer.py
+   - baremetal/python/tech-writer.py (aka "No Framework")
    - oss-agent-makers/adk-python/tech-writer.py
    - oss-agent-makers/dspy/tech-writer.py
    - oss-agent-makers/agno/tech-writer.py
@@ -17,22 +17,22 @@ Requirements:
    - oss-agent-makers/atomic-agents/tech-writer.py
 
 2. COMPARISON STRUCTURE:
-   For each comparison pair, include:
+   Except for baremetal (which should be referred to as "No framework", for each comparison pair, include:
    - vendor_a: string (implementation name without path)
    - vendor_b: string (implementation name without path)
    - summary: One paragraph comparing the approaches
    - suitability: Object with vendor_a and vendor_b keys explaining when to use each
    - overall_winner: String explaining which is better and why
    - pros_cons: Object with vendor_a and vendor_b keys, each containing pros and cons arrays
-   - block_mappings: Array of semantic block comparisons
+   - block_mappings: Array of semantic block comparisons covering insightful distinctions. 
 
 3. BLOCK MAPPING RULES:
-   - Only include mappings where code in vendor_a corresponds to code in vendor_b
+   - Only include mappings where code in vendor_a relates conceptually to code in vendor_b
    - Each mapping must have:
      * description: What the code block does
      * vendor_a: {lines: [start, end], component: "description"}
      * vendor_b: {lines: [start, end], component: "description"}
-     * comparison: Narrative comparing size, utility and friction (e.g., "vendor_a's implementation takes 87 lines whereas vendor_b's implementation is just 1 but that 1 line hides a lot of opaque capability")
+     * comparison: Narrative comparing size, complexity, value and friction (e.g., "vendor_a's implementation takes 87 lines whereas vendor_b's implementation is just 1 but that 1 line hides a lot of opaque capability")
    - Focus on meaningful semantic blocks like:
      * Agent/class definitions
      * Tool definitions/wrappers
@@ -40,7 +40,8 @@ Requirements:
      * Client initialization
      * Main analysis functions
      * Memory management (if exposed at all)
-     * LLM integration
+     * LLM integrations
+     * Unusual patterns
 
 4. COMPARISON SELECTION:
    Create ALL possible pairwise comparisons between the 8 implementations.
@@ -49,12 +50,22 @@ Requirements:
 5. ANALYSIS APPROACH:
    For each implementation:
    - Count total lines
-   - Identify major semantic blocks (imports, classes, tools, main logic)
+   - Identify major semantic blocks (imports, classes, tools, functions, main logic)
    - Note exact line ranges for each component
    - Compare equivalent functionality across implementations
    - Highlight where one implementation needs many lines vs another needs few
 
-6. JSON STRUCTURE:
+6. INDIVIDUAL FRAMEWORK ASSESSMENTS:
+   After generating all pairwise comparisons, analyze each framework individually against all others:
+   
+   For each framework, provide:
+   - standout_features: What makes this framework distinctive compared to all others
+     * strengths: List 3-5 key strengths that differentiate it
+     * weaknesses: List 3-5 key weaknesses or limitations
+   - when_to_choose: Specific scenarios where this framework is the best choice (be honest - there may be none)
+   - tagline: A 3-5 word summary capturing its unique position
+
+7. JSON STRUCTURE:
    {
      "comparisons": [
        {
@@ -86,6 +97,25 @@ Requirements:
          ]
        }
      ],
+     "framework_assessments": {
+       "baremetal": {
+         "standout_features": {
+           "strengths": ["Full control over implementation", "No framework dependencies", "..."],
+           "weaknesses": ["Verbose and repetitive", "No built-in abstractions", "..."]
+         },
+         "when_to_choose": "Choose baremetal when you need complete control and transparency, or when framework overhead is unacceptable",
+         "tagline": "Maximum control, maximum effort"
+       },
+       "autogen": {
+         "standout_features": {
+           "strengths": ["..."],
+           "weaknesses": ["..."]
+         },
+         "when_to_choose": "...",
+         "tagline": "..."
+       }
+       // ... continue for all frameworks
+     },
      "metadata": {
        "generated": "YYYY-MM-DD",
        "total_implementations": 8,
@@ -95,4 +125,6 @@ Requirements:
    }
 
 
-The goal is to create data for an interactive UI where clicking a code block in one implementation highlights the corresponding block(s) in the comparison implementation, helping users understand different approaches to the same problem.
+The goal is to create data for an interactive UI where:
+1. Clicking a code block in one implementation highlights the corresponding block(s) in the comparison implementation
+2. Clicking a framework name shows an overview of that framework's unique characteristics compared to all others

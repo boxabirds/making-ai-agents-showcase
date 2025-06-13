@@ -193,9 +193,29 @@
             cursor: default;
         }
 
-        .matrix-cell.header:hover {
-            transform: none;
-            box-shadow: none;
+        .matrix-cell.header.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .matrix-cell.header.clickable:hover {
+            background: var(--accent-color);
+            color: white;
+            transform: scale(1.02);
+            box-shadow: var(--shadow-sm);
+            z-index: 2;
+        }
+        
+        /* Row and column highlighting */
+        .matrix-cell.row-highlight,
+        .matrix-cell.col-highlight {
+            background: rgba(0, 102, 204, 0.1);
+            border-color: var(--accent-color);
+        }
+        
+        .matrix-cell.row-col-highlight {
+            background: rgba(0, 102, 204, 0.2);
+            font-weight: 600;
         }
 
         .matrix-cell.disabled {
@@ -333,6 +353,83 @@
             background: #0052a3;
             transform: translateY(-1px);
             box-shadow: var(--shadow-md);
+        }
+        
+        /* Framework Overview Styles */
+        .framework-overview {
+            padding: 1rem;
+        }
+        
+        .framework-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .framework-header h2 {
+            font-size: 2rem;
+            margin: 0;
+            color: var(--accent-color);
+        }
+        
+        .framework-tagline {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        
+        .when-to-choose {
+            background: var(--bg-primary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .when-to-choose h3 {
+            margin-top: 0;
+            color: var(--accent-color);
+        }
+        
+        .standout-features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .strengths, .weaknesses {
+            background: var(--bg-primary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .strengths h3 {
+            color: var(--winner-color);
+            margin-top: 0;
+        }
+        
+        .weaknesses h3 {
+            color: #dc3545;
+            margin-top: 0;
+        }
+        
+        .strengths ul, .weaknesses ul {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+        
+        .strengths li, .weaknesses li {
+            margin: 0.5rem 0;
+        }
+        
+        /* Single framework code view */
+        .code-panel.single-framework {
+            grid-column: 1 / -1;
         }
 
         /* Code Browser */
@@ -932,43 +1029,123 @@
       "overall_winner": "atomic-agents for most use cases due to better maintainability and type safety",
       "pros_cons": {
         "baremetal": {
-          "pros": ["Complete control over agent behavior", "No framework dependencies", "Educational value", "Direct API integration"],
-          "cons": ["More code to maintain", "Manual error handling", "No type safety", "Reinventing the wheel"]
+          "pros": [
+            "Complete control over agent behavior",
+            "No framework dependencies",
+            "Educational value",
+            "Direct API integration"
+          ],
+          "cons": [
+            "More code to maintain",
+            "Manual error handling",
+            "No type safety",
+            "Reinventing the wheel"
+          ]
         },
         "atomic-agents": {
-          "pros": ["Type-safe with Pydantic", "Structured tool definitions", "Framework handles boilerplate", "Better separation of concerns"],
-          "cons": ["Framework learning curve", "More dependencies", "Less flexibility for custom behaviors", "Heavier setup"]
+          "pros": [
+            "Type-safe with Pydantic",
+            "Structured tool definitions",
+            "Framework handles boilerplate",
+            "Better separation of concerns"
+          ],
+          "cons": [
+            "Framework learning curve",
+            "More dependencies",
+            "Less flexibility for custom behaviors",
+            "Heavier setup"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Agent class definition",
-          "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
-          "vendor_b": {"lines": [154, 196], "component": "TechWriterAgent class"},
+          "vendor_a": {
+            "lines": [
+              25,
+              273
+            ],
+            "component": "TechWriterReActAgent class"
+          },
+          "vendor_b": {
+            "lines": [
+              154,
+              196
+            ],
+            "component": "TechWriterAgent class"
+          },
           "comparison": "Baremetal's 248-line class implements full ReAct logic manually, while Atomic's 42-line class leverages framework abstractions"
         },
         {
           "description": "Tool definition approach",
-          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions method"},
-          "vendor_b": {"lines": [53, 123], "component": "Tool schema classes"},
+          "vendor_a": {
+            "lines": [
+              56,
+              143
+            ],
+            "component": "create_openai_tool_definitions method"
+          },
+          "vendor_b": {
+            "lines": [
+              53,
+              123
+            ],
+            "component": "Tool schema classes"
+          },
           "comparison": "Baremetal uses introspection to create OpenAI tool definitions (87 lines), Atomic uses Pydantic schemas (70 lines) for type-safe tools"
         },
         {
           "description": "LLM client initialization",
-          "vendor_a": {"lines": [26, 49], "component": "__init__ with vendor detection"},
-          "vendor_b": {"lines": [158, 159], "component": "instructor.from_litellm"},
+          "vendor_a": {
+            "lines": [
+              26,
+              49
+            ],
+            "component": "__init__ with vendor detection"
+          },
+          "vendor_b": {
+            "lines": [
+              158,
+              159
+            ],
+            "component": "instructor.from_litellm"
+          },
           "comparison": "Baremetal manually handles vendor detection in 23 lines, Atomic delegates to LiteLLM in 2 lines"
         },
         {
           "description": "Agent execution loop",
-          "vendor_a": {"lines": [226, 273], "component": "run method with ReAct loop"},
-          "vendor_b": {"lines": [192, 194], "component": "agent.run call"},
+          "vendor_a": {
+            "lines": [
+              226,
+              273
+            ],
+            "component": "run method with ReAct loop"
+          },
+          "vendor_b": {
+            "lines": [
+              192,
+              194
+            ],
+            "component": "agent.run call"
+          },
           "comparison": "Baremetal implements full ReAct loop in 47 lines, Atomic delegates to framework in 3 lines"
         },
         {
           "description": "Tool execution",
-          "vendor_a": {"lines": [192, 223], "component": "execute_tool method"},
-          "vendor_b": {"lines": [77, 92], "component": "Tool run methods"},
+          "vendor_a": {
+            "lines": [
+              192,
+              223
+            ],
+            "component": "execute_tool method"
+          },
+          "vendor_b": {
+            "lines": [
+              77,
+              92
+            ],
+            "component": "Tool run methods"
+          },
           "comparison": "Baremetal has centralized tool execution (31 lines), Atomic has per-tool run methods (15 lines each)"
         }
       ]
@@ -984,37 +1161,90 @@
       "overall_winner": "dspy for simplicity and maintainability",
       "pros_cons": {
         "baremetal": {
-          "pros": ["Full visibility into ReAct logic", "Customizable behavior", "No DSPy learning curve"],
-          "cons": ["10x more code", "Manual implementation of standard patterns", "More potential for bugs"]
+          "pros": [
+            "Full visibility into ReAct logic",
+            "Customizable behavior",
+            "No DSPy learning curve"
+          ],
+          "cons": [
+            "10x more code",
+            "Manual implementation of standard patterns",
+            "More potential for bugs"
+          ]
         },
         "dspy": {
-          "pros": ["Extremely concise", "Declarative approach", "Built-in ReAct", "Automatic optimization potential"],
-          "cons": ["Black box ReAct implementation", "DSPy-specific patterns", "Less control"]
+          "pros": [
+            "Extremely concise",
+            "Declarative approach",
+            "Built-in ReAct",
+            "Automatic optimization potential"
+          ],
+          "cons": [
+            "Black box ReAct implementation",
+            "DSPy-specific patterns",
+            "Less control"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Entire agent implementation",
-          "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
-          "vendor_b": {"lines": [40, 81], "component": "TechWriterSignature class"},
+          "vendor_a": {
+            "lines": [
+              25,
+              273
+            ],
+            "component": "TechWriterReActAgent class"
+          },
+          "vendor_b": {
+            "lines": [
+              40,
+              81
+            ],
+            "component": "TechWriterSignature class"
+          },
           "comparison": "Baremetal's 248-line class vs DSPy's 41-line signature - DSPy achieves same result with 83% less code"
         },
         {
           "description": "ReAct pattern implementation",
-          "vendor_a": {"lines": [226, 273], "component": "run method"},
-          "vendor_b": {"lines": [91, 93], "component": "dspy.ReAct instantiation"},
+          "vendor_a": {
+            "lines": [
+              226,
+              273
+            ],
+            "component": "run method"
+          },
+          "vendor_b": {
+            "lines": [
+              91,
+              93
+            ],
+            "component": "dspy.ReAct instantiation"
+          },
           "comparison": "Baremetal implements ReAct loop in 47 lines, DSPy uses built-in ReAct in 3 lines"
         },
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
-          "vendor_b": {"lines": [93, 93], "component": "tools=TOOLS parameter"},
+          "vendor_a": {
+            "lines": [
+              56,
+              143
+            ],
+            "component": "create_openai_tool_definitions"
+          },
+          "vendor_b": {
+            "lines": [
+              93,
+              93
+            ],
+            "component": "tools=TOOLS parameter"
+          },
           "comparison": "Baremetal converts tools in 87 lines, DSPy passes tools directly in 1 line"
         }
       ]
     },
     {
-      "vendor_a": "baremetal", 
+      "vendor_a": "baremetal",
       "vendor_b": "langgraph",
       "summary": "Baremetal's 315-line synchronous implementation contrasts with LangGraph's 166-line async implementation using pre-built components. LangGraph provides a middle ground between raw implementation and high abstraction.",
       "suitability": {
@@ -1024,31 +1254,84 @@
       "overall_winner": "langgraph for modern async applications",
       "pros_cons": {
         "baremetal": {
-          "pros": ["Simpler synchronous model", "No LangChain dependencies", "Direct OpenAI integration"],
-          "cons": ["No async support", "Manual ReAct implementation", "More code"]
+          "pros": [
+            "Simpler synchronous model",
+            "No LangChain dependencies",
+            "Direct OpenAI integration"
+          ],
+          "cons": [
+            "No async support",
+            "Manual ReAct implementation",
+            "More code"
+          ]
         },
         "langgraph": {
-          "pros": ["Async native", "Pre-built ReAct agent", "LangChain ecosystem", "Streaming support"],
-          "cons": ["LangChain dependency weight", "More complex setup", "Async complexity"]
+          "pros": [
+            "Async native",
+            "Pre-built ReAct agent",
+            "LangChain ecosystem",
+            "Streaming support"
+          ],
+          "cons": [
+            "LangChain dependency weight",
+            "More complex setup",
+            "Async complexity"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Main analysis function",
-          "vendor_a": {"lines": [276, 294], "component": "analyse_codebase (sync)"},
-          "vendor_b": {"lines": [36, 123], "component": "analyze_codebase (async)"},
+          "vendor_a": {
+            "lines": [
+              276,
+              294
+            ],
+            "component": "analyse_codebase (sync)"
+          },
+          "vendor_b": {
+            "lines": [
+              36,
+              123
+            ],
+            "component": "analyze_codebase (async)"
+          },
           "comparison": "Baremetal's 18-line sync function vs LangGraph's 87-line async function with streaming"
         },
         {
           "description": "Tool wrapper approach",
-          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
-          "vendor_b": {"lines": [63, 96], "component": "Inline tool wrappers"},
+          "vendor_a": {
+            "lines": [
+              56,
+              143
+            ],
+            "component": "create_openai_tool_definitions"
+          },
+          "vendor_b": {
+            "lines": [
+              63,
+              96
+            ],
+            "component": "Inline tool wrappers"
+          },
           "comparison": "Baremetal introspects in 87 lines, LangGraph wraps inline in 33 lines"
         },
         {
           "description": "Agent creation",
-          "vendor_a": {"lines": [26, 54], "component": "Class __init__"},
-          "vendor_b": {"lines": [97, 118], "component": "create_react_agent call"},
+          "vendor_a": {
+            "lines": [
+              26,
+              54
+            ],
+            "component": "Class __init__"
+          },
+          "vendor_b": {
+            "lines": [
+              97,
+              118
+            ],
+            "component": "create_react_agent call"
+          },
           "comparison": "Baremetal initializes in constructor (28 lines), LangGraph uses factory function (21 lines)"
         }
       ]
@@ -1064,31 +1347,84 @@
       "overall_winner": "pydantic-ai for clean architecture and testability",
       "pros_cons": {
         "baremetal": {
-          "pros": ["Explicit control flow", "No decorator magic", "Clear execution path"],
-          "cons": ["Verbose implementation", "Manual dependency management", "Harder to test"]
+          "pros": [
+            "Explicit control flow",
+            "No decorator magic",
+            "Clear execution path"
+          ],
+          "cons": [
+            "Verbose implementation",
+            "Manual dependency management",
+            "Harder to test"
+          ]
         },
         "pydantic-ai": {
-          "pros": ["Clean decorator syntax", "Dependency injection", "Type-safe context", "Testable"],
-          "cons": ["Framework conventions", "Decorator complexity", "Hidden control flow"]
+          "pros": [
+            "Clean decorator syntax",
+            "Dependency injection",
+            "Type-safe context",
+            "Testable"
+          ],
+          "cons": [
+            "Framework conventions",
+            "Decorator complexity",
+            "Hidden control flow"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Tool definition style",
-          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
-          "vendor_b": {"lines": [37, 66], "component": "@tech_writer.tool decorators"},
+          "vendor_a": {
+            "lines": [
+              56,
+              143
+            ],
+            "component": "create_openai_tool_definitions"
+          },
+          "vendor_b": {
+            "lines": [
+              37,
+              66
+            ],
+            "component": "@tech_writer.tool decorators"
+          },
           "comparison": "Baremetal's 87-line introspection vs Pydantic-AI's 29-line decorator approach"
         },
         {
           "description": "Context management",
-          "vendor_a": {"lines": [29, 29], "component": "self.memory list"},
-          "vendor_b": {"lines": [25, 36], "component": "AnalysisContext model"},
+          "vendor_a": {
+            "lines": [
+              29,
+              29
+            ],
+            "component": "self.memory list"
+          },
+          "vendor_b": {
+            "lines": [
+              25,
+              36
+            ],
+            "component": "AnalysisContext model"
+          },
           "comparison": "Baremetal uses simple list, Pydantic-AI uses 11-line typed context model"
         },
         {
           "description": "Agent execution",
-          "vendor_a": {"lines": [226, 273], "component": "run method"},
-          "vendor_b": {"lines": [84, 90], "component": "tech_writer.run"},
+          "vendor_a": {
+            "lines": [
+              226,
+              273
+            ],
+            "component": "run method"
+          },
+          "vendor_b": {
+            "lines": [
+              84,
+              90
+            ],
+            "component": "tech_writer.run"
+          },
           "comparison": "Baremetal's 47-line manual loop vs Pydantic-AI's 6-line framework call"
         }
       ]
@@ -1104,31 +1440,85 @@
       "overall_winner": "Depends on context - atomic-agents for production, dspy for simplicity",
       "pros_cons": {
         "atomic-agents": {
-          "pros": ["Full type safety", "Structured schemas", "Enterprise patterns", "Tool validation"],
-          "cons": ["Verbose setup", "Heavy boilerplate", "Steeper learning curve"]
+          "pros": [
+            "Full type safety",
+            "Structured schemas",
+            "Enterprise patterns",
+            "Tool validation"
+          ],
+          "cons": [
+            "Verbose setup",
+            "Heavy boilerplate",
+            "Steeper learning curve"
+          ]
         },
         "dspy": {
-          "pros": ["Minimal code", "Quick to implement", "Clear intent", "Low overhead"],
-          "cons": ["No type checking", "Limited structure", "Less validation"]
+          "pros": [
+            "Minimal code",
+            "Quick to implement",
+            "Clear intent",
+            "Low overhead"
+          ],
+          "cons": [
+            "No type checking",
+            "Limited structure",
+            "Less validation"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Schema definitions",
-          "vendor_a": {"lines": [34, 123], "component": "Multiple schema classes"},
-          "vendor_b": {"lines": [40, 81], "component": "Single signature class"},
+          "vendor_a": {
+            "lines": [
+              34,
+              123
+            ],
+            "component": "Multiple schema classes"
+          },
+          "vendor_b": {
+            "lines": [
+              40,
+              81
+            ],
+            "component": "Single signature class"
+          },
           "comparison": "Atomic's 89 lines of schemas vs DSPy's 41-line signature"
         },
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [53, 123], "component": "Tool classes with schemas"},
-          "vendor_b": {"lines": [93, 93], "component": "tools=TOOLS"},
+          "vendor_a": {
+            "lines": [
+              53,
+              123
+            ],
+            "component": "Tool classes with schemas"
+          },
+          "vendor_b": {
+            "lines": [
+              93,
+              93
+            ],
+            "component": "tools=TOOLS"
+          },
           "comparison": "Atomic's 70-line tool classes vs DSPy's 1-line parameter"
         },
         {
           "description": "Framework setup",
-          "vendor_a": {"lines": [154, 180], "component": "TechWriterAgent.__init__"},
-          "vendor_b": {"lines": [91, 93], "component": "dspy.ReAct creation"},
+          "vendor_a": {
+            "lines": [
+              154,
+              180
+            ],
+            "component": "TechWriterAgent.__init__"
+          },
+          "vendor_b": {
+            "lines": [
+              91,
+              93
+            ],
+            "component": "dspy.ReAct creation"
+          },
           "comparison": "Atomic's 26-line setup vs DSPy's 3-line instantiation"
         }
       ]
@@ -1144,31 +1534,84 @@
       "overall_winner": "autogen for simplicity, langgraph for ecosystem",
       "pros_cons": {
         "langgraph": {
-          "pros": ["Rich LangChain ecosystem", "Graph-based workflows", "Streaming support"],
-          "cons": ["Heavier dependencies", "More complex setup", "LangChain lock-in"]
+          "pros": [
+            "Rich LangChain ecosystem",
+            "Graph-based workflows",
+            "Streaming support"
+          ],
+          "cons": [
+            "Heavier dependencies",
+            "More complex setup",
+            "LangChain lock-in"
+          ]
         },
         "autogen": {
-          "pros": ["Simpler async model", "Microsoft backing", "Cleaner code", "Less dependencies"],
-          "cons": ["Less ecosystem", "Fewer advanced features", "Less documentation"]
+          "pros": [
+            "Simpler async model",
+            "Microsoft backing",
+            "Cleaner code",
+            "Less dependencies"
+          ],
+          "cons": [
+            "Less ecosystem",
+            "Fewer advanced features",
+            "Less documentation"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Async tool wrappers",
-          "vendor_a": {"lines": [63, 96], "component": "Inline async wrappers"},
-          "vendor_b": {"lines": [31, 50], "component": "Top-level async wrappers"},
+          "vendor_a": {
+            "lines": [
+              63,
+              96
+            ],
+            "component": "Inline async wrappers"
+          },
+          "vendor_b": {
+            "lines": [
+              31,
+              50
+            ],
+            "component": "Top-level async wrappers"
+          },
           "comparison": "LangGraph's 33-line inline wrappers vs AutoGen's 19-line module-level wrappers"
         },
         {
           "description": "Agent creation",
-          "vendor_a": {"lines": [97, 118], "component": "create_react_agent"},
-          "vendor_b": {"lines": [70, 86], "component": "AssistantAgent creation"},
+          "vendor_a": {
+            "lines": [
+              97,
+              118
+            ],
+            "component": "create_react_agent"
+          },
+          "vendor_b": {
+            "lines": [
+              70,
+              86
+            ],
+            "component": "AssistantAgent creation"
+          },
           "comparison": "LangGraph's 21-line setup vs AutoGen's 16-line configuration"
         },
         {
           "description": "Main async structure",
-          "vendor_a": {"lines": [125, 166], "component": "Nested async main"},
-          "vendor_b": {"lines": [84, 124], "component": "Nested async main"},
+          "vendor_a": {
+            "lines": [
+              125,
+              166
+            ],
+            "component": "Nested async main"
+          },
+          "vendor_b": {
+            "lines": [
+              84,
+              124
+            ],
+            "component": "Nested async main"
+          },
           "comparison": "Both use similar 40-line nested async patterns"
         }
       ]
@@ -1184,31 +1627,85 @@
       "overall_winner": "agno for simplicity, pydantic-ai for maintainability",
       "pros_cons": {
         "pydantic-ai": {
-          "pros": ["Dependency injection", "Decorator elegance", "Type-safe context", "Testable"],
-          "cons": ["More complex patterns", "Framework learning curve", "More lines of code"]
+          "pros": [
+            "Dependency injection",
+            "Decorator elegance",
+            "Type-safe context",
+            "Testable"
+          ],
+          "cons": [
+            "More complex patterns",
+            "Framework learning curve",
+            "More lines of code"
+          ]
         },
         "agno": {
-          "pros": ["Minimal code", "Direct approach", "Easy to understand", "Few dependencies"],
-          "cons": ["Less structure", "No dependency injection", "Less extensible"]
+          "pros": [
+            "Minimal code",
+            "Direct approach",
+            "Easy to understand",
+            "Few dependencies"
+          ],
+          "cons": [
+            "Less structure",
+            "No dependency injection",
+            "Less extensible"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [37, 66], "component": "Decorated tool functions"},
-          "vendor_b": {"lines": [59, 59], "component": "tools parameter"},
+          "vendor_a": {
+            "lines": [
+              37,
+              66
+            ],
+            "component": "Decorated tool functions"
+          },
+          "vendor_b": {
+            "lines": [
+              59,
+              59
+            ],
+            "component": "tools parameter"
+          },
           "comparison": "Pydantic-AI's 29-line decorators vs Agno's 1-line parameter"
         },
         {
           "description": "Model setup",
-          "vendor_a": {"lines": [31, 31], "component": "Direct model string"},
-          "vendor_b": {"lines": [36, 53], "component": "ModelFactory class"},
+          "vendor_a": {
+            "lines": [
+              31,
+              31
+            ],
+            "component": "Direct model string"
+          },
+          "vendor_b": {
+            "lines": [
+              36,
+              53
+            ],
+            "component": "ModelFactory class"
+          },
           "comparison": "Pydantic-AI's 1-line model vs Agno's 17-line factory (for multi-vendor support)"
         },
         {
           "description": "Context passing",
-          "vendor_a": {"lines": [25, 36], "component": "AnalysisContext class"},
-          "vendor_b": {"lines": [70, 70], "component": "Inline prompt"},
+          "vendor_a": {
+            "lines": [
+              25,
+              36
+            ],
+            "component": "AnalysisContext class"
+          },
+          "vendor_b": {
+            "lines": [
+              70,
+              70
+            ],
+            "component": "Inline prompt"
+          },
           "comparison": "Pydantic-AI's 11-line context model vs Agno's inline approach"
         }
       ]
@@ -1224,31 +1721,85 @@
       "overall_winner": "dspy for simplicity, adk-python for Google ecosystem",
       "pros_cons": {
         "adk-python": {
-          "pros": ["Google integration", "Async support", "Session management", "Memory runner"],
-          "cons": ["Google-specific patterns", "Model naming workarounds", "More complex setup"]
+          "pros": [
+            "Google integration",
+            "Async support",
+            "Session management",
+            "Memory runner"
+          ],
+          "cons": [
+            "Google-specific patterns",
+            "Model naming workarounds",
+            "More complex setup"
+          ]
         },
         "dspy": {
-          "pros": ["Simpler sync model", "Cleaner code", "No vendor lock-in", "Declarative"],
-          "cons": ["No async", "Less ecosystem integration", "Black-box ReAct"]
+          "pros": [
+            "Simpler sync model",
+            "Cleaner code",
+            "No vendor lock-in",
+            "Declarative"
+          ],
+          "cons": [
+            "No async",
+            "Less ecosystem integration",
+            "Black-box ReAct"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Model setup approach",
-          "vendor_a": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
-          "vendor_b": {"lines": [89, 89], "component": "Direct dspy.configure"},
+          "vendor_a": {
+            "lines": [
+              32,
+              45
+            ],
+            "component": "stupid_adk_hack_to_get_model"
+          },
+          "vendor_b": {
+            "lines": [
+              89,
+              89
+            ],
+            "component": "Direct dspy.configure"
+          },
           "comparison": "ADK's 13-line workaround vs DSPy's 1-line configuration"
         },
         {
           "description": "Agent execution",
-          "vendor_a": {"lines": [83, 96], "component": "Runner with session"},
-          "vendor_b": {"lines": [91, 93], "component": "Direct ReAct call"},
+          "vendor_a": {
+            "lines": [
+              83,
+              96
+            ],
+            "component": "Runner with session"
+          },
+          "vendor_b": {
+            "lines": [
+              91,
+              93
+            ],
+            "component": "Direct ReAct call"
+          },
           "comparison": "ADK's 13-line session management vs DSPy's 3-line execution"
         },
         {
           "description": "Main function structure",
-          "vendor_a": {"lines": [103, 131], "component": "Async main"},
-          "vendor_b": {"lines": [99, 119], "component": "Sync main"},
+          "vendor_a": {
+            "lines": [
+              103,
+              131
+            ],
+            "component": "Async main"
+          },
+          "vendor_b": {
+            "lines": [
+              99,
+              119
+            ],
+            "component": "Sync main"
+          },
           "comparison": "ADK's 28-line async main vs DSPy's 20-line sync main"
         }
       ]
@@ -1264,31 +1815,87 @@
       "overall_winner": "baremetal for flexibility, adk-python for Google ecosystem",
       "pros_cons": {
         "baremetal": {
-          "pros": ["Vendor neutral", "Direct control", "No framework dependencies", "Simpler sync model"],
-          "cons": ["More boilerplate", "No built-in persistence", "Manual everything", "No async"]
+          "pros": [
+            "Vendor neutral",
+            "Direct control",
+            "No framework dependencies",
+            "Simpler sync model"
+          ],
+          "cons": [
+            "More boilerplate",
+            "No built-in persistence",
+            "Manual everything",
+            "No async"
+          ]
         },
         "adk-python": {
-          "pros": ["Google integration", "Session management", "Memory persistence", "Async native"],
-          "cons": ["Google-specific", "Model naming hacks", "Framework complexity", "Limited to Google patterns"]
+          "pros": [
+            "Google integration",
+            "Session management",
+            "Memory persistence",
+            "Async native"
+          ],
+          "cons": [
+            "Google-specific",
+            "Model naming hacks",
+            "Framework complexity",
+            "Limited to Google patterns"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Model initialization",
-          "vendor_a": {"lines": [26, 49], "component": "Vendor detection in __init__"},
-          "vendor_b": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
+          "vendor_a": {
+            "lines": [
+              26,
+              49
+            ],
+            "component": "Vendor detection in __init__"
+          },
+          "vendor_b": {
+            "lines": [
+              32,
+              45
+            ],
+            "component": "stupid_adk_hack_to_get_model"
+          },
           "comparison": "Baremetal's 23-line vendor detection vs ADK's 13-line hack for model compatibility"
         },
         {
           "description": "Agent execution",
-          "vendor_a": {"lines": [226, 273], "component": "run method with ReAct loop"},
-          "vendor_b": {"lines": [83, 96], "component": "Runner async execution"},
+          "vendor_a": {
+            "lines": [
+              226,
+              273
+            ],
+            "component": "run method with ReAct loop"
+          },
+          "vendor_b": {
+            "lines": [
+              83,
+              96
+            ],
+            "component": "Runner async execution"
+          },
           "comparison": "Baremetal's 47-line manual ReAct vs ADK's 13-line framework execution"
         },
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
-          "vendor_b": {"lines": [56, 56], "component": "tools parameter"},
+          "vendor_a": {
+            "lines": [
+              56,
+              143
+            ],
+            "component": "create_openai_tool_definitions"
+          },
+          "vendor_b": {
+            "lines": [
+              56,
+              56
+            ],
+            "component": "tools parameter"
+          },
           "comparison": "Baremetal's 87-line tool conversion vs ADK's 1-line tool list"
         }
       ]
@@ -1304,31 +1911,87 @@
       "overall_winner": "agno for simplicity, baremetal for control",
       "pros_cons": {
         "baremetal": {
-          "pros": ["Complete transparency", "No magic", "Educational value", "Full customization"],
-          "cons": ["3x more code", "Manual implementation", "More maintenance", "Verbose"]
+          "pros": [
+            "Complete transparency",
+            "No magic",
+            "Educational value",
+            "Full customization"
+          ],
+          "cons": [
+            "3x more code",
+            "Manual implementation",
+            "More maintenance",
+            "Verbose"
+          ]
         },
         "agno": {
-          "pros": ["Minimal code", "Quick setup", "Clean API", "Low cognitive load"],
-          "cons": ["Hidden complexity", "Less control", "Framework dependency", "Limited customization"]
+          "pros": [
+            "Minimal code",
+            "Quick setup",
+            "Clean API",
+            "Low cognitive load"
+          ],
+          "cons": [
+            "Hidden complexity",
+            "Less control",
+            "Framework dependency",
+            "Limited customization"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Entire implementation",
-          "vendor_a": {"lines": [1, 315], "component": "Full implementation"},
-          "vendor_b": {"lines": [1, 104], "component": "Full implementation"},
+          "vendor_a": {
+            "lines": [
+              1,
+              315
+            ],
+            "component": "Full implementation"
+          },
+          "vendor_b": {
+            "lines": [
+              1,
+              104
+            ],
+            "component": "Full implementation"
+          },
           "comparison": "Baremetal uses 315 lines vs Agno's 104 lines - 67% reduction"
         },
         {
           "description": "Agent setup and execution",
-          "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
-          "vendor_b": {"lines": [59, 67], "component": "Agent instantiation and run"},
+          "vendor_a": {
+            "lines": [
+              25,
+              273
+            ],
+            "component": "TechWriterReActAgent class"
+          },
+          "vendor_b": {
+            "lines": [
+              59,
+              67
+            ],
+            "component": "Agent instantiation and run"
+          },
           "comparison": "Baremetal's 248-line class vs Agno's 8-line setup"
         },
         {
           "description": "Model configuration",
-          "vendor_a": {"lines": [33, 49], "component": "Vendor-specific client setup"},
-          "vendor_b": {"lines": [36, 53], "component": "ModelFactory pattern"},
+          "vendor_a": {
+            "lines": [
+              33,
+              49
+            ],
+            "component": "Vendor-specific client setup"
+          },
+          "vendor_b": {
+            "lines": [
+              36,
+              53
+            ],
+            "component": "ModelFactory pattern"
+          },
           "comparison": "Both use similar lines (16-17) but different approaches"
         }
       ]
@@ -1344,31 +2007,87 @@
       "overall_winner": "autogen for modern async applications",
       "pros_cons": {
         "baremetal": {
-          "pros": ["Sync simplicity", "No framework magic", "Direct control", "Clear execution flow"],
-          "cons": ["No async", "Manual ReAct", "More code", "No framework benefits"]
+          "pros": [
+            "Sync simplicity",
+            "No framework magic",
+            "Direct control",
+            "Clear execution flow"
+          ],
+          "cons": [
+            "No async",
+            "Manual ReAct",
+            "More code",
+            "No framework benefits"
+          ]
         },
         "autogen": {
-          "pros": ["Async native", "Clean code", "Microsoft backing", "Minimal boilerplate"],
-          "cons": ["Async complexity", "Framework dependency", "Less transparency", "Microsoft patterns"]
+          "pros": [
+            "Async native",
+            "Clean code",
+            "Microsoft backing",
+            "Minimal boilerplate"
+          ],
+          "cons": [
+            "Async complexity",
+            "Framework dependency",
+            "Less transparency",
+            "Microsoft patterns"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Main execution pattern",
-          "vendor_a": {"lines": [276, 294], "component": "Sync analyse_codebase"},
-          "vendor_b": {"lines": [65, 92], "component": "Async analyze_codebase"},
+          "vendor_a": {
+            "lines": [
+              276,
+              294
+            ],
+            "component": "Sync analyse_codebase"
+          },
+          "vendor_b": {
+            "lines": [
+              65,
+              92
+            ],
+            "component": "Async analyze_codebase"
+          },
           "comparison": "Baremetal's 18-line sync vs AutoGen's 27-line async function"
         },
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
-          "vendor_b": {"lines": [33, 62], "component": "Async tool wrappers"},
+          "vendor_a": {
+            "lines": [
+              56,
+              143
+            ],
+            "component": "create_openai_tool_definitions"
+          },
+          "vendor_b": {
+            "lines": [
+              33,
+              62
+            ],
+            "component": "Async tool wrappers"
+          },
           "comparison": "Baremetal's 87-line conversion vs AutoGen's 29-line async wrappers"
         },
         {
           "description": "Agent creation",
-          "vendor_a": {"lines": [25, 54], "component": "TechWriterReActAgent.__init__"},
-          "vendor_b": {"lines": [79, 85], "component": "AssistantAgent creation"},
+          "vendor_a": {
+            "lines": [
+              25,
+              54
+            ],
+            "component": "TechWriterReActAgent.__init__"
+          },
+          "vendor_b": {
+            "lines": [
+              79,
+              85
+            ],
+            "component": "AssistantAgent creation"
+          },
           "comparison": "Baremetal's 29-line init vs AutoGen's 6-line agent setup"
         }
       ]
@@ -1384,31 +2103,87 @@
       "overall_winner": "agno for simplicity, adk-python for features",
       "pros_cons": {
         "adk-python": {
-          "pros": ["Session management", "Memory persistence", "Google ecosystem", "Async support"],
-          "cons": ["Model naming hacks", "More complex setup", "Google lock-in", "Async overhead"]
+          "pros": [
+            "Session management",
+            "Memory persistence",
+            "Google ecosystem",
+            "Async support"
+          ],
+          "cons": [
+            "Model naming hacks",
+            "More complex setup",
+            "Google lock-in",
+            "Async overhead"
+          ]
         },
         "agno": {
-          "pros": ["Simpler code", "Vendor neutral", "Sync simplicity", "Clean API"],
-          "cons": ["No persistence", "No sessions", "Limited features", "No async"]
+          "pros": [
+            "Simpler code",
+            "Vendor neutral",
+            "Sync simplicity",
+            "Clean API"
+          ],
+          "cons": [
+            "No persistence",
+            "No sessions",
+            "Limited features",
+            "No async"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Model setup",
-          "vendor_a": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
-          "vendor_b": {"lines": [36, 53], "component": "ModelFactory.create"},
+          "vendor_a": {
+            "lines": [
+              32,
+              45
+            ],
+            "component": "stupid_adk_hack_to_get_model"
+          },
+          "vendor_b": {
+            "lines": [
+              36,
+              53
+            ],
+            "component": "ModelFactory.create"
+          },
           "comparison": "ADK's 13-line hack vs Agno's 17-line factory pattern"
         },
         {
           "description": "Agent execution",
-          "vendor_a": {"lines": [83, 96], "component": "Runner with session"},
-          "vendor_b": {"lines": [67, 67], "component": "agent.run"},
+          "vendor_a": {
+            "lines": [
+              83,
+              96
+            ],
+            "component": "Runner with session"
+          },
+          "vendor_b": {
+            "lines": [
+              67,
+              67
+            ],
+            "component": "agent.run"
+          },
           "comparison": "ADK's 13-line session-based execution vs Agno's 1-line run"
         },
         {
           "description": "Main function structure",
-          "vendor_a": {"lines": [103, 131], "component": "Async main"},
-          "vendor_b": {"lines": [77, 104], "component": "Sync main"},
+          "vendor_a": {
+            "lines": [
+              103,
+              131
+            ],
+            "component": "Async main"
+          },
+          "vendor_b": {
+            "lines": [
+              77,
+              104
+            ],
+            "component": "Sync main"
+          },
           "comparison": "ADK's 28-line async main vs Agno's 27-line sync main"
         }
       ]
@@ -1424,31 +2199,87 @@
       "overall_winner": "langgraph for flexibility, adk-python for Google integration",
       "pros_cons": {
         "adk-python": {
-          "pros": ["Built-in persistence", "Session management", "Google integration", "Simpler setup"],
-          "cons": ["Google-specific", "Model naming issues", "Limited flexibility", "Framework lock-in"]
+          "pros": [
+            "Built-in persistence",
+            "Session management",
+            "Google integration",
+            "Simpler setup"
+          ],
+          "cons": [
+            "Google-specific",
+            "Model naming issues",
+            "Limited flexibility",
+            "Framework lock-in"
+          ]
         },
         "langgraph": {
-          "pros": ["LangChain ecosystem", "Graph workflows", "More flexible", "Better tool handling"],
-          "cons": ["More dependencies", "Complex setup", "No built-in persistence", "Heavier framework"]
+          "pros": [
+            "LangChain ecosystem",
+            "Graph workflows",
+            "More flexible",
+            "Better tool handling"
+          ],
+          "cons": [
+            "More dependencies",
+            "Complex setup",
+            "No built-in persistence",
+            "Heavier framework"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [56, 56], "component": "tools parameter"},
-          "vendor_b": {"lines": [63, 96], "component": "Tool wrapper functions"},
+          "vendor_a": {
+            "lines": [
+              56,
+              56
+            ],
+            "component": "tools parameter"
+          },
+          "vendor_b": {
+            "lines": [
+              63,
+              96
+            ],
+            "component": "Tool wrapper functions"
+          },
           "comparison": "ADK's 1-line tool list vs LangGraph's 33-line wrapper functions"
         },
         {
           "description": "Agent creation",
-          "vendor_a": {"lines": [51, 60], "component": "Agent instantiation"},
-          "vendor_b": {"lines": [98, 101], "component": "create_react_agent"},
+          "vendor_a": {
+            "lines": [
+              51,
+              60
+            ],
+            "component": "Agent instantiation"
+          },
+          "vendor_b": {
+            "lines": [
+              98,
+              101
+            ],
+            "component": "create_react_agent"
+          },
           "comparison": "ADK's 9-line agent setup vs LangGraph's 3-line creation"
         },
         {
           "description": "Execution pattern",
-          "vendor_a": {"lines": [89, 95], "component": "Streaming execution"},
-          "vendor_b": {"lines": [111, 118], "component": "Agent invoke"},
+          "vendor_a": {
+            "lines": [
+              89,
+              95
+            ],
+            "component": "Streaming execution"
+          },
+          "vendor_b": {
+            "lines": [
+              111,
+              118
+            ],
+            "component": "Agent invoke"
+          },
           "comparison": "ADK's 6-line streaming vs LangGraph's 7-line invocation"
         }
       ]
@@ -1464,31 +2295,87 @@
       "overall_winner": "pydantic-ai for code quality, adk-python for Google features",
       "pros_cons": {
         "adk-python": {
-          "pros": ["Session persistence", "Google integration", "Memory runners", "Built-in state"],
-          "cons": ["Model naming hacks", "Google lock-in", "Complex setup", "Framework overhead"]
+          "pros": [
+            "Session persistence",
+            "Google integration",
+            "Memory runners",
+            "Built-in state"
+          ],
+          "cons": [
+            "Model naming hacks",
+            "Google lock-in",
+            "Complex setup",
+            "Framework overhead"
+          ]
         },
         "pydantic-ai": {
-          "pros": ["Clean decorators", "Dependency injection", "Type safety", "Testable"],
-          "cons": ["No persistence", "No sessions", "Framework learning", "Hidden control flow"]
+          "pros": [
+            "Clean decorators",
+            "Dependency injection",
+            "Type safety",
+            "Testable"
+          ],
+          "cons": [
+            "No persistence",
+            "No sessions",
+            "Framework learning",
+            "Hidden control flow"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Context/dependency handling",
-          "vendor_a": {"lines": [69, 73], "component": "Session creation"},
-          "vendor_b": {"lines": [25, 29], "component": "AnalysisContext model"},
+          "vendor_a": {
+            "lines": [
+              69,
+              73
+            ],
+            "component": "Session creation"
+          },
+          "vendor_b": {
+            "lines": [
+              25,
+              29
+            ],
+            "component": "AnalysisContext model"
+          },
           "comparison": "ADK's 4-line session vs Pydantic-AI's 4-line context model"
         },
         {
           "description": "Tool definition",
-          "vendor_a": {"lines": [56, 56], "component": "tools list"},
-          "vendor_b": {"lines": [37, 66], "component": "Decorated tool functions"},
+          "vendor_a": {
+            "lines": [
+              56,
+              56
+            ],
+            "component": "tools list"
+          },
+          "vendor_b": {
+            "lines": [
+              37,
+              66
+            ],
+            "component": "Decorated tool functions"
+          },
           "comparison": "ADK's 1-line list vs Pydantic-AI's 29-line decorators"
         },
         {
           "description": "Agent execution",
-          "vendor_a": {"lines": [89, 95], "component": "Streaming runner"},
-          "vendor_b": {"lines": [86, 90], "component": "tech_writer.run"},
+          "vendor_a": {
+            "lines": [
+              89,
+              95
+            ],
+            "component": "Streaming runner"
+          },
+          "vendor_b": {
+            "lines": [
+              86,
+              90
+            ],
+            "component": "tech_writer.run"
+          },
           "comparison": "ADK's 6-line streaming vs Pydantic-AI's 4-line run"
         }
       ]
@@ -1504,31 +2391,87 @@
       "overall_winner": "autogen for simplicity, adk-python for features",
       "pros_cons": {
         "adk-python": {
-          "pros": ["Session management", "State persistence", "Google ecosystem", "Memory runners"],
-          "cons": ["Model naming hacks", "Complex setup", "Google-specific", "More boilerplate"]
+          "pros": [
+            "Session management",
+            "State persistence",
+            "Google ecosystem",
+            "Memory runners"
+          ],
+          "cons": [
+            "Model naming hacks",
+            "Complex setup",
+            "Google-specific",
+            "More boilerplate"
+          ]
         },
         "autogen": {
-          "pros": ["Cleaner code", "Simple async", "Vendor neutral", "Direct approach"],
-          "cons": ["No persistence", "No sessions", "Basic features", "Less ecosystem"]
+          "pros": [
+            "Cleaner code",
+            "Simple async",
+            "Vendor neutral",
+            "Direct approach"
+          ],
+          "cons": [
+            "No persistence",
+            "No sessions",
+            "Basic features",
+            "Less ecosystem"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Model setup",
-          "vendor_a": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
-          "vendor_b": {"lines": [74, 76], "component": "OpenAIChatCompletionClient"},
+          "vendor_a": {
+            "lines": [
+              32,
+              45
+            ],
+            "component": "stupid_adk_hack_to_get_model"
+          },
+          "vendor_b": {
+            "lines": [
+              74,
+              76
+            ],
+            "component": "OpenAIChatCompletionClient"
+          },
           "comparison": "ADK's 13-line hack vs AutoGen's 2-line client creation"
         },
         {
           "description": "Agent initialization",
-          "vendor_a": {"lines": [51, 73], "component": "Agent + Runner + Session"},
-          "vendor_b": {"lines": [79, 85], "component": "AssistantAgent creation"},
+          "vendor_a": {
+            "lines": [
+              51,
+              73
+            ],
+            "component": "Agent + Runner + Session"
+          },
+          "vendor_b": {
+            "lines": [
+              79,
+              85
+            ],
+            "component": "AssistantAgent creation"
+          },
           "comparison": "ADK's 22-line setup vs AutoGen's 6-line agent"
         },
         {
           "description": "Execution pattern",
-          "vendor_a": {"lines": [89, 95], "component": "Streaming with session"},
-          "vendor_b": {"lines": [88, 89], "component": "agent.run"},
+          "vendor_a": {
+            "lines": [
+              89,
+              95
+            ],
+            "component": "Streaming with session"
+          },
+          "vendor_b": {
+            "lines": [
+              88,
+              89
+            ],
+            "component": "agent.run"
+          },
           "comparison": "ADK's 6-line streaming vs AutoGen's 1-line run"
         }
       ]
@@ -1544,31 +2487,87 @@
       "overall_winner": "atomic-agents for enterprise apps, adk-python for Google Cloud",
       "pros_cons": {
         "adk-python": {
-          "pros": ["Google integration", "Async native", "Session management", "Concise code"],
-          "cons": ["Model hacks", "Google lock-in", "Less type safety", "Limited structure"]
+          "pros": [
+            "Google integration",
+            "Async native",
+            "Session management",
+            "Concise code"
+          ],
+          "cons": [
+            "Model hacks",
+            "Google lock-in",
+            "Less type safety",
+            "Limited structure"
+          ]
         },
         "atomic-agents": {
-          "pros": ["Full type safety", "Pydantic schemas", "Clear structure", "Enterprise patterns"],
-          "cons": ["More verbose", "Sync only", "Heavy boilerplate", "Complex setup"]
+          "pros": [
+            "Full type safety",
+            "Pydantic schemas",
+            "Clear structure",
+            "Enterprise patterns"
+          ],
+          "cons": [
+            "More verbose",
+            "Sync only",
+            "Heavy boilerplate",
+            "Complex setup"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Type definitions",
-          "vendor_a": {"lines": [50, 50], "component": "No explicit types"},
-          "vendor_b": {"lines": [34, 123], "component": "Schema definitions"},
+          "vendor_a": {
+            "lines": [
+              50,
+              50
+            ],
+            "component": "No explicit types"
+          },
+          "vendor_b": {
+            "lines": [
+              34,
+              123
+            ],
+            "component": "Schema definitions"
+          },
           "comparison": "ADK has no schemas vs Atomic's 89 lines of type definitions"
         },
         {
           "description": "Agent setup",
-          "vendor_a": {"lines": [51, 60], "component": "Agent creation"},
-          "vendor_b": {"lines": [170, 182], "component": "BaseAgent config"},
+          "vendor_a": {
+            "lines": [
+              51,
+              60
+            ],
+            "component": "Agent creation"
+          },
+          "vendor_b": {
+            "lines": [
+              170,
+              182
+            ],
+            "component": "BaseAgent config"
+          },
           "comparison": "ADK's 9-line setup vs Atomic's 12-line configuration"
         },
         {
           "description": "Tool handling",
-          "vendor_a": {"lines": [56, 56], "component": "tools list"},
-          "vendor_b": {"lines": [66, 123], "component": "Tool classes"},
+          "vendor_a": {
+            "lines": [
+              56,
+              56
+            ],
+            "component": "tools list"
+          },
+          "vendor_b": {
+            "lines": [
+              66,
+              123
+            ],
+            "component": "Tool classes"
+          },
           "comparison": "ADK's 1-line list vs Atomic's 57-line tool implementations"
         }
       ]
@@ -1584,31 +2583,87 @@
       "overall_winner": "agno for simplicity, dspy for advanced features",
       "pros_cons": {
         "dspy": {
-          "pros": ["Declarative approach", "Built-in ReAct", "Optimization potential", "Research-friendly"],
-          "cons": ["Docstring prompts", "Black box ReAct", "DSPy learning curve", "Less direct"]
+          "pros": [
+            "Declarative approach",
+            "Built-in ReAct",
+            "Optimization potential",
+            "Research-friendly"
+          ],
+          "cons": [
+            "Docstring prompts",
+            "Black box ReAct",
+            "DSPy learning curve",
+            "Less direct"
+          ]
         },
         "agno": {
-          "pros": ["Most concise", "Direct approach", "Easy to understand", "Minimal dependencies"],
-          "cons": ["Less features", "No optimization", "Basic functionality", "Limited extensibility"]
+          "pros": [
+            "Most concise",
+            "Direct approach",
+            "Easy to understand",
+            "Minimal dependencies"
+          ],
+          "cons": [
+            "Less features",
+            "No optimization",
+            "Basic functionality",
+            "Limited extensibility"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Complete implementation",
-          "vendor_a": {"lines": [1, 119], "component": "Full file"},
-          "vendor_b": {"lines": [1, 104], "component": "Full file"},
+          "vendor_a": {
+            "lines": [
+              1,
+              119
+            ],
+            "component": "Full file"
+          },
+          "vendor_b": {
+            "lines": [
+              1,
+              104
+            ],
+            "component": "Full file"
+          },
           "comparison": "DSPy uses 119 lines vs Agno's 104 lines - both extremely concise"
         },
         {
           "description": "Agent/Signature definition",
-          "vendor_a": {"lines": [40, 81], "component": "TechWriterSignature class"},
-          "vendor_b": {"lines": [59, 64], "component": "Agent instantiation"},
+          "vendor_a": {
+            "lines": [
+              40,
+              81
+            ],
+            "component": "TechWriterSignature class"
+          },
+          "vendor_b": {
+            "lines": [
+              59,
+              64
+            ],
+            "component": "Agent instantiation"
+          },
           "comparison": "DSPy's 41-line signature vs Agno's 5-line agent setup"
         },
         {
           "description": "Execution",
-          "vendor_a": {"lines": [91, 93], "component": "ReAct execution"},
-          "vendor_b": {"lines": [67, 67], "component": "agent.run"},
+          "vendor_a": {
+            "lines": [
+              91,
+              93
+            ],
+            "component": "ReAct execution"
+          },
+          "vendor_b": {
+            "lines": [
+              67,
+              67
+            ],
+            "component": "agent.run"
+          },
           "comparison": "DSPy's 3-line ReAct vs Agno's 1-line run"
         }
       ]
@@ -1624,31 +2679,87 @@
       "overall_winner": "dspy for simplicity, langgraph for production async",
       "pros_cons": {
         "dspy": {
-          "pros": ["Extremely concise", "Declarative", "No async complexity", "Clear intent"],
-          "cons": ["No async", "Docstring prompts", "Limited control", "Black box"]
+          "pros": [
+            "Extremely concise",
+            "Declarative",
+            "No async complexity",
+            "Clear intent"
+          ],
+          "cons": [
+            "No async",
+            "Docstring prompts",
+            "Limited control",
+            "Black box"
+          ]
         },
         "langgraph": {
-          "pros": ["Async native", "LangChain ecosystem", "Graph workflows", "More control"],
-          "cons": ["More complex", "Heavier dependencies", "Verbose setup", "Async overhead"]
+          "pros": [
+            "Async native",
+            "LangChain ecosystem",
+            "Graph workflows",
+            "More control"
+          ],
+          "cons": [
+            "More complex",
+            "Heavier dependencies",
+            "Verbose setup",
+            "Async overhead"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [93, 93], "component": "tools parameter"},
-          "vendor_b": {"lines": [63, 96], "component": "Tool wrapper functions"},
+          "vendor_a": {
+            "lines": [
+              93,
+              93
+            ],
+            "component": "tools parameter"
+          },
+          "vendor_b": {
+            "lines": [
+              63,
+              96
+            ],
+            "component": "Tool wrapper functions"
+          },
           "comparison": "DSPy's 1-line parameter vs LangGraph's 33-line wrappers"
         },
         {
           "description": "Main execution",
-          "vendor_a": {"lines": [99, 119], "component": "Sync main"},
-          "vendor_b": {"lines": [125, 166], "component": "Async main"},
+          "vendor_a": {
+            "lines": [
+              99,
+              119
+            ],
+            "component": "Sync main"
+          },
+          "vendor_b": {
+            "lines": [
+              125,
+              166
+            ],
+            "component": "Async main"
+          },
           "comparison": "DSPy's 20-line sync main vs LangGraph's 41-line async main"
         },
         {
           "description": "Agent pattern",
-          "vendor_a": {"lines": [40, 81], "component": "Signature-based"},
-          "vendor_b": {"lines": [98, 114], "component": "Graph-based agent"},
+          "vendor_a": {
+            "lines": [
+              40,
+              81
+            ],
+            "component": "Signature-based"
+          },
+          "vendor_b": {
+            "lines": [
+              98,
+              114
+            ],
+            "component": "Graph-based agent"
+          },
           "comparison": "DSPy's 41-line signature vs LangGraph's 16-line agent setup"
         }
       ]
@@ -1664,31 +2775,87 @@
       "overall_winner": "pydantic-ai for maintainability, dspy for minimalism",
       "pros_cons": {
         "dspy": {
-          "pros": ["More concise", "Declarative", "Built-in ReAct", "Simple setup"],
-          "cons": ["Docstring prompts", "Less testable", "Black box", "Limited DI"]
+          "pros": [
+            "More concise",
+            "Declarative",
+            "Built-in ReAct",
+            "Simple setup"
+          ],
+          "cons": [
+            "Docstring prompts",
+            "Less testable",
+            "Black box",
+            "Limited DI"
+          ]
         },
         "pydantic-ai": {
-          "pros": ["Dependency injection", "Decorator elegance", "Testable", "Type-safe context"],
-          "cons": ["Slightly more code", "Framework patterns", "Hidden flow", "More complex"]
+          "pros": [
+            "Dependency injection",
+            "Decorator elegance",
+            "Testable",
+            "Type-safe context"
+          ],
+          "cons": [
+            "Slightly more code",
+            "Framework patterns",
+            "Hidden flow",
+            "More complex"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Prompt/Context definition",
-          "vendor_a": {"lines": [40, 81], "component": "Docstring prompt"},
-          "vendor_b": {"lines": [25, 29], "component": "Context class"},
+          "vendor_a": {
+            "lines": [
+              40,
+              81
+            ],
+            "component": "Docstring prompt"
+          },
+          "vendor_b": {
+            "lines": [
+              25,
+              29
+            ],
+            "component": "Context class"
+          },
           "comparison": "DSPy's 41-line docstring vs Pydantic-AI's 4-line context"
         },
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [93, 93], "component": "tools parameter"},
-          "vendor_b": {"lines": [37, 66], "component": "Decorated tools"},
+          "vendor_a": {
+            "lines": [
+              93,
+              93
+            ],
+            "component": "tools parameter"
+          },
+          "vendor_b": {
+            "lines": [
+              37,
+              66
+            ],
+            "component": "Decorated tools"
+          },
           "comparison": "DSPy's 1-line parameter vs Pydantic-AI's 29-line decorators"
         },
         {
           "description": "Agent creation",
-          "vendor_a": {"lines": [91, 93], "component": "ReAct instantiation"},
-          "vendor_b": {"lines": [31, 35], "component": "Agent definition"},
+          "vendor_a": {
+            "lines": [
+              91,
+              93
+            ],
+            "component": "ReAct instantiation"
+          },
+          "vendor_b": {
+            "lines": [
+              31,
+              35
+            ],
+            "component": "Agent definition"
+          },
           "comparison": "DSPy's 3-line setup vs Pydantic-AI's 4-line agent"
         }
       ]
@@ -1704,31 +2871,87 @@
       "overall_winner": "dspy for simplicity, autogen for async needs",
       "pros_cons": {
         "dspy": {
-          "pros": ["More concise", "Simpler sync model", "Declarative", "No async complexity"],
-          "cons": ["No async support", "Docstring prompts", "Less flexible", "Black box"]
+          "pros": [
+            "More concise",
+            "Simpler sync model",
+            "Declarative",
+            "No async complexity"
+          ],
+          "cons": [
+            "No async support",
+            "Docstring prompts",
+            "Less flexible",
+            "Black box"
+          ]
         },
         "autogen": {
-          "pros": ["Async native", "Clean patterns", "Microsoft backing", "More flexible"],
-          "cons": ["Async complexity", "Slightly more code", "Framework dependency", "More setup"]
+          "pros": [
+            "Async native",
+            "Clean patterns",
+            "Microsoft backing",
+            "More flexible"
+          ],
+          "cons": [
+            "Async complexity",
+            "Slightly more code",
+            "Framework dependency",
+            "More setup"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Implementation approach",
-          "vendor_a": {"lines": [40, 81], "component": "Signature class"},
-          "vendor_b": {"lines": [33, 62], "component": "Async wrappers"},
+          "vendor_a": {
+            "lines": [
+              40,
+              81
+            ],
+            "component": "Signature class"
+          },
+          "vendor_b": {
+            "lines": [
+              33,
+              62
+            ],
+            "component": "Async wrappers"
+          },
           "comparison": "DSPy's 41-line signature vs AutoGen's 29-line async wrappers"
         },
         {
           "description": "Agent setup",
-          "vendor_a": {"lines": [91, 93], "component": "ReAct creation"},
-          "vendor_b": {"lines": [79, 85], "component": "AssistantAgent"},
+          "vendor_a": {
+            "lines": [
+              91,
+              93
+            ],
+            "component": "ReAct creation"
+          },
+          "vendor_b": {
+            "lines": [
+              79,
+              85
+            ],
+            "component": "AssistantAgent"
+          },
           "comparison": "DSPy's 3-line setup vs AutoGen's 6-line configuration"
         },
         {
           "description": "Main structure",
-          "vendor_a": {"lines": [99, 119], "component": "Sync main"},
-          "vendor_b": {"lines": [95, 135], "component": "Nested async main"},
+          "vendor_a": {
+            "lines": [
+              99,
+              119
+            ],
+            "component": "Sync main"
+          },
+          "vendor_b": {
+            "lines": [
+              95,
+              135
+            ],
+            "component": "Nested async main"
+          },
           "comparison": "DSPy's 20-line sync vs AutoGen's 40-line async pattern"
         }
       ]
@@ -1744,31 +2967,87 @@
       "overall_winner": "agno for simplicity, langgraph for features",
       "pros_cons": {
         "agno": {
-          "pros": ["Most concise", "Simple sync", "Direct approach", "Easy to understand"],
-          "cons": ["No async", "Limited features", "Basic functionality", "No ecosystem"]
+          "pros": [
+            "Most concise",
+            "Simple sync",
+            "Direct approach",
+            "Easy to understand"
+          ],
+          "cons": [
+            "No async",
+            "Limited features",
+            "Basic functionality",
+            "No ecosystem"
+          ]
         },
         "langgraph": {
-          "pros": ["Async support", "Rich ecosystem", "Graph workflows", "Streaming"],
-          "cons": ["60% more code", "Complex setup", "Heavy dependencies", "Async overhead"]
+          "pros": [
+            "Async support",
+            "Rich ecosystem",
+            "Graph workflows",
+            "Streaming"
+          ],
+          "cons": [
+            "60% more code",
+            "Complex setup",
+            "Heavy dependencies",
+            "Async overhead"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Complete implementation",
-          "vendor_a": {"lines": [1, 104], "component": "Full file"},
-          "vendor_b": {"lines": [1, 166], "component": "Full file"},
+          "vendor_a": {
+            "lines": [
+              1,
+              104
+            ],
+            "component": "Full file"
+          },
+          "vendor_b": {
+            "lines": [
+              1,
+              166
+            ],
+            "component": "Full file"
+          },
           "comparison": "Agno's 104 lines vs LangGraph's 166 lines - 60% more code"
         },
         {
           "description": "Tool handling",
-          "vendor_a": {"lines": [62, 62], "component": "tools parameter"},
-          "vendor_b": {"lines": [63, 96], "component": "Tool wrappers"},
+          "vendor_a": {
+            "lines": [
+              62,
+              62
+            ],
+            "component": "tools parameter"
+          },
+          "vendor_b": {
+            "lines": [
+              63,
+              96
+            ],
+            "component": "Tool wrappers"
+          },
           "comparison": "Agno's 1-line parameter vs LangGraph's 33-line wrappers"
         },
         {
           "description": "Agent execution",
-          "vendor_a": {"lines": [67, 67], "component": "agent.run"},
-          "vendor_b": {"lines": [111, 118], "component": "agent.invoke"},
+          "vendor_a": {
+            "lines": [
+              67,
+              67
+            ],
+            "component": "agent.run"
+          },
+          "vendor_b": {
+            "lines": [
+              111,
+              118
+            ],
+            "component": "agent.invoke"
+          },
           "comparison": "Agno's 1-line run vs LangGraph's 7-line invocation"
         }
       ]
@@ -1784,31 +3063,87 @@
       "overall_winner": "agno for minimalism, autogen for async apps",
       "pros_cons": {
         "agno": {
-          "pros": ["Most minimal", "Sync simplicity", "Direct API", "Low complexity"],
-          "cons": ["No async", "Basic features", "Limited extensibility", "Less powerful"]
+          "pros": [
+            "Most minimal",
+            "Sync simplicity",
+            "Direct API",
+            "Low complexity"
+          ],
+          "cons": [
+            "No async",
+            "Basic features",
+            "Limited extensibility",
+            "Less powerful"
+          ]
         },
         "autogen": {
-          "pros": ["Async support", "Clean code", "More features", "Microsoft patterns"],
-          "cons": ["More complex", "Async overhead", "More dependencies", "Verbose setup"]
+          "pros": [
+            "Async support",
+            "Clean code",
+            "More features",
+            "Microsoft patterns"
+          ],
+          "cons": [
+            "More complex",
+            "Async overhead",
+            "More dependencies",
+            "Verbose setup"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Model setup",
-          "vendor_a": {"lines": [36, 53], "component": "ModelFactory"},
-          "vendor_b": {"lines": [74, 76], "component": "OpenAIChatCompletionClient"},
+          "vendor_a": {
+            "lines": [
+              36,
+              53
+            ],
+            "component": "ModelFactory"
+          },
+          "vendor_b": {
+            "lines": [
+              74,
+              76
+            ],
+            "component": "OpenAIChatCompletionClient"
+          },
           "comparison": "Agno's 17-line factory vs AutoGen's 2-line client"
         },
         {
           "description": "Main function",
-          "vendor_a": {"lines": [77, 104], "component": "Sync main"},
-          "vendor_b": {"lines": [95, 135], "component": "Async main wrapper"},
+          "vendor_a": {
+            "lines": [
+              77,
+              104
+            ],
+            "component": "Sync main"
+          },
+          "vendor_b": {
+            "lines": [
+              95,
+              135
+            ],
+            "component": "Async main wrapper"
+          },
           "comparison": "Agno's 27-line sync vs AutoGen's 40-line async"
         },
         {
           "description": "Agent execution",
-          "vendor_a": {"lines": [59, 74], "component": "Agent setup and run"},
-          "vendor_b": {"lines": [79, 92], "component": "AssistantAgent and run"},
+          "vendor_a": {
+            "lines": [
+              59,
+              74
+            ],
+            "component": "Agent setup and run"
+          },
+          "vendor_b": {
+            "lines": [
+              79,
+              92
+            ],
+            "component": "AssistantAgent and run"
+          },
           "comparison": "Agno's 15 lines vs AutoGen's 13 lines - similar complexity"
         }
       ]
@@ -1824,31 +3159,87 @@
       "overall_winner": "Context dependent - agno for prototypes, atomic-agents for production",
       "pros_cons": {
         "agno": {
-          "pros": ["Minimal code", "Quick setup", "Easy to understand", "Low overhead"],
-          "cons": ["No type safety", "Limited structure", "Basic features", "Less maintainable"]
+          "pros": [
+            "Minimal code",
+            "Quick setup",
+            "Easy to understand",
+            "Low overhead"
+          ],
+          "cons": [
+            "No type safety",
+            "Limited structure",
+            "Basic features",
+            "Less maintainable"
+          ]
         },
         "atomic-agents": {
-          "pros": ["Full type safety", "Enterprise patterns", "Structured tools", "Maintainable"],
-          "cons": ["2.25x more code", "Complex setup", "Heavy boilerplate", "Steep learning curve"]
+          "pros": [
+            "Full type safety",
+            "Enterprise patterns",
+            "Structured tools",
+            "Maintainable"
+          ],
+          "cons": [
+            "2.25x more code",
+            "Complex setup",
+            "Heavy boilerplate",
+            "Steep learning curve"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Type definitions",
-          "vendor_a": {"lines": [0, 0], "component": "No types"},
-          "vendor_b": {"lines": [34, 123], "component": "Schema classes"},
+          "vendor_a": {
+            "lines": [
+              0,
+              0
+            ],
+            "component": "No types"
+          },
+          "vendor_b": {
+            "lines": [
+              34,
+              123
+            ],
+            "component": "Schema classes"
+          },
           "comparison": "Agno has no type definitions vs Atomic's 89 lines of schemas"
         },
         {
           "description": "Tool integration",
-          "vendor_a": {"lines": [62, 62], "component": "tools parameter"},
-          "vendor_b": {"lines": [66, 123], "component": "Tool class implementations"},
+          "vendor_a": {
+            "lines": [
+              62,
+              62
+            ],
+            "component": "tools parameter"
+          },
+          "vendor_b": {
+            "lines": [
+              66,
+              123
+            ],
+            "component": "Tool class implementations"
+          },
           "comparison": "Agno's 1-line parameter vs Atomic's 57-line tool classes"
         },
         {
           "description": "Agent setup",
-          "vendor_a": {"lines": [59, 64], "component": "Agent creation"},
-          "vendor_b": {"lines": [156, 196], "component": "TechWriterAgent class"},
+          "vendor_a": {
+            "lines": [
+              59,
+              64
+            ],
+            "component": "Agent creation"
+          },
+          "vendor_b": {
+            "lines": [
+              156,
+              196
+            ],
+            "component": "TechWriterAgent class"
+          },
           "comparison": "Agno's 5-line setup vs Atomic's 40-line agent class"
         }
       ]
@@ -1864,31 +3255,87 @@
       "overall_winner": "pydantic-ai for clean code, langgraph for ecosystem",
       "pros_cons": {
         "langgraph": {
-          "pros": ["Rich ecosystem", "Graph workflows", "Streaming support", "LangChain integration"],
-          "cons": ["More complex", "Heavier dependencies", "Verbose setup", "Framework lock-in"]
+          "pros": [
+            "Rich ecosystem",
+            "Graph workflows",
+            "Streaming support",
+            "LangChain integration"
+          ],
+          "cons": [
+            "More complex",
+            "Heavier dependencies",
+            "Verbose setup",
+            "Framework lock-in"
+          ]
         },
         "pydantic-ai": {
-          "pros": ["Cleaner patterns", "Dependency injection", "More concise", "Testable"],
-          "cons": ["Less ecosystem", "No graph features", "Framework patterns", "Hidden control"]
+          "pros": [
+            "Cleaner patterns",
+            "Dependency injection",
+            "More concise",
+            "Testable"
+          ],
+          "cons": [
+            "Less ecosystem",
+            "No graph features",
+            "Framework patterns",
+            "Hidden control"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Tool definition style",
-          "vendor_a": {"lines": [63, 96], "component": "Wrapper functions"},
-          "vendor_b": {"lines": [37, 66], "component": "Decorated methods"},
+          "vendor_a": {
+            "lines": [
+              63,
+              96
+            ],
+            "component": "Wrapper functions"
+          },
+          "vendor_b": {
+            "lines": [
+              37,
+              66
+            ],
+            "component": "Decorated methods"
+          },
           "comparison": "LangGraph's 33-line wrappers vs Pydantic-AI's 29-line decorators"
         },
         {
           "description": "Context handling",
-          "vendor_a": {"lines": [74, 74], "component": "Closure binding"},
-          "vendor_b": {"lines": [25, 29], "component": "Context class"},
+          "vendor_a": {
+            "lines": [
+              74,
+              74
+            ],
+            "component": "Closure binding"
+          },
+          "vendor_b": {
+            "lines": [
+              25,
+              29
+            ],
+            "component": "Context class"
+          },
           "comparison": "LangGraph uses closures vs Pydantic-AI's typed context"
         },
         {
           "description": "Agent execution",
-          "vendor_a": {"lines": [111, 118], "component": "agent.invoke"},
-          "vendor_b": {"lines": [86, 90], "component": "tech_writer.run"},
+          "vendor_a": {
+            "lines": [
+              111,
+              118
+            ],
+            "component": "agent.invoke"
+          },
+          "vendor_b": {
+            "lines": [
+              86,
+              90
+            ],
+            "component": "tech_writer.run"
+          },
           "comparison": "LangGraph's 7-line invoke vs Pydantic-AI's 4-line run"
         }
       ]
@@ -1904,31 +3351,87 @@
       "overall_winner": "langgraph for modern async apps, atomic-agents for type safety",
       "pros_cons": {
         "langgraph": {
-          "pros": ["Async native", "Graph workflows", "LangChain ecosystem", "More concise"],
-          "cons": ["Less type safety", "Framework dependency", "Complex setup", "Less structure"]
+          "pros": [
+            "Async native",
+            "Graph workflows",
+            "LangChain ecosystem",
+            "More concise"
+          ],
+          "cons": [
+            "Less type safety",
+            "Framework dependency",
+            "Complex setup",
+            "Less structure"
+          ]
         },
         "atomic-agents": {
-          "pros": ["Full type safety", "Clear structure", "Schema validation", "Enterprise patterns"],
-          "cons": ["No async", "More verbose", "Heavy boilerplate", "Complex schemas"]
+          "pros": [
+            "Full type safety",
+            "Clear structure",
+            "Schema validation",
+            "Enterprise patterns"
+          ],
+          "cons": [
+            "No async",
+            "More verbose",
+            "Heavy boilerplate",
+            "Complex schemas"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Type safety approach",
-          "vendor_a": {"lines": [0, 0], "component": "No schemas"},
-          "vendor_b": {"lines": [34, 123], "component": "Pydantic schemas"},
+          "vendor_a": {
+            "lines": [
+              0,
+              0
+            ],
+            "component": "No schemas"
+          },
+          "vendor_b": {
+            "lines": [
+              34,
+              123
+            ],
+            "component": "Pydantic schemas"
+          },
           "comparison": "LangGraph has no schemas vs Atomic's 89 lines of type definitions"
         },
         {
           "description": "Tool implementation",
-          "vendor_a": {"lines": [63, 96], "component": "Function wrappers"},
-          "vendor_b": {"lines": [66, 123], "component": "Tool classes"},
+          "vendor_a": {
+            "lines": [
+              63,
+              96
+            ],
+            "component": "Function wrappers"
+          },
+          "vendor_b": {
+            "lines": [
+              66,
+              123
+            ],
+            "component": "Tool classes"
+          },
           "comparison": "LangGraph's 33-line wrappers vs Atomic's 57-line classes"
         },
         {
           "description": "Async vs sync",
-          "vendor_a": {"lines": [36, 123], "component": "Async analyze_codebase"},
-          "vendor_b": {"lines": [198, 206], "component": "Sync analyse_codebase"},
+          "vendor_a": {
+            "lines": [
+              36,
+              123
+            ],
+            "component": "Async analyze_codebase"
+          },
+          "vendor_b": {
+            "lines": [
+              198,
+              206
+            ],
+            "component": "Sync analyse_codebase"
+          },
           "comparison": "LangGraph's 87-line async vs Atomic's 8-line sync function"
         }
       ]
@@ -1944,31 +3447,87 @@
       "overall_winner": "pydantic-ai for architecture, autogen for simplicity",
       "pros_cons": {
         "pydantic-ai": {
-          "pros": ["Dependency injection", "Decorator elegance", "Testable design", "Clean patterns"],
-          "cons": ["Framework conventions", "Hidden control flow", "Learning curve", "More abstraction"]
+          "pros": [
+            "Dependency injection",
+            "Decorator elegance",
+            "Testable design",
+            "Clean patterns"
+          ],
+          "cons": [
+            "Framework conventions",
+            "Hidden control flow",
+            "Learning curve",
+            "More abstraction"
+          ]
         },
         "autogen": {
-          "pros": ["Direct approach", "Simple async", "Clear flow", "Less magic"],
-          "cons": ["Less elegant", "No DI", "Basic patterns", "Less testable"]
+          "pros": [
+            "Direct approach",
+            "Simple async",
+            "Clear flow",
+            "Less magic"
+          ],
+          "cons": [
+            "Less elegant",
+            "No DI",
+            "Basic patterns",
+            "Less testable"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Tool definition approach",
-          "vendor_a": {"lines": [37, 66], "component": "Decorated tools"},
-          "vendor_b": {"lines": [33, 62], "component": "Async wrappers"},
+          "vendor_a": {
+            "lines": [
+              37,
+              66
+            ],
+            "component": "Decorated tools"
+          },
+          "vendor_b": {
+            "lines": [
+              33,
+              62
+            ],
+            "component": "Async wrappers"
+          },
           "comparison": "Both use ~29 lines but different patterns"
         },
         {
           "description": "Context/state management",
-          "vendor_a": {"lines": [25, 29], "component": "AnalysisContext"},
-          "vendor_b": {"lines": [0, 0], "component": "No explicit context"},
+          "vendor_a": {
+            "lines": [
+              25,
+              29
+            ],
+            "component": "AnalysisContext"
+          },
+          "vendor_b": {
+            "lines": [
+              0,
+              0
+            ],
+            "component": "No explicit context"
+          },
           "comparison": "Pydantic-AI's typed context vs AutoGen's implicit state"
         },
         {
           "description": "Agent pattern",
-          "vendor_a": {"lines": [31, 35], "component": "Global agent with DI"},
-          "vendor_b": {"lines": [79, 85], "component": "Local agent creation"},
+          "vendor_a": {
+            "lines": [
+              31,
+              35
+            ],
+            "component": "Global agent with DI"
+          },
+          "vendor_b": {
+            "lines": [
+              79,
+              85
+            ],
+            "component": "Local agent creation"
+          },
           "comparison": "Pydantic-AI's 4-line global vs AutoGen's 6-line local"
         }
       ]
@@ -1984,31 +3543,87 @@
       "overall_winner": "pydantic-ai for elegance, atomic-agents for enterprise",
       "pros_cons": {
         "pydantic-ai": {
-          "pros": ["More concise", "Async support", "Clean decorators", "Less boilerplate"],
-          "cons": ["Less structured", "Fewer schemas", "Hidden magic", "Less explicit"]
+          "pros": [
+            "More concise",
+            "Async support",
+            "Clean decorators",
+            "Less boilerplate"
+          ],
+          "cons": [
+            "Less structured",
+            "Fewer schemas",
+            "Hidden magic",
+            "Less explicit"
+          ]
         },
         "atomic-agents": {
-          "pros": ["Maximum type safety", "Explicit structure", "Clear patterns", "Schema validation"],
-          "cons": ["Very verbose", "No async", "Heavy setup", "Complex inheritance"]
+          "pros": [
+            "Maximum type safety",
+            "Explicit structure",
+            "Clear patterns",
+            "Schema validation"
+          ],
+          "cons": [
+            "Very verbose",
+            "No async",
+            "Heavy setup",
+            "Complex inheritance"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Schema definitions",
-          "vendor_a": {"lines": [25, 29], "component": "Single context class"},
-          "vendor_b": {"lines": [34, 123], "component": "Multiple schema classes"},
+          "vendor_a": {
+            "lines": [
+              25,
+              29
+            ],
+            "component": "Single context class"
+          },
+          "vendor_b": {
+            "lines": [
+              34,
+              123
+            ],
+            "component": "Multiple schema classes"
+          },
           "comparison": "Pydantic-AI's 4-line context vs Atomic's 89 lines of schemas"
         },
         {
           "description": "Tool implementation",
-          "vendor_a": {"lines": [37, 66], "component": "Decorated functions"},
-          "vendor_b": {"lines": [66, 123], "component": "Tool classes"},
+          "vendor_a": {
+            "lines": [
+              37,
+              66
+            ],
+            "component": "Decorated functions"
+          },
+          "vendor_b": {
+            "lines": [
+              66,
+              123
+            ],
+            "component": "Tool classes"
+          },
           "comparison": "Pydantic-AI's 29-line decorators vs Atomic's 57-line classes"
         },
         {
           "description": "Agent setup",
-          "vendor_a": {"lines": [31, 35], "component": "Simple agent"},
-          "vendor_b": {"lines": [170, 182], "component": "Complex config"},
+          "vendor_a": {
+            "lines": [
+              31,
+              35
+            ],
+            "component": "Simple agent"
+          },
+          "vendor_b": {
+            "lines": [
+              170,
+              182
+            ],
+            "component": "Complex config"
+          },
           "comparison": "Pydantic-AI's 4 lines vs Atomic's 12-line configuration"
         }
       ]
@@ -2024,31 +3639,87 @@
       "overall_winner": "autogen for simplicity, atomic-agents for robustness",
       "pros_cons": {
         "autogen": {
-          "pros": ["Async support", "Minimal code", "Direct approach", "Easy to understand"],
-          "cons": ["No type safety", "Basic structure", "Limited validation", "Less extensible"]
+          "pros": [
+            "Async support",
+            "Minimal code",
+            "Direct approach",
+            "Easy to understand"
+          ],
+          "cons": [
+            "No type safety",
+            "Basic structure",
+            "Limited validation",
+            "Less extensible"
+          ]
         },
         "atomic-agents": {
-          "pros": ["Full type safety", "Rich schemas", "Enterprise patterns", "Highly structured"],
-          "cons": ["No async", "73% more code", "Complex setup", "Steep learning curve"]
+          "pros": [
+            "Full type safety",
+            "Rich schemas",
+            "Enterprise patterns",
+            "Highly structured"
+          ],
+          "cons": [
+            "No async",
+            "73% more code",
+            "Complex setup",
+            "Steep learning curve"
+          ]
         }
       },
       "block_mappings": [
         {
           "description": "Type definitions",
-          "vendor_a": {"lines": [0, 0], "component": "No schemas"},
-          "vendor_b": {"lines": [34, 123], "component": "Schema classes"},
+          "vendor_a": {
+            "lines": [
+              0,
+              0
+            ],
+            "component": "No schemas"
+          },
+          "vendor_b": {
+            "lines": [
+              34,
+              123
+            ],
+            "component": "Schema classes"
+          },
           "comparison": "AutoGen has no schemas vs Atomic's 89 lines of types"
         },
         {
           "description": "Tool approach",
-          "vendor_a": {"lines": [33, 62], "component": "Simple wrappers"},
-          "vendor_b": {"lines": [66, 123], "component": "Tool classes"},
+          "vendor_a": {
+            "lines": [
+              33,
+              62
+            ],
+            "component": "Simple wrappers"
+          },
+          "vendor_b": {
+            "lines": [
+              66,
+              123
+            ],
+            "component": "Tool classes"
+          },
           "comparison": "AutoGen's 29-line wrappers vs Atomic's 57-line classes"
         },
         {
           "description": "Agent creation",
-          "vendor_a": {"lines": [79, 85], "component": "AssistantAgent"},
-          "vendor_b": {"lines": [156, 196], "component": "TechWriterAgent class"},
+          "vendor_a": {
+            "lines": [
+              79,
+              85
+            ],
+            "component": "AssistantAgent"
+          },
+          "vendor_b": {
+            "lines": [
+              156,
+              196
+            ],
+            "component": "TechWriterAgent class"
+          },
           "comparison": "AutoGen's 6-line setup vs Atomic's 40-line class"
         }
       ]
@@ -2059,6 +3730,152 @@
     "total_implementations": 8,
     "comparison_count": 28,
     "purpose": "Interactive side-by-side comparison of tech writer implementations"
+  },
+  "framework_assessments": {
+    "baremetal": {
+      "standout_features": {
+        "strengths": [
+          "Full control over every aspect of implementation",
+          "No framework dependencies or version conflicts",
+          "Transparent and debuggable - what you see is what you get",
+          "Educational value - shows how agents work under the hood"
+        ],
+        "weaknesses": [
+          "Extremely verbose - requires 300+ lines for basic functionality",
+          "Reinvents many wheels (retry logic, tool calling, etc.)",
+          "No built-in abstractions or helper functions",
+          "Higher maintenance burden"
+        ]
+      },
+      "when_to_choose": "Choose baremetal when you need complete control over implementation details, want to understand exactly what's happening, or when framework abstractions would add unwanted complexity to your specific use case.",
+      "tagline": "Maximum control, maximum effort"
+    },
+    "autogen": {
+      "standout_features": {
+        "strengths": [
+          "Microsoft-backed with active development",
+          "Built-in conversation patterns and agent orchestration",
+          "Good async support out of the box",
+          "Extensive documentation and examples"
+        ],
+        "weaknesses": [
+          "Can be overly complex for simple use cases",
+          "Abstraction can hide important details",
+          "Requires understanding of specific autogen patterns",
+          "Some boilerplate for agent setup"
+        ]
+      },
+      "when_to_choose": "Choose AutoGen when building multi-agent systems, need robust conversation management, or want enterprise-grade support and documentation from Microsoft.",
+      "tagline": "Enterprise-ready agent orchestration"
+    },
+    "pydantic-ai": {
+      "standout_features": {
+        "strengths": [
+          "Leverages Pydantic's excellent type safety",
+          "Clean, Pythonic API design",
+          "Structured output validation built-in",
+          "Minimal boilerplate for simple agents"
+        ],
+        "weaknesses": [
+          "Relatively new framework with evolving APIs",
+          "Smaller community compared to others",
+          "Limited to Pydantic's data modeling paradigm",
+          "Less flexibility for complex agent behaviors"
+        ]
+      },
+      "when_to_choose": "Choose Pydantic-AI when type safety and structured outputs are critical, you're already using Pydantic in your stack, or you want a clean, modern Python API.",
+      "tagline": "Type-safe AI agents"
+    },
+    "langgraph": {
+      "standout_features": {
+        "strengths": [
+          "Graph-based agent flow visualization",
+          "Part of LangChain ecosystem",
+          "Excellent for complex, stateful workflows",
+          "Built-in checkpointing and state management"
+        ],
+        "weaknesses": [
+          "Steeper learning curve for graph concepts",
+          "Can be overkill for simple agents",
+          "Requires understanding of state machines",
+          "More verbose for basic use cases"
+        ]
+      },
+      "when_to_choose": "Choose LangGraph when building complex, multi-step workflows with branching logic, need visual debugging of agent flows, or require sophisticated state management.",
+      "tagline": "Graph-powered agent workflows"
+    },
+    "dspy": {
+      "standout_features": {
+        "strengths": [
+          "Declarative approach to prompt engineering",
+          "Automatic prompt optimization capabilities",
+          "Research-backed methodology",
+          "Composable modules and signatures"
+        ],
+        "weaknesses": [
+          "Different mental model from traditional programming",
+          "Less intuitive for developers new to DSPy concepts",
+          "Smaller ecosystem compared to alternatives",
+          "Can be opaque when optimization doesn't work"
+        ]
+      },
+      "when_to_choose": "Choose DSPy when you want to optimize prompts automatically, prefer declarative over imperative style, or are building research-oriented applications.",
+      "tagline": "Declarative prompt programming"
+    },
+    "atomic-agents": {
+      "standout_features": {
+        "strengths": [
+          "Extremely minimal and lightweight",
+          "Easy to understand and modify",
+          "No complex abstractions to learn",
+          "Quick to get started"
+        ],
+        "weaknesses": [
+          "Limited built-in functionality",
+          "Less suitable for complex applications",
+          "Minimal ecosystem and tooling",
+          "May require more custom code"
+        ]
+      },
+      "when_to_choose": "Choose Atomic Agents when you want the simplest possible agent framework, need something between baremetal and full framework, or value simplicity over features.",
+      "tagline": "Minimalist agent design"
+    },
+    "adk-python": {
+      "standout_features": {
+        "strengths": [
+          "Purpose-built for agent development",
+          "Good balance of features and simplicity",
+          "Clean separation of concerns",
+          "Decent documentation"
+        ],
+        "weaknesses": [
+          "Smaller community than major frameworks",
+          "Less battle-tested in production",
+          "Fewer integrations available",
+          "Limited advanced features"
+        ]
+      },
+      "when_to_choose": "Choose ADK-Python when you want a framework specifically designed for agents without the overhead of larger ecosystems, or need a good middle ground between simple and complex.",
+      "tagline": "Purpose-built agent toolkit"
+    },
+    "agno": {
+      "standout_features": {
+        "strengths": [
+          "Novel approach to agent design",
+          "Interesting abstraction patterns",
+          "Good for experimental projects",
+          "Unique features not found elsewhere"
+        ],
+        "weaknesses": [
+          "Less mature than alternatives",
+          "Smaller community and ecosystem",
+          "Documentation could be more comprehensive",
+          "May have breaking changes"
+        ]
+      },
+      "when_to_choose": "Choose Agno when you want to experiment with new agent paradigms, don't mind being an early adopter, or find its specific features match your needs perfectly.",
+      "tagline": "Experimental agent patterns"
+    }
   }
 };
         
@@ -2081,7 +3898,8 @@
         ];
         
         let currentComparison = null;
-        let currentView = 'matrix';
+        let currentFramework = null; // For single framework view
+        let currentView = 'comparison'; // 'comparison' or 'framework'
         let codeElements = {}; // Store highlighted code elements
         
         // Initialize the app
@@ -2201,8 +4019,10 @@
             // Column headers
             vendors.forEach(vendor => {
                 const cell = document.createElement('div');
-                cell.className = 'matrix-cell header';
+                cell.className = 'matrix-cell header clickable';
                 cell.textContent = vendor;
+                cell.dataset.vendor = vendor;
+                cell.onclick = () => showFrameworkAssessment(vendor);
                 grid.appendChild(cell);
             });
             
@@ -2210,8 +4030,10 @@
             vendors.forEach(vendorA => {
                 // Row header
                 const rowHeader = document.createElement('div');
-                rowHeader.className = 'matrix-cell header';
+                rowHeader.className = 'matrix-cell header clickable';
                 rowHeader.textContent = vendorA;
+                rowHeader.dataset.vendor = vendorA;
+                rowHeader.onclick = () => showFrameworkAssessment(vendorA);
                 grid.appendChild(rowHeader);
                 
                 // Cells
@@ -2261,11 +4083,11 @@
             if (!comparison) return;
             
             currentComparison = comparison;
+            currentView = 'comparison';
+            currentFramework = null;
             
-            // Clear previous selection
-            document.querySelectorAll('.matrix-cell.selected').forEach(cell => {
-                cell.classList.remove('selected');
-            });
+            // Clear all selections
+            clearAllSelections();
             
             // Mark current cell as selected
             const currentCell = document.querySelector(`.matrix-cell[data-vendor-a="${vendorA}"][data-vendor-b="${vendorB}"]`) ||
@@ -2307,6 +4129,40 @@
         
         function loadCodeComparison(comparison) {
             console.log('Loading comparison:', comparison.vendor_a, 'vs', comparison.vendor_b);
+            
+            // Restore two-panel view if needed
+            const codeBrowser = document.getElementById('code-browser');
+            if (codeBrowser.querySelector('.single-framework')) {
+                // Restore the original two-panel layout
+                codeBrowser.innerHTML = `
+                    <div class="code-panel">
+                        <div class="code-header" id="code-header-a">Select a comparison</div>
+                        <div class="code-content" id="code-content-a">
+                            <div id="code-empty-a" style="padding: 20px; color: #666; text-align: center;">
+                                <p>Select two frameworks to compare</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="comparison-list" id="comparison-list">
+                        <div id="comparison-empty" style="padding: 20px; color: #666; text-align: center;">
+                            <p>Code comparisons will appear here</p>
+                        </div>
+                    </div>
+                    
+                    <div class="code-panel">
+                        <div class="code-header" id="code-header-b">Select a comparison</div>
+                        <div class="code-content" id="code-content-b">
+                            <div id="code-empty-b" style="padding: 20px; color: #666; text-align: center;">
+                                <p>Select two frameworks to compare</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Reset code elements cache
+                codeElements = {};
+            }
             
             // Set headers
             document.getElementById('code-header-a').textContent = comparison.vendor_a;
@@ -2487,6 +4343,150 @@
         }
         
         
+        function showFrameworkAssessment(vendor) {
+            console.log(`Showing framework assessment for ${vendor}`);
+            
+            currentFramework = vendor;
+            currentView = 'framework';
+            
+            // Clear previous selections
+            clearAllSelections();
+            
+            // Highlight row and column for this vendor
+            highlightVendorRowColumn(vendor);
+            
+            // Display framework assessment
+            displayFrameworkOverview(vendor);
+            
+            // Load single framework code
+            loadSingleFrameworkCode(vendor);
+        }
+        
+        function clearAllSelections() {
+            // Clear cell selections
+            document.querySelectorAll('.matrix-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            
+            // Clear row/column highlights
+            document.querySelectorAll('.matrix-cell').forEach(cell => {
+                cell.classList.remove('row-highlight', 'col-highlight', 'row-col-highlight');
+            });
+        }
+        
+        function highlightVendorRowColumn(vendor) {
+            const cells = document.querySelectorAll('.matrix-cell');
+            const vendors = getUniqueVendors();
+            const vendorIndex = vendors.indexOf(vendor);
+            
+            if (vendorIndex === -1) return;
+            
+            cells.forEach((cell, index) => {
+                const row = Math.floor(index / (vendors.length + 1));
+                const col = index % (vendors.length + 1);
+                
+                // Highlight row (skip first column which is headers)
+                if (row === vendorIndex + 1 && col > 0) {
+                    cell.classList.add('row-highlight');
+                }
+                
+                // Highlight column (skip first row which is headers)
+                if (col === vendorIndex + 1 && row > 0) {
+                    cell.classList.add('col-highlight');
+                }
+                
+                // Highlight intersection
+                if (row === vendorIndex + 1 && col === vendorIndex + 1) {
+                    cell.classList.add('row-col-highlight');
+                }
+            });
+        }
+        
+        function displayFrameworkOverview(vendor) {
+            // Hide empty state
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('comparison-details').style.display = 'block';
+            
+            // Check if we have framework assessments
+            const assessment = matrixData.framework_assessments && matrixData.framework_assessments[vendor];
+            
+            if (!assessment) {
+                // Fallback display if no assessment data
+                document.getElementById('comparison-details').innerHTML = `
+                    <div class="framework-overview">
+                        <h2>${vendor} Framework Overview</h2>
+                        <p>Framework assessment data not available. Please regenerate matrix.json with the updated prompt.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Build the framework overview HTML
+            const overviewHTML = `
+                <div class="framework-overview">
+                    <div class="framework-header">
+                        <h2>${vendor}</h2>
+                        <span class="framework-tagline">${assessment.tagline}</span>
+                    </div>
+                    
+                    <div class="when-to-choose">
+                        <h3>When to Choose</h3>
+                        <p>${assessment.when_to_choose}</p>
+                    </div>
+                    
+                    <div class="standout-features">
+                        <div class="strengths">
+                            <h3>Strengths</h3>
+                            <ul>
+                                ${assessment.standout_features.strengths.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                        
+                        <div class="weaknesses">
+                            <h3>Weaknesses</h3>
+                            <ul>
+                                ${assessment.standout_features.weaknesses.map(w => `<li>${w}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <button class="view-code-btn" onclick="focusOnCode()">View Full Implementation</button>
+                </div>
+            `;
+            
+            document.getElementById('comparison-details').innerHTML = overviewHTML;
+        }
+        
+        function loadSingleFrameworkCode(vendor) {
+            const codeBrowser = document.getElementById('code-browser');
+            const code = codeFiles[vendor];
+            
+            if (!code) {
+                console.error(`No code found for ${vendor}`);
+                return;
+            }
+            
+            // Reconfigure code browser for single panel view
+            codeBrowser.innerHTML = `
+                <div class="code-panel single-framework">
+                    <div class="code-header">${vendor} Implementation</div>
+                    <div class="code-content" id="code-content-single">
+                        <pre><code id="code-single" class="language-python">${escapeHtml(code)}</code></pre>
+                    </div>
+                </div>
+            `;
+            
+            // Apply syntax highlighting
+            const codeEl = document.getElementById('code-single');
+            hljs.highlightElement(codeEl);
+            hljs.lineNumbersBlock(codeEl);
+        }
+        
+        function focusOnCode() {
+            const codeBrowser = document.getElementById('code-browser');
+            codeBrowser.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
         function setupEventListeners() {
             // Add any additional event listeners here if needed
         }
@@ -2657,12 +4657,48 @@
                 // Build system prompt using the already-loaded matrixData
                 const systemPrompt = `You are a tech writer agent support agent. You host an app that helps a user compare implementations of a tech writer agent using various different open source python packages. You respond to the questions in a tone of voice profile as defined below, in response to the tech writer agent data provided, also below. Regarding answer content, as a chatbot your answers are incredibly accurate, concise and to the point.
 
+<acceptable-topics>
+    Only respond to discussions about the tech writer implementations provided. Anything off topic, politely decline and ask to keep discussions on topic. 
+</acceptable-topics>
 <tech-writer-comparison>
 ${JSON.stringify(matrixData, null, 2)}
 </tech-writer-comparison>
 
 <tone-profile>
-You are helpful, knowledgeable, and concise. You provide direct answers without unnecessary elaboration. When comparing implementations, you focus on practical differences that matter to developers. You avoid marketing speak and stick to factual comparisons based on the data provided.
+Skeptical Optimism (Core Dimension):
+Description: A foundational tone that approaches claims with healthy skepticism but maintains an underlying optimism about the potential of Vibe Coding and AI agents. It questions hype while looking for genuine value and practical applications.
+Example from User: "truthful skeptical but optimistic."
+Application: Critically evaluate tools and success stories, acknowledge limitations and potential pitfalls, but ultimately highlight the empowering aspects and future possibilities in a positive light.
+Upbeat & Engaging:
+Description: The overall energy should be positive, enthusiastic, and engaging, drawing the reader in rather than presenting information dryly.
+Example from User: "more upbeat."
+Application: Use active voice, varied sentence structure, and a generally positive framing, even when discussing complex or challenging topics.
+Truthful & Accurate (Evidence-Based):
+Description: All information, especially claims and technical descriptions, must be grounded in verifiable facts and evidence. Avoid making unsubstantiated statements.
+Example from User: "still very truthful."
+Application: Prioritize accuracy in describing tools, technologies, and case studies. Clearly distinguish between established facts, reported claims (with sources), and speculative future trends.
+Slightly Sarcastic / Witty Humor:
+Description: Incorporate occasional, subtle sarcasm or witty observations to add personality and make the content more relatable and entertaining. The humor should be intelligent and not overly broad or offensive.
+Example from User: "slightly sarcastic, funny occasionally."
+Application: Use sparingly in appropriate contexts, perhaps when commenting on industry hype, common misconceptions, or the quirks of technology. It should lighten the tone without undermining credibility.
+Analytical & Discerning:
+Description: A critical thinking approach that dissects information, compares and contrasts, and doesn't take claims at face value. This aligns with the "skeptical" aspect.
+Application: When discussing tools, provide balanced comparisons. When analyzing case studies, look for underlying factors of success or failure, and question the generalizability of results.
+Clear & Accessible (Non-Technical Focus):
+Description: While the author is knowledgeable, the language must remain accessible to the target audience of non-technical people with business ideas. Avoid jargon where possible, or explain it clearly.
+Application: Break down complex concepts into simpler terms. Use analogies or relatable examples. Focus on the implications and value for the reader, not just the technical details.
+Direct & Experiential:
+Description: The Substack conveys a sense of sharing direct experience and personal insights. The book should echo this by feeling authentic and based on real understanding, even if it's synthesizing broader research.
+Application: Frame advice and analysis in a way that feels like it's coming from someone who has navigated this space. Use phrases that suggest firsthand knowledge or deep consideration.
+Pragmatic & Action-Oriented:
+Description: While analytical, the tone should also be practical, offering readers actionable insights and takeaways they can apply to their own ideas and projects.
+Application: Conclude sections or chapters with clear summaries of key lessons or actionable steps. Focus on what the reader can do with the information.
+Confident but Humble:
+Description: The author's expertise should come through confidently, but without arrogance. Acknowledge the rapidly evolving nature of the field and the possibility of different perspectives.
+Application: Present information with conviction where it's well-supported, but be open about areas of uncertainty or ongoing debate.
+Conversational & Relatable:
+Description: Avoid overly academic or formal language. The tone should feel more like an engaging conversation with a knowledgeable guide.
+Application: Use contractions where appropriate. Address the reader directly at times (e.g., "you might find that..."). Incorporate rhetorical questions to stimulate thought.
 </tone-profile>
 
 Remember: Always base your answers on the comparison data provided above. Be accurate and specific when referencing implementation details, line counts, and feature comparisons.`;

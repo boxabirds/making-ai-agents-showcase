@@ -141,7 +141,7 @@ $CONTEXT"
     
     # Generate the matrix using llm
     echo "  Calling Gemini 2.0 Flash to generate comparisons..."
-    echo "$FULL_PROMPT" | llm -m gemini-2.0-flash-latest > "$MATRIX_FILE.tmp"
+    echo "$FULL_PROMPT" | llm -m gemini-2.0-flash > "$MATRIX_FILE.tmp"
     
     # Validate the JSON
     if python3 -m json.tool "$MATRIX_FILE.tmp" > /dev/null 2>&1; then

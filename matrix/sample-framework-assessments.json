@@ -1,0 +1,148 @@
+{
+  "framework_assessments": {
+    "baremetal": {
+      "standout_features": {
+        "strengths": [
+          "Full control over every aspect of implementation",
+          "No framework dependencies or version conflicts",
+          "Transparent and debuggable - what you see is what you get",
+          "Educational value - shows how agents work under the hood"
+        ],
+        "weaknesses": [
+          "Extremely verbose - requires 300+ lines for basic functionality",
+          "Reinvents many wheels (retry logic, tool calling, etc.)",
+          "No built-in abstractions or helper functions",
+          "Higher maintenance burden"
+        ]
+      },
+      "when_to_choose": "Choose baremetal when you need complete control over implementation details, want to understand exactly what's happening, or when framework abstractions would add unwanted complexity to your specific use case.",
+      "tagline": "Maximum control, maximum effort"
+    },
+    "autogen": {
+      "standout_features": {
+        "strengths": [
+          "Microsoft-backed with active development",
+          "Built-in conversation patterns and agent orchestration",
+          "Good async support out of the box",
+          "Extensive documentation and examples"
+        ],
+        "weaknesses": [
+          "Can be overly complex for simple use cases",
+          "Abstraction can hide important details",
+          "Requires understanding of specific autogen patterns",
+          "Some boilerplate for agent setup"
+        ]
+      },
+      "when_to_choose": "Choose AutoGen when building multi-agent systems, need robust conversation management, or want enterprise-grade support and documentation from Microsoft.",
+      "tagline": "Enterprise-ready agent orchestration"
+    },
+    "pydantic-ai": {
+      "standout_features": {
+        "strengths": [
+          "Leverages Pydantic's excellent type safety",
+          "Clean, Pythonic API design",
+          "Structured output validation built-in",
+          "Minimal boilerplate for simple agents"
+        ],
+        "weaknesses": [
+          "Relatively new framework with evolving APIs",
+          "Smaller community compared to others",
+          "Limited to Pydantic's data modeling paradigm",
+          "Less flexibility for complex agent behaviors"
+        ]
+      },
+      "when_to_choose": "Choose Pydantic-AI when type safety and structured outputs are critical, you're already using Pydantic in your stack, or you want a clean, modern Python API.",
+      "tagline": "Type-safe AI agents"
+    },
+    "langgraph": {
+      "standout_features": {
+        "strengths": [
+          "Graph-based agent flow visualization",
+          "Part of LangChain ecosystem",
+          "Excellent for complex, stateful workflows",
+          "Built-in checkpointing and state management"
+        ],
+        "weaknesses": [
+          "Steeper learning curve for graph concepts",
+          "Can be overkill for simple agents",
+          "Requires understanding of state machines",
+          "More verbose for basic use cases"
+        ]
+      },
+      "when_to_choose": "Choose LangGraph when building complex, multi-step workflows with branching logic, need visual debugging of agent flows, or require sophisticated state management.",
+      "tagline": "Graph-powered agent workflows"
+    },
+    "dspy": {
+      "standout_features": {
+        "strengths": [
+          "Declarative approach to prompt engineering",
+          "Automatic prompt optimization capabilities",
+          "Research-backed methodology",
+          "Composable modules and signatures"
+        ],
+        "weaknesses": [
+          "Different mental model from traditional programming",
+          "Less intuitive for developers new to DSPy concepts",
+          "Smaller ecosystem compared to alternatives",
+          "Can be opaque when optimization doesn't work"
+        ]
+      },
+      "when_to_choose": "Choose DSPy when you want to optimize prompts automatically, prefer declarative over imperative style, or are building research-oriented applications.",
+      "tagline": "Declarative prompt programming"
+    },
+    "atomic-agents": {
+      "standout_features": {
+        "strengths": [
+          "Extremely minimal and lightweight",
+          "Easy to understand and modify",
+          "No complex abstractions to learn",
+          "Quick to get started"
+        ],
+        "weaknesses": [
+          "Limited built-in functionality",
+          "Less suitable for complex applications",
+          "Minimal ecosystem and tooling",
+          "May require more custom code"
+        ]
+      },
+      "when_to_choose": "Choose Atomic Agents when you want the simplest possible agent framework, need something between baremetal and full framework, or value simplicity over features.",
+      "tagline": "Minimalist agent design"
+    },
+    "adk-python": {
+      "standout_features": {
+        "strengths": [
+          "Purpose-built for agent development",
+          "Good balance of features and simplicity",
+          "Clean separation of concerns",
+          "Decent documentation"
+        ],
+        "weaknesses": [
+          "Smaller community than major frameworks",
+          "Less battle-tested in production",
+          "Fewer integrations available",
+          "Limited advanced features"
+        ]
+      },
+      "when_to_choose": "Choose ADK-Python when you want a framework specifically designed for agents without the overhead of larger ecosystems, or need a good middle ground between simple and complex.",
+      "tagline": "Purpose-built agent toolkit"
+    },
+    "agno": {
+      "standout_features": {
+        "strengths": [
+          "Novel approach to agent design",
+          "Interesting abstraction patterns",
+          "Good for experimental projects",
+          "Unique features not found elsewhere"
+        ],
+        "weaknesses": [
+          "Less mature than alternatives",
+          "Smaller community and ecosystem",
+          "Documentation could be more comprehensive",
+          "May have breaking changes"
+        ]
+      },
+      "when_to_choose": "Choose Agno when you want to experiment with new agent paradigms, don't mind being an early adopter, or find its specific features match your needs perfectly.",
+      "tagline": "Experimental agent patterns"
+    }
+  }
+}
