@@ -1323,10 +1323,9 @@
             // Apply syntax highlighting
             hljs.highlightElement(codeEl);
             
-            // Add line numbers
+            // Add line numbers with custom starting number
             hljs.lineNumbersBlock(codeEl, {
-                singleLine: true,
-                startFrom: 1
+                singleLine: true
             });
             
             // Store the code element for later highlighting
@@ -1391,9 +1390,14 @@
             // Find all line rows in the code element
             const lineRows = codeEl.querySelectorAll('.hljs-ln-line');
             
+            // Since we're displaying the entire file and highlight.js renumbers from 1,
+            // we use the index + 1 to match the displayed line numbers
             lineRows.forEach((row, index) => {
-                const lineNum = index + 1;
-                if (lineNum >= start && lineNum <= end) {
+                const displayedLineNum = index + 1;
+                
+                // The matrix.json contains absolute line numbers from the source file,
+                // but since we show the entire file, they match the displayed numbers
+                if (displayedLineNum >= start && displayedLineNum <= end) {
                     row.classList.add('highlighted');
                     row.style.setProperty('--highlight-color', color);
                     
