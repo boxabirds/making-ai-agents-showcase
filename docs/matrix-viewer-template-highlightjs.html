@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Writer Implementation Comparison Matrix</title>
+    
+    <!-- Highlight.js CSS - GitHub theme for clean code display -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+    
+    <!-- Highlight.js core library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    
+    <!-- Highlight.js Python language support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+    
+    <!-- Line numbers plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+    
+    <style>
+        /* Line number styling for highlight.js */
+        .hljs-ln {
+            width: 100%;
+        }
+        
+        .hljs-ln-numbers {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            text-align: right;
+            color: #999;
+            border-right: 1px solid #ddd;
+            vertical-align: top;
+            padding-right: 10px !important;
+            padding-left: 5px !important;
+            width: 50px;
+            white-space: nowrap;
+        }
+
+        .hljs-ln-code {
+            padding-left: 15px !important;
+        }
+        
+        /* Override highlight.js styles for our layout */
+        .code-content pre {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            overflow: visible;
+        }
+        
+        .code-content code {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.5;
+            background: transparent;
+            padding: 0;
+        }
+        
+        /* Highlight blocks for comparison */
+        .hljs-ln-line.highlighted {
+            background-color: var(--highlight-color) !important;
+            transition: background-color 0.3s ease;
+        }
+        
+        .hljs-ln-line {
+            display: table-row;
+        }
+        
+        /* Fix table display for proper highlighting */
+        .hljs-ln tbody {
+            display: table-row-group;
+        }
+        
+        .hljs-ln tr {
+            display: table-row;
+        }
+        
+        .hljs-ln td {
+            display: table-cell;
+        }
+    </style>
+    
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --accent-color: #0066cc;
+            --winner-color: #28a745;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --font-mono: 'SF Mono', Monaco, Consolas, 'Courier New', monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        /* Matrix View */
+        .matrix-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 1px;
+            background: var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .matrix-cell {
+            background: var(--bg-primary);
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            position: relative;
+            border: 2px solid transparent;
+        }
+
+        .matrix-cell:hover {
+            background: var(--bg-tertiary);
+            transform: scale(1.02);
+            box-shadow: var(--shadow-sm);
+            z-index: 1;
+        }
+
+        .matrix-cell.selected {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .matrix-cell.selected:hover {
+            background: #0052a3;
+            transform: scale(1.05);
+        }
+
+        .matrix-cell.header {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .matrix-cell.header:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .matrix-cell.disabled {
+            background: var(--bg-secondary);
+            cursor: default;
+            opacity: 0.5;
+        }
+
+        .matrix-cell.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Comparison Panel */
+        .comparison-panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+            display: none;
+        }
+
+        .comparison-panel.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .comparison-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .comparison-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .winner-badge {
+            background: var(--winner-color);
+            color: white;
+            padding: 0.25rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .comparison-summary {
+            margin-bottom: 2rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .pros-cons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .vendor-section {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .vendor-name {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+        }
+
+        .suitability {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+
+        .pros-list, .cons-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .pros-list li, .cons-list li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .pros-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--winner-color);
+            font-weight: bold;
+        }
+
+        .cons-list li::before {
+            content: "×";
+            position: absolute;
+            left: 0;
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .view-code-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .view-code-btn:hover {
+            background: #0052a3;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Code Browser */
+        .code-browser {
+            height: 50%;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            display: grid;
+            grid-template-columns: 1fr 400px 1fr;
+            gap: 1px;
+            background: var(--border-color);
+        }
+
+        .code-panel {
+            background: var(--bg-primary);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-header {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            font-weight: 600;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .code-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            padding: 1rem;
+            background: #f8f8f8;
+        }
+
+        .comparison-list {
+            background: var(--bg-secondary);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .block-comparison {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .block-comparison:hover {
+            box-shadow: var(--shadow-sm);
+            transform: translateX(-2px);
+        }
+
+        .block-comparison.active {
+            border-left: 4px solid var(--accent-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .block-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .block-details {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .block-comparison-text {
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* Layout Structure */
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 6rem);
+            gap: 1rem;
+        }
+
+        .top-row {
+            display: flex;
+            gap: 0;
+            height: 45%;
+            min-height: 400px;
+            position: relative;
+        }
+
+        .matrix-section {
+            flex: 1;
+            min-width: 300px;
+            overflow: auto;
+        }
+
+        .details-section {
+            flex: 1;
+            min-width: 400px;
+            overflow: auto;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        /* Draggable separators */
+        .separator {
+            width: 8px;
+            background: var(--bg-tertiary);
+            cursor: col-resize;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .separator:hover {
+            background: var(--accent-color);
+        }
+
+        .separator::after {
+            content: '⋮';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+        }
+
+        .separator-horizontal {
+            height: 8px;
+            width: 100%;
+            background: var(--bg-tertiary);
+            cursor: row-resize;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .separator-horizontal:hover {
+            background: var(--accent-color);
+        }
+
+        .separator-horizontal::after {
+            content: '⋯';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .code-browser.active {
+                grid-template-columns: 1fr 300px 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .pros-cons-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .code-browser.active {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+            }
+            
+            .comparison-list {
+                order: -1;
+                max-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tech Writer Implementation Comparison</h1>
+        
+        <div class="main-layout">
+            <!-- Top row: Matrix and Comparison Details -->
+            <div class="top-row">
+                <div class="matrix-section">
+                    <div class="matrix-container">
+                        <div id="matrix-grid" class="matrix-grid"></div>
+                    </div>
+                </div>
+                
+                <div class="separator" id="separator"></div>
+                
+                <div class="details-section">
+                    <div id="empty-state" style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+                        <h2 style="margin-bottom: 1rem;">Select Two Frameworks to Compare</h2>
+                        <p>Click on any ⚖️ cell in the matrix to see a detailed comparison</p>
+                    </div>
+                    
+                    <div id="comparison-details" style="display: none;">
+                        <div class="comparison-header">
+                            <h2 class="comparison-title" id="comparison-title"></h2>
+                            <span class="winner-badge" id="winner-badge"></span>
+                        </div>
+                        
+                        <p class="comparison-summary" id="comparison-summary"></p>
+                        
+                        <div class="pros-cons-grid">
+                            <div class="vendor-section">
+                                <h3 class="vendor-name" id="vendor-a-name"></h3>
+                                <p class="suitability" id="vendor-a-suitability"></p>
+                                <h4>Pros</h4>
+                                <ul class="pros-list" id="vendor-a-pros"></ul>
+                                <h4 style="margin-top: 1rem;">Cons</h4>
+                                <ul class="cons-list" id="vendor-a-cons"></ul>
+                            </div>
+                            
+                            <div class="vendor-section">
+                                <h3 class="vendor-name" id="vendor-b-name"></h3>
+                                <p class="suitability" id="vendor-b-suitability"></p>
+                                <h4>Pros</h4>
+                                <ul class="pros-list" id="vendor-b-pros"></ul>
+                                <h4 style="margin-top: 1rem;">Cons</h4>
+                                <ul class="cons-list" id="vendor-b-cons"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="separator-horizontal" id="separator-horizontal"></div>
+            
+            <!-- Bottom row: Code Browser -->
+            <div id="code-browser" class="code-browser">
+                <div class="code-panel">
+                    <div class="code-header" id="code-header-a">Select a comparison</div>
+                    <div class="code-content" id="code-content-a">
+                        <div id="code-empty-a" style="padding: 20px; color: #666; text-align: center;">
+                            <p>Select two frameworks to compare</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="comparison-list" id="comparison-list">
+                    <div id="comparison-empty" style="padding: 20px; color: #666; text-align: center;">
+                        <p>Code comparisons will appear here</p>
+                    </div>
+                </div>
+                
+                <div class="code-panel">
+                    <div class="code-header" id="code-header-b">Select a comparison</div>
+                    <div class="code-content" id="code-content-b">
+                        <div id="code-empty-b" style="padding: 20px; color: #666; text-align: center;">
+                            <p>Select two frameworks to compare</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Matrix data will be injected here
+        const matrixData = /* MATRIX_DATA_PLACEHOLDER */;
+        
+        // Code content will be injected here
+        const codeFiles = /* CODE_FILES_PLACEHOLDER */;
+        
+        // Color palette for block mappings
+        const blockColors = [
+            '#e3f2fd', '#f3e5f5', '#e8f5e9', '#fff3e0', '#fce4ec',
+            '#e0f2f1', '#f1f8e9', '#ede7f6', '#e0f7fa', '#fff8e1'
+        ];
+        
+        let currentComparison = null;
+        let currentView = 'matrix';
+        let codeElements = {}; // Store highlighted code elements
+        
+        // Initialize the app
+        function init() {
+            console.log('Initializing app...');
+            console.log('Matrix data:', matrixData);
+            console.log('Code files:', Object.keys(codeFiles));
+            
+            buildMatrix();
+            setupEventListeners();
+            setupDraggableSeparator();
+        }
+        
+        // Setup draggable separator
+        function setupDraggableSeparator() {
+            // Vertical separator
+            const separator = document.getElementById('separator');
+            const topRow = document.querySelector('.top-row');
+            const matrixSection = document.querySelector('.matrix-section');
+            const detailsSection = document.querySelector('.details-section');
+            
+            let isResizingVertical = false;
+            
+            separator.addEventListener('mousedown', (e) => {
+                isResizingVertical = true;
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+            
+            // Horizontal separator
+            const separatorHorizontal = document.getElementById('separator-horizontal');
+            const mainLayout = document.querySelector('.main-layout');
+            const codeBrowser = document.getElementById('code-browser');
+            
+            let isResizingHorizontal = false;
+            
+            separatorHorizontal.addEventListener('mousedown', (e) => {
+                isResizingHorizontal = true;
+                document.body.style.cursor = 'row-resize';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isResizingVertical) {
+                    const containerLeft = topRow.getBoundingClientRect().left;
+                    const containerWidth = topRow.getBoundingClientRect().width;
+                    const newLeftWidth = e.clientX - containerLeft;
+                    const leftPercent = (newLeftWidth / containerWidth) * 100;
+                    const rightPercent = 100 - leftPercent;
+                    
+                    if (leftPercent > 20 && leftPercent < 80) {
+                        matrixSection.style.flex = `0 0 ${leftPercent}%`;
+                        detailsSection.style.flex = `0 0 ${rightPercent}%`;
+                    }
+                } else if (isResizingHorizontal) {
+                    const containerTop = mainLayout.getBoundingClientRect().top;
+                    const containerHeight = mainLayout.getBoundingClientRect().height;
+                    const newTopHeight = e.clientY - containerTop;
+                    const topPercent = (newTopHeight / containerHeight) * 100;
+                    const bottomPercent = 100 - topPercent;
+                    
+                    if (topPercent > 20 && topPercent < 80) {
+                        topRow.style.height = `${topPercent}%`;
+                        codeBrowser.style.height = `${bottomPercent}%`;
+                    }
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isResizingVertical = false;
+                isResizingHorizontal = false;
+                document.body.style.cursor = 'default';
+            });
+        }
+        
+        function buildMatrix() {
+            const vendors = getUniqueVendors();
+            const grid = document.getElementById('matrix-grid');
+            const gridSize = vendors.length + 1;
+            
+            grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+            
+            // Empty top-left cell
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'matrix-cell header';
+            grid.appendChild(emptyCell);
+            
+            // Column headers
+            vendors.forEach(vendor => {
+                const cell = document.createElement('div');
+                cell.className = 'matrix-cell header';
+                cell.textContent = vendor;
+                grid.appendChild(cell);
+            });
+            
+            // Rows
+            vendors.forEach(vendorA => {
+                // Row header
+                const rowHeader = document.createElement('div');
+                rowHeader.className = 'matrix-cell header';
+                rowHeader.textContent = vendorA;
+                grid.appendChild(rowHeader);
+                
+                // Cells
+                vendors.forEach(vendorB => {
+                    const cell = document.createElement('div');
+                    
+                    if (vendorA === vendorB) {
+                        cell.className = 'matrix-cell disabled';
+                        cell.textContent = '—';
+                    } else {
+                        const comparison = findComparison(vendorA, vendorB);
+                        if (comparison) {
+                            cell.className = 'matrix-cell';
+                            cell.textContent = '⚖️';
+                            cell.dataset.vendorA = vendorA;
+                            cell.dataset.vendorB = vendorB;
+                            cell.onclick = () => showComparison(vendorA, vendorB);
+                        } else {
+                            cell.className = 'matrix-cell disabled';
+                            cell.textContent = '·';
+                        }
+                    }
+                    
+                    grid.appendChild(cell);
+                });
+            });
+        }
+        
+        function getUniqueVendors() {
+            const vendors = new Set();
+            matrixData.comparisons.forEach(comp => {
+                vendors.add(comp.vendor_a);
+                vendors.add(comp.vendor_b);
+            });
+            return Array.from(vendors).sort();
+        }
+        
+        function findComparison(vendorA, vendorB) {
+            return matrixData.comparisons.find(comp => 
+                (comp.vendor_a === vendorA && comp.vendor_b === vendorB) ||
+                (comp.vendor_a === vendorB && comp.vendor_b === vendorA)
+            );
+        }
+        
+        function showComparison(vendorA, vendorB) {
+            const comparison = findComparison(vendorA, vendorB);
+            if (!comparison) return;
+            
+            currentComparison = comparison;
+            
+            // Clear previous selection
+            document.querySelectorAll('.matrix-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            
+            // Mark current cell as selected
+            const currentCell = document.querySelector(`.matrix-cell[data-vendor-a="${vendorA}"][data-vendor-b="${vendorB}"]`) ||
+                               document.querySelector(`.matrix-cell[data-vendor-a="${vendorB}"][data-vendor-b="${vendorA}"]`);
+            if (currentCell) {
+                currentCell.classList.add('selected');
+            }
+            
+            // Hide empty state, show comparison details
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('comparison-details').style.display = 'block';
+            
+            // Update comparison panel
+            document.getElementById('comparison-title').textContent = `${vendorA} vs ${vendorB}`;
+            document.getElementById('winner-badge').textContent = `Winner: ${comparison.overall_winner.split(' ')[0]}`;
+            document.getElementById('comparison-summary').textContent = comparison.summary;
+            
+            // Update vendor A
+            document.getElementById('vendor-a-name').textContent = vendorA;
+            document.getElementById('vendor-a-suitability').textContent = comparison.suitability[vendorA];
+            updateList('vendor-a-pros', comparison.pros_cons[vendorA].pros);
+            updateList('vendor-a-cons', comparison.pros_cons[vendorA].cons);
+            
+            // Update vendor B
+            document.getElementById('vendor-b-name').textContent = vendorB;
+            document.getElementById('vendor-b-suitability').textContent = comparison.suitability[vendorB];
+            updateList('vendor-b-pros', comparison.pros_cons[vendorB].pros);
+            updateList('vendor-b-cons', comparison.pros_cons[vendorB].cons);
+            
+            // Automatically load code comparison
+            loadCodeComparison(comparison);
+        }
+        
+        function updateList(id, items) {
+            const list = document.getElementById(id);
+            list.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+        }
+        
+        
+        function loadCodeComparison(comparison) {
+            console.log('Loading comparison:', comparison.vendor_a, 'vs', comparison.vendor_b);
+            
+            // Set headers
+            document.getElementById('code-header-a').textContent = comparison.vendor_a;
+            document.getElementById('code-header-b').textContent = comparison.vendor_b;
+            
+            // Load code
+            const codeA = codeFiles[comparison.vendor_a];
+            const codeB = codeFiles[comparison.vendor_b];
+            
+            console.log('Code A length:', codeA ? codeA.length : 'undefined');
+            console.log('Code B length:', codeB ? codeB.length : 'undefined');
+            
+            if (codeA && codeB) {
+                renderCode('code-content-a', codeA, comparison.vendor_a);
+                renderCode('code-content-b', codeB, comparison.vendor_b);
+                renderComparisons(comparison);
+            } else {
+                console.error('Missing code files:', !codeA ? comparison.vendor_a : '', !codeB ? comparison.vendor_b : '');
+            }
+        }
+        
+        function renderCode(elementId, code, vendor) {
+            const element = document.getElementById(elementId);
+            if (!element) {
+                console.error('Element not found:', elementId);
+                return;
+            }
+            
+            // Hide empty state
+            const emptyStateId = elementId.replace('code-content-', 'code-empty-');
+            const emptyState = document.getElementById(emptyStateId);
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+            
+            // Create pre and code elements for highlight.js
+            const pre = document.createElement('pre');
+            const codeEl = document.createElement('code');
+            codeEl.className = 'language-python';
+            codeEl.textContent = code;
+            pre.appendChild(codeEl);
+            
+            // Clear existing content and add new
+            element.innerHTML = '';
+            element.appendChild(pre);
+            
+            // Apply syntax highlighting
+            hljs.highlightElement(codeEl);
+            
+            // Add line numbers
+            hljs.lineNumbersBlock(codeEl);
+            
+            // Store the code element for later highlighting
+            codeElements[vendor] = codeEl;
+        }
+        
+        function renderComparisons(comparison) {
+            const list = document.getElementById('comparison-list');
+            
+            // Hide empty state
+            const emptyState = document.getElementById('comparison-empty');
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+            
+            list.innerHTML = comparison.block_mappings.map((mapping, index) => {
+                const color = blockColors[index % blockColors.length];
+                
+                return `<div class="block-comparison" data-index="${index}" 
+                         onclick="highlightBlocks(${index})"
+                         style="--block-color: ${color};">
+                    <div class="block-title">${mapping.description}</div>
+                    <div class="block-comparison-text">${mapping.comparison}</div>
+                </div>`;
+            }).join('');
+        }
+        
+        function highlightBlocks(index) {
+            if (!currentComparison) return;
+            
+            const mapping = currentComparison.block_mappings[index];
+            const color = blockColors[index % blockColors.length];
+            
+            // Clear previous highlights
+            document.querySelectorAll('.hljs-ln-line').forEach(line => {
+                line.classList.remove('highlighted');
+                line.style.setProperty('--highlight-color', '');
+            });
+            
+            // Clear previous active comparison
+            document.querySelectorAll('.block-comparison').forEach(block => {
+                block.classList.remove('active');
+            });
+            
+            // Mark comparison as active
+            document.querySelector(`[data-index="${index}"]`).classList.add('active');
+            
+            // Highlight and scroll vendor A
+            highlightAndScroll(currentComparison.vendor_a, mapping.vendor_a.lines, color);
+            
+            // Highlight and scroll vendor B
+            highlightAndScroll(currentComparison.vendor_b, mapping.vendor_b.lines, color);
+        }
+        
+        function highlightAndScroll(vendor, lines, color) {
+            const codeEl = codeElements[vendor];
+            if (!codeEl) return;
+            
+            const [start, end] = lines;
+            let firstHighlightedRow = null;
+            
+            // Find all line rows in the code element
+            const lineRows = codeEl.querySelectorAll('.hljs-ln-line');
+            
+            lineRows.forEach((row, index) => {
+                const lineNum = index + 1;
+                if (lineNum >= start && lineNum <= end) {
+                    row.classList.add('highlighted');
+                    row.style.setProperty('--highlight-color', color);
+                    
+                    if (!firstHighlightedRow) {
+                        firstHighlightedRow = row;
+                    }
+                }
+            });
+            
+            // Scroll to first highlighted line
+            if (firstHighlightedRow) {
+                const container = codeEl.parentElement.parentElement;
+                const rowTop = firstHighlightedRow.offsetTop;
+                const containerHeight = container.clientHeight;
+                const scrollPosition = rowTop - containerHeight / 3;
+                
+                container.scrollTo({
+                    top: scrollPosition,
+                    behavior: 'smooth'
+                });
+            }
+        }
+        
+        
+        function setupEventListeners() {
+            // Add any additional event listeners here if needed
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

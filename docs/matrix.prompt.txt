@@ -43,24 +43,8 @@ Requirements:
      * LLM integration
 
 4. COMPARISON SELECTION:
-   Create ALL possible pairwise comparisons (28 total for 8 implementations).
-   Each implementation should be compared with every other implementation.
-   
-   Required comparisons (all 28 unique pairs):
-   - baremetal vs: adk-python, dspy, agno, langgraph, pydantic-ai, autogen, atomic-agents
-   - adk-python vs: dspy, agno, langgraph, pydantic-ai, autogen, atomic-agents
-   - dspy vs: agno, langgraph, pydantic-ai, autogen, atomic-agents
-   - agno vs: langgraph, pydantic-ai, autogen, atomic-agents
-   - langgraph vs: pydantic-ai, autogen, atomic-agents
-   - pydantic-ai vs: autogen, atomic-agents
-   - autogen vs: atomic-agents
-   
-   These comparisons should showcase:
-   - Manual implementation vs framework abstractions
-   - Verbose vs minimal approaches
-   - Sync vs async patterns
-   - Different framework philosophies
-   - Type-safe vs dynamic approaches
+   Create ALL possible pairwise comparisons between the 8 implementations.
+   Each implementation should be compared with every other implementation exactly once.
 
 5. ANALYSIS APPROACH:
    For each implementation:
@@ -110,12 +94,5 @@ Requirements:
      }
    }
 
-Key insights to capture:
-- Baremetal implements everything manually (315 lines)
-- DSPy is the most minimal (119 lines)
-- Frameworks abstract away boilerplate but add dependencies
-- Tool integration varies from direct usage to complex wrappers
-- Async vs sync patterns affect code structure
-- Type safety (Atomic Agents, Pydantic-AI) vs simplicity trade-offs
 
 The goal is to create data for an interactive UI where clicking a code block in one implementation highlights the corresponding block(s) in the comparison implementation, helping users understand different approaches to the same problem.
