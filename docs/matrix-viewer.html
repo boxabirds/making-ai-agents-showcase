@@ -386,9 +386,9 @@
 
         /* Code highlighting */
         .code-block {
-            margin: 0.5rem 0;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
+            margin: 0;
+            padding: 0 0.5rem;
+            line-height: 1.2;
             transition: all 0.2s ease;
         }
 
@@ -443,7 +443,7 @@
             padding: 2rem;
         }
 
-        /* Draggable separator */
+        /* Draggable separators */
         .separator {
             width: 8px;
             background: var(--bg-tertiary);
@@ -464,6 +464,30 @@
             transform: translate(-50%, -50%);
             color: var(--text-secondary);
             font-size: 1.2rem;
+        }
+
+        .separator-horizontal {
+            height: 8px;
+            width: 100%;
+            background: var(--bg-tertiary);
+            cursor: row-resize;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .separator-horizontal:hover {
+            background: var(--accent-color);
+        }
+
+        .separator-horizontal::after {
+            content: '⋯';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            letter-spacing: 2px;
         }
 
         /* Responsive */
@@ -545,6 +569,8 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="separator-horizontal" id="separator-horizontal"></div>
             
             <!-- Bottom row: Code Browser -->
             <div id="code-browser" class="code-browser">
@@ -1799,36 +1825,62 @@
         
         // Setup draggable separator
         function setupDraggableSeparator() {
+            // Vertical separator
             const separator = document.getElementById('separator');
             const topRow = document.querySelector('.top-row');
             const matrixSection = document.querySelector('.matrix-section');
             const detailsSection = document.querySelector('.details-section');
             
-            let isResizing = false;
+            let isResizingVertical = false;
             
             separator.addEventListener('mousedown', (e) => {
-                isResizing = true;
+                isResizingVertical = true;
                 document.body.style.cursor = 'col-resize';
                 e.preventDefault();
             });
             
+            // Horizontal separator
+            const separatorHorizontal = document.getElementById('separator-horizontal');
+            const mainLayout = document.querySelector('.main-layout');
+            const codeBrowser = document.getElementById('code-browser');
+            
+            let isResizingHorizontal = false;
+            
+            separatorHorizontal.addEventListener('mousedown', (e) => {
+                isResizingHorizontal = true;
+                document.body.style.cursor = 'row-resize';
+                e.preventDefault();
+            });
+            
             document.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
-                
-                const containerLeft = topRow.getBoundingClientRect().left;
-                const containerWidth = topRow.getBoundingClientRect().width;
-                const newLeftWidth = e.clientX - containerLeft;
-                const leftPercent = (newLeftWidth / containerWidth) * 100;
-                const rightPercent = 100 - leftPercent;
-                
-                if (leftPercent > 20 && leftPercent < 80) {
-                    matrixSection.style.flex = `0 0 ${leftPercent}%`;
-                    detailsSection.style.flex = `0 0 ${rightPercent}%`;
+                if (isResizingVertical) {
+                    const containerLeft = topRow.getBoundingClientRect().left;
+                    const containerWidth = topRow.getBoundingClientRect().width;
+                    const newLeftWidth = e.clientX - containerLeft;
+                    const leftPercent = (newLeftWidth / containerWidth) * 100;
+                    const rightPercent = 100 - leftPercent;
+                    
+                    if (leftPercent > 20 && leftPercent < 80) {
+                        matrixSection.style.flex = `0 0 ${leftPercent}%`;
+                        detailsSection.style.flex = `0 0 ${rightPercent}%`;
+                    }
+                } else if (isResizingHorizontal) {
+                    const containerTop = mainLayout.getBoundingClientRect().top;
+                    const containerHeight = mainLayout.getBoundingClientRect().height;
+                    const newTopHeight = e.clientY - containerTop;
+                    const topPercent = (newTopHeight / containerHeight) * 100;
+                    const bottomPercent = 100 - topPercent;
+                    
+                    if (topPercent > 20 && topPercent < 80) {
+                        topRow.style.height = `${topPercent}%`;
+                        codeBrowser.style.height = `${bottomPercent}%`;
+                    }
                 }
             });
             
             document.addEventListener('mouseup', () => {
-                isResizing = false;
+                isResizingVertical = false;
+                isResizingHorizontal = false;
                 document.body.style.cursor = 'default';
             });
         }
@@ -2044,10 +2096,6 @@
                          onclick="highlightBlocks(${index})"
                          style="--block-color: ${color};">
                     <div class="block-title">${mapping.description}</div>
-                    <div class="block-details">
-                        ${comparison.vendor_a}: lines ${mapping.vendor_a.lines[0]}-${mapping.vendor_a.lines[1]}<br>
-                        ${comparison.vendor_b}: lines ${mapping.vendor_b.lines[0]}-${mapping.vendor_b.lines[1]}
-                    </div>
                     <div class="block-comparison-text">${mapping.comparison}</div>
                 </div>`;
             }).join('');
