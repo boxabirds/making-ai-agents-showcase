@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-TEMPLATE_FILE="$SCRIPT_DIR/matrix-viewer-template-highlightjs.html"
+TEMPLATE_FILE="$SCRIPT_DIR/matrix-viewer-template-with-chat.html"
 MATRIX_FILE="$SCRIPT_DIR/matrix.json"
 OUTPUT_FILE="$SCRIPT_DIR/matrix-viewer.html"
 PROMPT_FILE="$SCRIPT_DIR/matrix.prompt.txt"
