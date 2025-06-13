@@ -1,4 +1,3 @@
-```json
 {
   "comparisons": [
     {
@@ -819,4 +818,3 @@
             "DSPy-specific programming paradigm requires learning",
             "Less flexibility compared to manual implementation"
           ]
-        }

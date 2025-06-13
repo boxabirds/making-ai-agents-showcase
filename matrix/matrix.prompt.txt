@@ -4,6 +4,9 @@ Task: Create a comprehensive comparison matrix analyzing all Python tech-writer.
 
 Target output: docs/matrix.json
 
+TONE OF VOICE:
+Use the tone of voice profile provided separately when writing all summaries, comparisons, assessments, and descriptive text. This ensures consistency between the generated content and the chatbot responses.
+
 Requirements:
 
 1. IMPLEMENTATIONS TO ANALYZE (Python only):

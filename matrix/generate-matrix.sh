@@ -25,19 +25,9 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
-if ! command -v llm &> /dev/null; then
-    echo "Error: 'llm' CLI tool is not installed."
-    echo ""
-    echo "To install llm, run:"
-    echo "  pip install llm"
-    echo ""
-    echo "Or with pipx:"
-    echo "  pipx install llm"
-    echo ""
-    echo "Then configure your API keys:"
-    echo "  llm keys set gemini"
-    echo ""
-    echo "For more info: https://github.com/simonw/llm"
+if ! command -v curl &> /dev/null; then
+    echo "Error: 'curl' is not installed."
+    echo "Please install curl to continue."
     exit 1
 fi
 
@@ -82,9 +72,20 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Function to generate matrix.json using LLM
+# Function to generate matrix.json using Gemini API
 generate_matrix_json() {
     echo "Generating matrix.json using Gemini 2.0 Flash..."
+    
+    # Check for API key
+    if [[ -z "$GOOGLE_API_KEY" ]]; then
+        echo "Error: GOOGLE_API_KEY environment variable is not set"
+        echo ""
+        echo "Please set your Gemini API key:"
+        echo "  export GOOGLE_API_KEY='your-api-key-here'"
+        echo ""
+        echo "Get your API key from: https://makersuite.google.com/app/apikey"
+        exit 1
+    fi
     
     # Dynamically find all tech-writer.py implementations
     IMPLEMENTATIONS=()
@@ -130,27 +131,99 @@ $(cat "$FILE_PATH")
         fi
     done
     
-    # Read the prompt
+    # Read the prompt and tone profile
     PROMPT=$(cat "$PROMPT_FILE")
+    TONE_PROFILE=""
+    if [[ -f "$SCRIPT_DIR/tone-profile.txt" ]]; then
+        TONE_PROFILE=$(cat "$SCRIPT_DIR/tone-profile.txt")
+    fi
     
-    # Create the full prompt with context
+    # Create the full prompt with tone profile and context
     FULL_PROMPT="$PROMPT
+
+$TONE_PROFILE
 
 Here are all the implementation files to analyze:
 $CONTEXT"
     
-    # Generate the matrix using llm
-    echo "  Calling Gemini 2.0 Flash to generate comparisons..."
-    echo "$FULL_PROMPT" | llm -m gemini-2.0-flash > "$MATRIX_FILE.tmp"
+    # Create API request payload
+    REQUEST_BODY=$(jq -n \
+        --arg prompt "$FULL_PROMPT" \
+        '{
+            "contents": [{
+                "parts": [{
+                    "text": $prompt
+                }]
+            }],
+            "generationConfig": {
+                "temperature": 0.7,
+                "topK": 40,
+                "topP": 0.95,
+                "maxOutputTokens": 8192
+            }
+        }')
     
-    # Validate the JSON
-    if python3 -m json.tool "$MATRIX_FILE.tmp" > /dev/null 2>&1; then
-        mv "$MATRIX_FILE.tmp" "$MATRIX_FILE"
-        echo "✅ Generated matrix.json successfully"
-    else
-        echo "❌ Error: Generated content is not valid JSON"
-        echo "Output saved to: $MATRIX_FILE.tmp"
+    # Call Gemini API
+    echo "  Calling Gemini 2.0 Flash API..."
+    RESPONSE=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "x-goog-api-key: $GOOGLE_API_KEY" \
+        -d "$REQUEST_BODY" \
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent")
+    
+    # Check for API errors
+    if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+        echo "❌ API Error:"
+        echo "$RESPONSE" | jq -r '.error.message'
         exit 1
+    fi
+    
+    # Extract the generated content
+    GENERATED_CONTENT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty')
+    
+    if [[ -z "$GENERATED_CONTENT" ]]; then
+        echo "❌ Error: No content generated"
+        echo "Full response saved to: matrix-api-response.json"
+        echo "$RESPONSE" > "matrix-api-response.json"
+        exit 1
+    fi
+    
+    # Save to temporary file
+    echo "$GENERATED_CONTENT" > "$MATRIX_FILE.tmp"
+    
+    # First check if the content is wrapped in markdown code blocks
+    if grep -q '```json' "$MATRIX_FILE.tmp"; then
+        echo "  Detected markdown-wrapped JSON, extracting..."
+        # Extract content between ```json and ```
+        sed -n '/^```json$/,/^```$/p' "$MATRIX_FILE.tmp" | sed '1d;$d' > "$MATRIX_FILE.tmp2"
+        
+        # Validate the extracted JSON
+        if python3 -m json.tool "$MATRIX_FILE.tmp2" > /dev/null 2>&1; then
+            mv "$MATRIX_FILE.tmp2" "$MATRIX_FILE"
+            rm -f "$MATRIX_FILE.tmp"
+            echo "✅ Extracted and validated JSON successfully"
+        else
+            echo "❌ Error: Extracted content is not valid JSON"
+            echo "First few lines of extracted content:"
+            head -10 "$MATRIX_FILE.tmp2"
+            echo "Last few lines of extracted content:"
+            tail -10 "$MATRIX_FILE.tmp2"
+            rm -f "$MATRIX_FILE.tmp2"
+            exit 1
+        fi
+    else
+        # Try to validate as-is
+        if python3 -m json.tool "$MATRIX_FILE.tmp" > /dev/null 2>&1; then
+            mv "$MATRIX_FILE.tmp" "$MATRIX_FILE"
+            echo "✅ Generated matrix.json successfully"
+        else
+            echo "❌ Error: Generated content is not valid JSON"
+            echo "First few lines of response:"
+            head -10 "$MATRIX_FILE.tmp"
+            echo "Last few lines of response:"
+            tail -10 "$MATRIX_FILE.tmp"
+            exit 1
+        fi
     fi
 }
 
@@ -220,6 +293,13 @@ TEMPLATE_CONTENT=$(<"$TEMPLATE_FILE")
 echo "Reading matrix data..."
 MATRIX_DATA=$(<"$MATRIX_FILE")
 
+# Read tone profile
+echo "Reading tone profile..."
+TONE_PROFILE=""
+if [[ -f "$SCRIPT_DIR/tone-profile.txt" ]]; then
+    TONE_PROFILE=$(<"$SCRIPT_DIR/tone-profile.txt")
+fi
+
 # Read code files and build JSON object
 echo "Reading implementation files..."
 CODE_FILES_JSON="{"
@@ -257,8 +337,10 @@ echo "Building final HTML..."
 # Create temporary files for the data
 MATRIX_TMP=$(mktemp)
 CODE_TMP=$(mktemp)
+TONE_TMP=$(mktemp)
 echo "$MATRIX_DATA" > "$MATRIX_TMP"
 echo "$CODE_FILES_JSON" > "$CODE_TMP"
+echo "$TONE_PROFILE" > "$TONE_TMP"
 
 # Process template line by line
 while IFS= read -r line || [ -n "$line" ]; do
@@ -268,13 +350,16 @@ while IFS= read -r line || [ -n "$line" ]; do
     elif [[ "$line" == *"/* CODE_FILES_PLACEHOLDER */"* ]]; then
         # Replace the placeholder with the actual data
         echo "${line/\/\* CODE_FILES_PLACEHOLDER \*\//$(<"$CODE_TMP")}"
+    elif [[ "$line" == *"/* TONE_PROFILE_PLACEHOLDER */"* ]]; then
+        # Replace the placeholder with the tone profile
+        echo "${line/\/\* TONE_PROFILE_PLACEHOLDER \*\//$(<"$TONE_TMP")}"
     else
         echo "$line"
     fi
 done < "$TEMPLATE_FILE" > "$OUTPUT_FILE"
 
 # Clean up temporary files
-rm -f "$MATRIX_TMP" "$CODE_TMP"
+rm -f "$MATRIX_TMP" "$CODE_TMP" "$TONE_TMP"
 
 echo "✅ Generated: $OUTPUT_FILE"
 
