@@ -15,7 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
     
     <!-- Line numbers plugin -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.8.0/highlightjs-line-numbers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.9.0/highlightjs-line-numbers.min.js"></script>
     
     <style>
         /* Line number styling for highlight.js */
@@ -61,9 +61,15 @@
         }
         
         /* Highlight blocks for comparison */
-        .hljs-ln-line.highlighted {
-            background-color: var(--highlight-color) !important;
+        .hljs-ln tr.highlighted,
+        .hljs-ln tr.highlighted td {
             transition: background-color 0.3s ease;
+        }
+        
+        /* Ensure highlighted rows are visible */
+        .hljs-ln .highlighted {
+            position: relative;
+            z-index: 1;
         }
         
         .hljs-ln-line {
@@ -81,6 +87,12 @@
         
         .hljs-ln td {
             display: table-cell;
+        }
+        
+        /* Override any background styles that might interfere */
+        .hljs-ln tr.highlighted td.hljs-ln-numbers,
+        .hljs-ln tr.highlighted td.hljs-ln-code {
+            background-color: inherit !important;
         }
     </style>
     
@@ -116,13 +128,13 @@
         .container {
             max-width: 100%;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 1rem;
         }
 
         h1 {
-            font-size: 2rem;
+            font-size: 1rem;
             font-weight: 600;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
             text-align: center;
         }
 
@@ -772,7 +784,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Tech Writer Implementation Comparison</h1>
+        <h1>Making AI Agents: Tech Writer Comparisons</h1>
         
         <div class="main-layout">
             <!-- Top row: Matrix, Comparison Details, and Chat -->
@@ -1195,10 +1207,7 @@
             hljs.highlightElement(codeEl);
             
             // Add line numbers
-            hljs.lineNumbersBlock(codeEl, {
-                singleLine: true,
-                startFrom: 1
-            });
+            hljs.lineNumbersBlock(codeEl);
             
             // Store the code element for later highlighting
             codeElements[vendor] = codeEl;
@@ -1231,10 +1240,19 @@
             const mapping = currentComparison.block_mappings[index];
             const color = blockColors[index % blockColors.length];
             
-            // Clear previous highlights
-            document.querySelectorAll('.hljs-ln-line').forEach(line => {
-                line.classList.remove('highlighted');
-                line.style.setProperty('--highlight-color', '');
+            console.log(`Highlighting block ${index}: ${mapping.description}`);
+            console.log(`Color: ${color}`);
+            console.log(`${currentComparison.vendor_a}: lines ${mapping.vendor_a.lines[0]}-${mapping.vendor_a.lines[1]}`);
+            console.log(`${currentComparison.vendor_b}: lines ${mapping.vendor_b.lines[0]}-${mapping.vendor_b.lines[1]}`);
+            
+            // Clear ALL previous highlights across all code panels
+            document.querySelectorAll('.hljs-ln tr').forEach(row => {
+                row.classList.remove('highlighted');
+                row.style.backgroundColor = '';
+                const cells = row.querySelectorAll('td');
+                cells.forEach(cell => {
+                    cell.style.backgroundColor = '';
+                });
             });
             
             // Clear previous active comparison
@@ -1254,23 +1272,51 @@
         
         function highlightAndScroll(vendor, lines, color) {
             const codeEl = codeElements[vendor];
-            if (!codeEl) return;
+            if (!codeEl) {
+                console.error('Code element not found for vendor:', vendor);
+                return;
+            }
             
             const [start, end] = lines;
+            console.log(`Highlighting ${vendor} lines ${start}-${end} with color ${color}`);
+            
             let firstHighlightedRow = null;
             
-            // Find all line rows in the code element
-            const lineRows = codeEl.querySelectorAll('.hljs-ln-line');
+            // Find the parent table that contains the line rows
+            const table = codeEl.querySelector('table.hljs-ln');
+            if (!table) {
+                console.error('Line numbers table not found for vendor:', vendor);
+                return;
+            }
+            
+            // Find all line rows - they are <tr> elements in the table
+            const lineRows = table.querySelectorAll('tr');
+            console.log(`Found ${lineRows.length} line rows for ${vendor}`);
             
             lineRows.forEach((row, index) => {
+                // Line numbers start at 1
                 const lineNum = index + 1;
+                
+                // Remove any existing highlights
+                row.classList.remove('highlighted');
+                row.style.removeProperty('background-color');
+                
+                // Apply highlight if within range
                 if (lineNum >= start && lineNum <= end) {
                     row.classList.add('highlighted');
-                    row.style.setProperty('--highlight-color', color);
+                    row.style.backgroundColor = color;
+                    
+                    // Also highlight the individual cells for better coverage
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach(cell => {
+                        cell.style.backgroundColor = color;
+                    });
                     
                     if (!firstHighlightedRow) {
                         firstHighlightedRow = row;
                     }
+                    
+                    console.log(`Highlighted line ${lineNum}`);
                 }
             });
             
@@ -1285,6 +1331,10 @@
                     top: scrollPosition,
                     behavior: 'smooth'
                 });
+                
+                console.log(`Scrolled to line at position ${scrollPosition}`);
+            } else {
+                console.warn(`No lines highlighted for ${vendor} in range ${start}-${end}`);
             }
         }
         

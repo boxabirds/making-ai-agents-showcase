@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Line Info</title>
+    <script>
+        // Load matrix.json to check line numbers
+        fetch('matrix.json')
+            .then(response => response.json())
+            .then(data => {
+                const output = document.getElementById('output');
+                
+                // Show first comparison's block mappings
+                const firstComp = data.comparisons[0];
+                output.innerHTML = `<h2>First Comparison: ${firstComp.vendor_a} vs ${firstComp.vendor_b}</h2>`;
+                
+                firstComp.block_mappings.forEach((mapping, idx) => {
+                    output.innerHTML += `
+                        <div style="margin: 20px 0; padding: 10px; border: 1px solid #ccc;">
+                            <h3>${idx + 1}. ${mapping.description}</h3>
+                            <p><strong>${firstComp.vendor_a}:</strong> Lines ${mapping.vendor_a.lines[0]}-${mapping.vendor_a.lines[1]} (${mapping.vendor_a.component})</p>
+                            <p><strong>${firstComp.vendor_b}:</strong> Lines ${mapping.vendor_b.lines[0]}-${mapping.vendor_b.lines[1]} (${mapping.vendor_b.component})</p>
+                            <p><em>${mapping.comparison}</em></p>
+                        </div>
+                    `;
+                });
+            })
+            .catch(err => {
+                document.getElementById('output').innerHTML = `<p>Error loading matrix.json: ${err}</p>`;
+            });
+    </script>
+</head>
+<body>
+    <h1>Matrix Line Number Debug Info</h1>
+    <div id="output">Loading...</div>
+</body>
+</html>

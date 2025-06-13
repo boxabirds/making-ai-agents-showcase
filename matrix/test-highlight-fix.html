@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Highlight Fix Test</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.9.0/highlightjs-line-numbers.min.js"></script>
+    
+    <style>
+        .container {
+            display: flex;
+            gap: 20px;
+            margin: 20px;
+        }
+        
+        .code-panel {
+            flex: 1;
+            border: 1px solid #ccc;
+            overflow: auto;
+            max-height: 600px;
+        }
+        
+        .controls {
+            margin: 20px;
+        }
+        
+        /* Highlighting styles */
+        .hljs-ln tr.highlighted,
+        .hljs-ln tr.highlighted td {
+            background-color: #ffeb3b !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h2>Test Line Highlighting</h2>
+        <button onclick="highlightLines(25, 30, '#ffeb3b')">Highlight lines 25-30</button>
+        <button onclick="highlightLines(276, 294, '#4caf50')">Highlight lines 276-294</button>
+        <button onclick="clearHighlights()">Clear highlights</button>
+        <div id="debug"></div>
+    </div>
+    
+    <div class="container">
+        <div class="code-panel">
+            <pre><code id="code1" class="language-python"></code></pre>
+        </div>
+    </div>
+    
+    <script>
+        let codeElement;
+        
+        // Load baremetal tech-writer.py
+        fetch('../baremetal/python/tech-writer.py')
+            .then(response => response.text())
+            .then(code => {
+                codeElement = document.getElementById('code1');
+                codeElement.textContent = code;
+                
+                // Apply syntax highlighting
+                hljs.highlightElement(codeElement);
+                hljs.lineNumbersBlock(codeElement);
+                
+                document.getElementById('debug').innerHTML = `<p>Loaded ${code.split('\n').length} lines of code</p>`;
+            })
+            .catch(err => {
+                document.getElementById('debug').innerHTML = `<p>Error loading file: ${err}</p>`;
+            });
+        
+        function highlightLines(start, end, color) {
+            if (!codeElement) return;
+            
+            const debug = document.getElementById('debug');
+            debug.innerHTML = `<p>Attempting to highlight lines ${start}-${end}</p>`;
+            
+            // Find the table
+            const table = codeElement.querySelector('table.hljs-ln');
+            if (!table) {
+                debug.innerHTML += '<p>Error: No line numbers table found</p>';
+                return;
+            }
+            
+            // Get all rows
+            const rows = table.querySelectorAll('tr');
+            debug.innerHTML += `<p>Found ${rows.length} rows</p>`;
+            
+            let highlightCount = 0;
+            rows.forEach((row, index) => {
+                const lineNum = index + 1;
+                
+                if (lineNum >= start && lineNum <= end) {
+                    row.classList.add('highlighted');
+                    row.style.backgroundColor = color;
+                    
+                    // Also set on cells
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach(cell => {
+                        cell.style.backgroundColor = color;
+                    });
+                    
+                    highlightCount++;
+                    
+                    // Scroll to first highlighted line
+                    if (highlightCount === 1) {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            });
+            
+            debug.innerHTML += `<p>Highlighted ${highlightCount} lines</p>`;
+        }
+        
+        function clearHighlights() {
+            if (!codeElement) return;
+            
+            const table = codeElement.querySelector('table.hljs-ln');
+            if (!table) return;
+            
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                row.classList.remove('highlighted');
+                row.style.backgroundColor = '';
+                
+                const cells = row.querySelectorAll('td');
+                cells.forEach(cell => {
+                    cell.style.backgroundColor = '';
+                });
+            });
+            
+            document.getElementById('debug').innerHTML = '<p>Cleared all highlights</p>';
+        }
+    </script>
+</body>
+</html>
