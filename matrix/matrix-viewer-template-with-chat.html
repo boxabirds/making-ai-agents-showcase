@@ -1322,17 +1322,15 @@
             
             // Scroll to first highlighted line
             if (firstHighlightedRow) {
-                const container = codeEl.parentElement.parentElement;
-                const rowTop = firstHighlightedRow.offsetTop;
-                const containerHeight = container.clientHeight;
-                const scrollPosition = rowTop - containerHeight / 3;
-                
-                container.scrollTo({
-                    top: scrollPosition,
-                    behavior: 'smooth'
-                });
-                
-                console.log(`Scrolled to line at position ${scrollPosition}`);
+                // Simple approach: use scrollIntoView with options
+                // This is more reliable than calculating offsets manually
+                setTimeout(() => {
+                    firstHighlightedRow.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'  // Put the highlighted line in the center of the view
+                    });
+                    console.log(`Scrolled to highlighted line for ${vendor}`);
+                }, 100); // Small delay to ensure DOM updates are complete
             } else {
                 console.warn(`No lines highlighted for ${vendor} in range ${start}-${end}`);
             }

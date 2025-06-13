@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Scrolling</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.9.0/highlightjs-line-numbers.min.js"></script>
+    
+    <style>
+        .code-content {
+            height: 400px;
+            overflow-y: auto;
+            border: 2px solid red;
+            background: #f5f5f5;
+            padding: 10px;
+        }
+        
+        .hljs-ln tr.highlighted td {
+            background-color: yellow !important;
+        }
+        
+        #debug {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Scrolling Debug Test</h2>
+    <button onclick="testScroll(270, 290)">Test Scroll to Lines 270-290</button>
+    <button onclick="testScroll(50, 60)">Test Scroll to Lines 50-60</button>
+    
+    <div class="code-content" id="codeContent">
+        <pre><code id="codeEl" class="language-python"></code></pre>
+    </div>
+    
+    <div id="debug"></div>
+    
+    <script>
+        let codeElement;
+        
+        // Generate some test code with line numbers
+        let testCode = '';
+        for (let i = 1; i <= 350; i++) {
+            testCode += `# Line ${i}: This is a test line of code to simulate a real file\n`;
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            codeElement = document.getElementById('codeEl');
+            codeElement.textContent = testCode;
+            
+            // Apply syntax highlighting
+            hljs.highlightElement(codeElement);
+            hljs.lineNumbersBlock(codeElement);
+        });
+        
+        function testScroll(startLine, endLine) {
+            const debug = document.getElementById('debug');
+            debug.innerHTML = '<h3>Debug Info:</h3>';
+            
+            // Clear previous highlights
+            document.querySelectorAll('.hljs-ln tr').forEach(row => {
+                row.classList.remove('highlighted');
+            });
+            
+            // Find the table
+            const table = codeElement.querySelector('table.hljs-ln');
+            if (!table) {
+                debug.innerHTML += '<p>ERROR: No table found!</p>';
+                return;
+            }
+            
+            debug.innerHTML += `<p>Table found: ${table.tagName}</p>`;
+            
+            // Get all rows
+            const rows = table.querySelectorAll('tr');
+            debug.innerHTML += `<p>Total rows: ${rows.length}</p>`;
+            
+            let firstHighlightedRow = null;
+            
+            // Highlight the target lines
+            rows.forEach((row, index) => {
+                const lineNum = index + 1;
+                if (lineNum >= startLine && lineNum <= endLine) {
+                    row.classList.add('highlighted');
+                    if (!firstHighlightedRow) {
+                        firstHighlightedRow = row;
+                    }
+                }
+            });
+            
+            if (!firstHighlightedRow) {
+                debug.innerHTML += '<p>ERROR: No rows highlighted!</p>';
+                return;
+            }
+            
+            // Get the scrollable container
+            const codeContent = document.getElementById('codeContent');
+            
+            // Method 1: Using getBoundingClientRect
+            const containerRect = codeContent.getBoundingClientRect();
+            const rowRect = firstHighlightedRow.getBoundingClientRect();
+            
+            debug.innerHTML += '<h4>Method 1: getBoundingClientRect</h4>';
+            debug.innerHTML += `<p>Container top: ${containerRect.top}</p>`;
+            debug.innerHTML += `<p>Row top: ${rowRect.top}</p>`;
+            debug.innerHTML += `<p>Relative position: ${rowRect.top - containerRect.top}</p>`;
+            
+            // Method 2: Using offsetTop
+            const rowOffsetTop = firstHighlightedRow.offsetTop;
+            const tableOffsetTop = table.offsetTop;
+            
+            debug.innerHTML += '<h4>Method 2: offsetTop</h4>';
+            debug.innerHTML += `<p>Row offsetTop: ${rowOffsetTop}</p>`;
+            debug.innerHTML += `<p>Table offsetTop: ${tableOffsetTop}</p>`;
+            debug.innerHTML += `<p>Current scroll: ${codeContent.scrollTop}</p>`;
+            
+            // Calculate scroll position
+            const currentScroll = codeContent.scrollTop;
+            const targetPosition = rowOffsetTop + currentScroll - 100; // 100px from top
+            
+            debug.innerHTML += '<h4>Scroll Calculation</h4>';
+            debug.innerHTML += `<p>Target scroll position: ${targetPosition}</p>`;
+            
+            // Scroll to position
+            codeContent.scrollTo({
+                top: targetPosition,
+                behavior: 'smooth'
+            });
+            
+            // Alternative method using scrollIntoView
+            setTimeout(() => {
+                debug.innerHTML += '<h4>After Scroll</h4>';
+                debug.innerHTML += `<p>New scroll position: ${codeContent.scrollTop}</p>`;
+                
+                // Try scrollIntoView as alternative
+                // firstHighlightedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
+    </script>
+</body>
+</html>
