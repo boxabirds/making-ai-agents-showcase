@@ -25,7 +25,7 @@
     <div id="matrix-view">
         <h2>Matrix View</h2>
         <p>Select a comparison:</p>
-        <button onclick="testComparison()">Test: baremetal vs dspy</button>
+        <button onclick="testComparison()">Test: noframework vs dspy</button>
     </div>
     
     <div id="code-browser" class="code-browser hidden">
@@ -48,13 +48,13 @@
     <script>
         // Test data
         const testComparison = {
-            vendor_a: "baremetal",
+            vendor_a: "noframework",
             vendor_b: "dspy",
             summary: "Test comparison"
         };
         
         const codeFiles = {
-            baremetal: "# Baremetal implementation\ndef main():\n    print('Hello from baremetal')\n    # More code here",
+            noframework: "# No Framework implementation\ndef main():\n    print('Hello from noframework')\n    # More code here",
             dspy: "# DSPy implementation\nimport dspy\n\nclass Agent:\n    pass"
         };
         

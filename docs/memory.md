@@ -34,7 +34,7 @@ Based on examination of the actual source code, here's how each framework manage
 - **Key Pattern**: Direct list manipulation, developer has full control
 
 ```python
-# From baremetal/python/tech-writer.py
+# From noframework/python/tech-writer.py
 class TechWriterReActAgent:
     def __init__(self, model_name="openai/gpt-4.1-mini", base_url=None):
         self.memory = []  # Explicit memory list

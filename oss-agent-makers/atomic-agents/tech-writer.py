@@ -12,7 +12,7 @@ from atomic_agents.lib.components.system_prompt_generator import SystemPromptGen
 from atomic_agents.lib.components.agent_memory import AgentMemory  
 from atomic_agents.lib.base.base_tool import BaseTool, BaseToolConfig  
   
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baremetal" / "python"))  
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "noframework" / "python"))  
 from common.utils import (  
     read_prompt_file,  
     save_results,  

@@ -1,6 +1,6 @@
 {
   "framework_assessments": {
-    "baremetal": {
+    "noframework": {
       "standout_features": {
         "strengths": [
           "Full control over every aspect of implementation",
@@ -15,7 +15,7 @@
           "Higher maintenance burden"
         ]
       },
-      "when_to_choose": "Choose baremetal when you need complete control over implementation details, want to understand exactly what's happening, or when framework abstractions would add unwanted complexity to your specific use case.",
+      "when_to_choose": "Choose noframework when you need complete control over implementation details, want to understand exactly what's happening, or when framework abstractions would add unwanted complexity to your specific use case.",
       "tagline": "Maximum control, maximum effort"
     },
     "autogen": {
@@ -105,7 +105,7 @@
           "May require more custom code"
         ]
       },
-      "when_to_choose": "Choose Atomic Agents when you want the simplest possible agent framework, need something between baremetal and full framework, or value simplicity over features.",
+      "when_to_choose": "Choose Atomic Agents when you want the simplest possible agent framework, need something between noframework and full framework, or value simplicity over features.",
       "tagline": "Minimalist agent design"
     },
     "adk-python": {

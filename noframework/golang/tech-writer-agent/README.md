@@ -76,7 +76,7 @@ go build -o tech-writer-agent
 
 ## Design Principles
 
-This is a "baremetal" implementation, meaning:
+This is a "noframework" implementation, meaning:
 - No agent frameworks or abstractions
 - Direct API calls to language models
 - Manual implementation of tool calling

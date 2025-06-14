@@ -1,16 +1,16 @@
 {
   "comparisons": [
     {
-      "vendor_a": "baremetal",
+      "vendor_a": "noframework",
       "vendor_b": "atomic-agents",
-      "summary": "Baremetal implements a custom ReAct agent from scratch with 315 lines of detailed control flow, while Atomic Agents leverages a framework with Pydantic schemas and structured components in 234 lines. Baremetal offers complete control but requires more boilerplate, whereas Atomic Agents provides type safety and better separation of concerns.",
+      "summary": "No Framework implements a custom ReAct agent from scratch with 315 lines of detailed control flow, while Atomic Agents leverages a framework with Pydantic schemas and structured components in 234 lines. No Framework offers complete control but requires more boilerplate, whereas Atomic Agents provides type safety and better separation of concerns.",
       "suitability": {
-        "baremetal": "Better for educational purposes, custom agent behaviors, or when you need fine-grained control over the ReAct loop",
+        "noframework": "Better for educational purposes, custom agent behaviors, or when you need fine-grained control over the ReAct loop",
         "atomic-agents": "Better for production systems requiring type safety, schema validation, and standardized agent patterns"
       },
       "overall_winner": "atomic-agents for most use cases due to better maintainability and type safety",
       "pros_cons": {
-        "baremetal": {
+        "noframework": {
           "pros": ["Complete control over agent behavior", "No framework dependencies", "Educational value", "Direct API integration"],
           "cons": ["More code to maintain", "Manual error handling", "No type safety", "Reinventing the wheel"]
         },
@@ -24,45 +24,45 @@
           "description": "Agent class definition",
           "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
           "vendor_b": {"lines": [154, 196], "component": "TechWriterAgent class"},
-          "comparison": "Baremetal's 248-line class implements full ReAct logic manually, while Atomic's 42-line class leverages framework abstractions"
+          "comparison": "No Framework's 248-line class implements full ReAct logic manually, while Atomic's 42-line class leverages framework abstractions"
         },
         {
           "description": "Tool definition approach",
           "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions method"},
           "vendor_b": {"lines": [53, 123], "component": "Tool schema classes"},
-          "comparison": "Baremetal uses introspection to create OpenAI tool definitions (87 lines), Atomic uses Pydantic schemas (70 lines) for type-safe tools"
+          "comparison": "No Framework uses introspection to create OpenAI tool definitions (87 lines), Atomic uses Pydantic schemas (70 lines) for type-safe tools"
         },
         {
           "description": "LLM client initialization",
           "vendor_a": {"lines": [26, 49], "component": "__init__ with vendor detection"},
           "vendor_b": {"lines": [158, 159], "component": "instructor.from_litellm"},
-          "comparison": "Baremetal manually handles vendor detection in 23 lines, Atomic delegates to LiteLLM in 2 lines"
+          "comparison": "No Framework manually handles vendor detection in 23 lines, Atomic delegates to LiteLLM in 2 lines"
         },
         {
           "description": "Agent execution loop",
           "vendor_a": {"lines": [226, 273], "component": "run method with ReAct loop"},
           "vendor_b": {"lines": [192, 194], "component": "agent.run call"},
-          "comparison": "Baremetal implements full ReAct loop in 47 lines, Atomic delegates to framework in 3 lines"
+          "comparison": "No Framework implements full ReAct loop in 47 lines, Atomic delegates to framework in 3 lines"
         },
         {
           "description": "Tool execution",
           "vendor_a": {"lines": [192, 223], "component": "execute_tool method"},
           "vendor_b": {"lines": [77, 92], "component": "Tool run methods"},
-          "comparison": "Baremetal has centralized tool execution (31 lines), Atomic has per-tool run methods (15 lines each)"
+          "comparison": "No Framework has centralized tool execution (31 lines), Atomic has per-tool run methods (15 lines each)"
         }
       ]
     },
     {
-      "vendor_a": "baremetal",
+      "vendor_a": "noframework",
       "vendor_b": "dspy",
-      "summary": "Baremetal's 315-line implementation provides complete control over the ReAct pattern, while DSPy achieves the same functionality in just 119 lines using its declarative signature-based approach. DSPy's conciseness comes from abstracting away the agent loop entirely.",
+      "summary": "No Framework's 315-line implementation provides complete control over the ReAct pattern, while DSPy achieves the same functionality in just 119 lines using its declarative signature-based approach. DSPy's conciseness comes from abstracting away the agent loop entirely.",
       "suitability": {
-        "baremetal": "When you need to understand or customize ReAct implementation details",
+        "noframework": "When you need to understand or customize ReAct implementation details",
         "dspy": "When you want the simplest possible implementation with minimal code"
       },
       "overall_winner": "dspy for simplicity and maintainability",
       "pros_cons": {
-        "baremetal": {
+        "noframework": {
           "pros": ["Full visibility into ReAct logic", "Customizable behavior", "No DSPy learning curve"],
           "cons": ["10x more code", "Manual implementation of standard patterns", "More potential for bugs"]
         },
@@ -76,33 +76,33 @@
           "description": "Entire agent implementation",
           "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
           "vendor_b": {"lines": [40, 81], "component": "TechWriterSignature class"},
-          "comparison": "Baremetal's 248-line class vs DSPy's 41-line signature - DSPy achieves same result with 83% less code"
+          "comparison": "No Framework's 248-line class vs DSPy's 41-line signature - DSPy achieves same result with 83% less code"
         },
         {
           "description": "ReAct pattern implementation",
           "vendor_a": {"lines": [226, 273], "component": "run method"},
           "vendor_b": {"lines": [91, 93], "component": "dspy.ReAct instantiation"},
-          "comparison": "Baremetal implements ReAct loop in 47 lines, DSPy uses built-in ReAct in 3 lines"
+          "comparison": "No Framework implements ReAct loop in 47 lines, DSPy uses built-in ReAct in 3 lines"
         },
         {
           "description": "Tool integration",
           "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
           "vendor_b": {"lines": [93, 93], "component": "tools=TOOLS parameter"},
-          "comparison": "Baremetal converts tools in 87 lines, DSPy passes tools directly in 1 line"
+          "comparison": "No Framework converts tools in 87 lines, DSPy passes tools directly in 1 line"
         }
       ]
     },
     {
-      "vendor_a": "baremetal", 
+      "vendor_a": "noframework", 
       "vendor_b": "langgraph",
-      "summary": "Baremetal's 315-line synchronous implementation contrasts with LangGraph's 166-line async implementation using pre-built components. LangGraph provides a middle ground between raw implementation and high abstraction.",
+      "summary": "No Framework's 315-line synchronous implementation contrasts with LangGraph's 166-line async implementation using pre-built components. LangGraph provides a middle ground between raw implementation and high abstraction.",
       "suitability": {
-        "baremetal": "When async isn't needed and you want direct control",
+        "noframework": "When async isn't needed and you want direct control",
         "langgraph": "When building async workflows with LangChain ecosystem integration"
       },
       "overall_winner": "langgraph for modern async applications",
       "pros_cons": {
-        "baremetal": {
+        "noframework": {
           "pros": ["Simpler synchronous model", "No LangChain dependencies", "Direct OpenAI integration"],
           "cons": ["No async support", "Manual ReAct implementation", "More code"]
         },
@@ -116,33 +116,33 @@
           "description": "Main analysis function",
           "vendor_a": {"lines": [276, 294], "component": "analyse_codebase (sync)"},
           "vendor_b": {"lines": [36, 123], "component": "analyze_codebase (async)"},
-          "comparison": "Baremetal's 18-line sync function vs LangGraph's 87-line async function with streaming"
+          "comparison": "No Framework's 18-line sync function vs LangGraph's 87-line async function with streaming"
         },
         {
           "description": "Tool wrapper approach",
           "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
           "vendor_b": {"lines": [63, 96], "component": "Inline tool wrappers"},
-          "comparison": "Baremetal introspects in 87 lines, LangGraph wraps inline in 33 lines"
+          "comparison": "No Framework introspects in 87 lines, LangGraph wraps inline in 33 lines"
         },
         {
           "description": "Agent creation",
           "vendor_a": {"lines": [26, 54], "component": "Class __init__"},
           "vendor_b": {"lines": [97, 118], "component": "create_react_agent call"},
-          "comparison": "Baremetal initializes in constructor (28 lines), LangGraph uses factory function (21 lines)"
+          "comparison": "No Framework initializes in constructor (28 lines), LangGraph uses factory function (21 lines)"
         }
       ]
     },
     {
-      "vendor_a": "baremetal",
+      "vendor_a": "noframework",
       "vendor_b": "pydantic-ai",
-      "summary": "Baremetal's imperative 315-line implementation contrasts sharply with Pydantic-AI's decorator-based 136-line approach. Pydantic-AI offers a more Pythonic, type-safe solution with dependency injection.",
+      "summary": "No Framework's imperative 315-line implementation contrasts sharply with Pydantic-AI's decorator-based 136-line approach. Pydantic-AI offers a more Pythonic, type-safe solution with dependency injection.",
       "suitability": {
-        "baremetal": "When you need explicit control flow and don't want framework magic",
+        "noframework": "When you need explicit control flow and don't want framework magic",
         "pydantic-ai": "When you want clean, testable code with dependency injection"
       },
       "overall_winner": "pydantic-ai for clean architecture and testability",
       "pros_cons": {
-        "baremetal": {
+        "noframework": {
           "pros": ["Explicit control flow", "No decorator magic", "Clear execution path"],
           "cons": ["Verbose implementation", "Manual dependency management", "Harder to test"]
         },
@@ -156,19 +156,19 @@
           "description": "Tool definition style",
           "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
           "vendor_b": {"lines": [37, 66], "component": "@tech_writer.tool decorators"},
-          "comparison": "Baremetal's 87-line introspection vs Pydantic-AI's 29-line decorator approach"
+          "comparison": "No Framework's 87-line introspection vs Pydantic-AI's 29-line decorator approach"
         },
         {
           "description": "Context management",
           "vendor_a": {"lines": [29, 29], "component": "self.memory list"},
           "vendor_b": {"lines": [25, 36], "component": "AnalysisContext model"},
-          "comparison": "Baremetal uses simple list, Pydantic-AI uses 11-line typed context model"
+          "comparison": "No Framework uses simple list, Pydantic-AI uses 11-line typed context model"
         },
         {
           "description": "Agent execution",
           "vendor_a": {"lines": [226, 273], "component": "run method"},
           "vendor_b": {"lines": [84, 90], "component": "tech_writer.run"},
-          "comparison": "Baremetal's 47-line manual loop vs Pydantic-AI's 6-line framework call"
+          "comparison": "No Framework's 47-line manual loop vs Pydantic-AI's 6-line framework call"
         }
       ]
     },
@@ -333,16 +333,16 @@
       ]
     },
     {
-      "vendor_a": "baremetal",
+      "vendor_a": "noframework",
       "vendor_b": "adk-python",
-      "summary": "Baremetal's 315-line synchronous implementation with manual ReAct contrasts with ADK's 131-line async implementation using Google's agent framework. ADK provides session management and memory runners but requires Google-specific patterns.",
+      "summary": "No Framework's 315-line synchronous implementation with manual ReAct contrasts with ADK's 131-line async implementation using Google's agent framework. ADK provides session management and memory runners but requires Google-specific patterns.",
       "suitability": {
-        "baremetal": "When you need vendor-agnostic implementation with full control",
+        "noframework": "When you need vendor-agnostic implementation with full control",
         "adk-python": "When building Google-cloud-first applications with built-in persistence"
       },
-      "overall_winner": "baremetal for flexibility, adk-python for Google ecosystem",
+      "overall_winner": "noframework for flexibility, adk-python for Google ecosystem",
       "pros_cons": {
-        "baremetal": {
+        "noframework": {
           "pros": ["Vendor neutral", "Direct control", "No framework dependencies", "Simpler sync model"],
           "cons": ["More boilerplate", "No built-in persistence", "Manual everything", "No async"]
         },
@@ -356,33 +356,33 @@
           "description": "Model initialization",
           "vendor_a": {"lines": [26, 49], "component": "Vendor detection in __init__"},
           "vendor_b": {"lines": [32, 45], "component": "stupid_adk_hack_to_get_model"},
-          "comparison": "Baremetal's 23-line vendor detection vs ADK's 13-line hack for model compatibility"
+          "comparison": "No Framework's 23-line vendor detection vs ADK's 13-line hack for model compatibility"
         },
         {
           "description": "Agent execution",
           "vendor_a": {"lines": [226, 273], "component": "run method with ReAct loop"},
           "vendor_b": {"lines": [83, 96], "component": "Runner async execution"},
-          "comparison": "Baremetal's 47-line manual ReAct vs ADK's 13-line framework execution"
+          "comparison": "No Framework's 47-line manual ReAct vs ADK's 13-line framework execution"
         },
         {
           "description": "Tool integration",
           "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
           "vendor_b": {"lines": [56, 56], "component": "tools parameter"},
-          "comparison": "Baremetal's 87-line tool conversion vs ADK's 1-line tool list"
+          "comparison": "No Framework's 87-line tool conversion vs ADK's 1-line tool list"
         }
       ]
     },
     {
-      "vendor_a": "baremetal",
+      "vendor_a": "noframework",
       "vendor_b": "agno",
-      "summary": "Baremetal's 315-line explicit implementation contrasts sharply with Agno's 104-line minimalist approach. Agno achieves extreme brevity through its framework abstractions while Baremetal provides complete transparency.",
+      "summary": "No Framework's 315-line explicit implementation contrasts sharply with Agno's 104-line minimalist approach. Agno achieves extreme brevity through its framework abstractions while No Framework provides complete transparency.",
       "suitability": {
-        "baremetal": "When you need to understand or customize every aspect of the agent",
+        "noframework": "When you need to understand or customize every aspect of the agent",
         "agno": "When you want the absolute minimum code that just works"
       },
-      "overall_winner": "agno for simplicity, baremetal for control",
+      "overall_winner": "agno for simplicity, noframework for control",
       "pros_cons": {
-        "baremetal": {
+        "noframework": {
           "pros": ["Complete transparency", "No magic", "Educational value", "Full customization"],
           "cons": ["3x more code", "Manual implementation", "More maintenance", "Verbose"]
         },
@@ -396,13 +396,13 @@
           "description": "Entire implementation",
           "vendor_a": {"lines": [1, 315], "component": "Full implementation"},
           "vendor_b": {"lines": [1, 104], "component": "Full implementation"},
-          "comparison": "Baremetal uses 315 lines vs Agno's 104 lines - 67% reduction"
+          "comparison": "No Framework uses 315 lines vs Agno's 104 lines - 67% reduction"
         },
         {
           "description": "Agent setup and execution",
           "vendor_a": {"lines": [25, 273], "component": "TechWriterReActAgent class"},
           "vendor_b": {"lines": [59, 67], "component": "Agent instantiation and run"},
-          "comparison": "Baremetal's 248-line class vs Agno's 8-line setup"
+          "comparison": "No Framework's 248-line class vs Agno's 8-line setup"
         },
         {
           "description": "Model configuration",
@@ -413,16 +413,16 @@
       ]
     },
     {
-      "vendor_a": "baremetal",
+      "vendor_a": "noframework",
       "vendor_b": "autogen",
-      "summary": "Baremetal's 315-line synchronous implementation with manual ReAct contrasts with AutoGen's 135-line async approach using Microsoft's agent framework. AutoGen provides cleaner async patterns with minimal wrapper code.",
+      "summary": "No Framework's 315-line synchronous implementation with manual ReAct contrasts with AutoGen's 135-line async approach using Microsoft's agent framework. AutoGen provides cleaner async patterns with minimal wrapper code.",
       "suitability": {
-        "baremetal": "When you need synchronous execution and full control",
+        "noframework": "When you need synchronous execution and full control",
         "autogen": "When you want async support with Microsoft's agent patterns"
       },
       "overall_winner": "autogen for modern async applications",
       "pros_cons": {
-        "baremetal": {
+        "noframework": {
           "pros": ["Sync simplicity", "No framework magic", "Direct control", "Clear execution flow"],
           "cons": ["No async", "Manual ReAct", "More code", "No framework benefits"]
         },
@@ -436,19 +436,19 @@
           "description": "Main execution pattern",
           "vendor_a": {"lines": [276, 294], "component": "Sync analyse_codebase"},
           "vendor_b": {"lines": [65, 92], "component": "Async analyze_codebase"},
-          "comparison": "Baremetal's 18-line sync vs AutoGen's 27-line async function"
+          "comparison": "No Framework's 18-line sync vs AutoGen's 27-line async function"
         },
         {
           "description": "Tool integration",
           "vendor_a": {"lines": [56, 143], "component": "create_openai_tool_definitions"},
           "vendor_b": {"lines": [33, 62], "component": "Async tool wrappers"},
-          "comparison": "Baremetal's 87-line conversion vs AutoGen's 29-line async wrappers"
+          "comparison": "No Framework's 87-line conversion vs AutoGen's 29-line async wrappers"
         },
         {
           "description": "Agent creation",
           "vendor_a": {"lines": [25, 54], "component": "TechWriterReActAgent.__init__"},
           "vendor_b": {"lines": [79, 85], "component": "AssistantAgent creation"},
-          "comparison": "Baremetal's 29-line init vs AutoGen's 6-line agent setup"
+          "comparison": "No Framework's 29-line init vs AutoGen's 6-line agent setup"
         }
       ]
     },

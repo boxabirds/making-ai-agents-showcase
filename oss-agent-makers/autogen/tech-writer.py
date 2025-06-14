@@ -8,9 +8,9 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 import argparse
 
-# Add the baremetal/python directory to sys.path to import common modules
-baremetal_path = Path(__file__).parent.parent.parent / "baremetal" / "python"
-sys.path.insert(0, str(baremetal_path))
+# Add the noframework/python directory to sys.path to import common modules
+noframework_path = Path(__file__).parent.parent.parent / "noframework" / "python"
+sys.path.insert(0, str(noframework_path))
 
 from common.utils import (
     read_prompt_file,

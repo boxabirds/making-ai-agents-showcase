@@ -22,8 +22,8 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
 AGENTS_DIR="$BASE_DIR/oss-agent-makers/python-packages"
-TECH_WRITER_SCRIPT="$BASE_DIR/baremetal/python/tech-writer.sh"
-PROMPT_FILE="$BASE_DIR/baremetal/python/prompts/get-api-summary.prompt.txt"
+TECH_WRITER_SCRIPT="$BASE_DIR/noframework/python/tech-writer.sh"
+PROMPT_FILE="$BASE_DIR/noframework/python/prompts/get-api-summary.prompt.txt"
 
 # Check if required directories and files exist
 if [ ! -d "$AGENTS_DIR" ]; then
@@ -41,8 +41,8 @@ if [ ! -f "$PROMPT_FILE" ]; then
     exit 1
 fi
 
-# Change to baremetal/python directory for running tech-writer.sh
-cd "$BASE_DIR/baremetal/python"
+# Change to noframework/python directory for running tech-writer.sh
+cd "$BASE_DIR/noframework/python"
 
 # Counter for processed agents
 processed=0

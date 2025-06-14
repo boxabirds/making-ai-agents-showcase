@@ -1,6 +1,6 @@
 # DSPy Tech Writer Agent
 
-This directory contains two DSPy implementations of the tech writer agent, providing the same functionality as the baremetal implementation but using Stanford's DSPy framework.
+This directory contains two DSPy implementations of the tech writer agent, providing the same functionality as the noframework implementation but using Stanford's DSPy framework.
 
 ## Files
 
@@ -13,7 +13,7 @@ This directory contains two DSPy implementations of the tech writer agent, provi
 
 ## Running the Tech Writer
 
-Both implementations accept the same command-line arguments as the baremetal version:
+Both implementations accept the same command-line arguments as the noframework version:
 
 ```bash
 # Using manual signatures approach
@@ -47,7 +47,7 @@ source .venv/bin/activate && python tech-writer-react.py /my-project --prompt pr
 2. **ReAct-Style Agent**: Implements reasoning and acting pattern using DSPy's ChainOfThought
 3. **Tool Integration**: Wraps common tools for DSPy compatibility
 4. **Multi-Model Support**: Works with any model supported by DSPy/LiteLLM
-5. **Same Interface**: Drop-in replacement for baremetal tech writer
+5. **Same Interface**: Drop-in replacement for noframework tech writer
 
 ## Implementation Highlights
 
@@ -113,7 +113,7 @@ The agent implements a ReAct-style loop:
 
 ## Comparison with Other Implementations
 
-| Aspect | Baremetal | ADK | Agno | DSPy Manual | DSPy ReAct |
+| Aspect | No Framework | ADK | Agno | DSPy Manual | DSPy ReAct |
 |--------|-----------|-----|------|-------------|------------|
 | **Framework** | OpenAI Client | Google ADK | phidata | Stanford DSPy | Stanford DSPy |
 | **Lines of Code** | 308 | 126 | 111 | 234 | ~150 |
@@ -152,5 +152,5 @@ print(result)
 
 - DSPy uses LiteLLM internally for model connections
 - The implementation can be optimized using DSPy's compilation features
-- Tool execution is synchronous to match the baremetal interface
+- Tool execution is synchronous to match the noframework interface
 - Error messages include full context for debugging

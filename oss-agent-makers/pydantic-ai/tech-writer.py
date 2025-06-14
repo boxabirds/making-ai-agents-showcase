@@ -4,8 +4,8 @@ from typing import Tuple
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
 
-# Add baremetal/python to path to import common modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'baremetal' / 'python'))
+# Add noframework/python to path to import common modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'noframework' / 'python'))
 
 from common.utils import (
     read_prompt_file,

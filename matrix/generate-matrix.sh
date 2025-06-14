@@ -90,9 +90,9 @@ generate_matrix_json() {
     # Dynamically find all tech-writer.py implementations
     IMPLEMENTATIONS=()
     
-    # Add baremetal implementation
-    if [[ -f "$PROJECT_ROOT/baremetal/python/tech-writer.py" ]]; then
-        IMPLEMENTATIONS+=("baremetal/python/tech-writer.py")
+    # Add noframework implementation
+    if [[ -f "$PROJECT_ROOT/noframework/python/tech-writer.py" ]]; then
+        IMPLEMENTATIONS+=("noframework/python/tech-writer.py")
     fi
     
     # Find all tech-writer.py files in oss-agent-makers
@@ -115,8 +115,8 @@ generate_matrix_json() {
         if [[ -f "$FILE_PATH" ]]; then
             echo "  Reading $impl..."
             VENDOR=$(basename $(dirname "$impl"))
-            if [[ "$impl" == "baremetal/python/tech-writer.py" ]]; then
-                VENDOR="baremetal"
+            if [[ "$impl" == "noframework/python/tech-writer.py" ]]; then
+                VENDOR="noframework"
             fi
             
             CONTEXT="$CONTEXT
@@ -259,9 +259,9 @@ echo "Generating Tech Writer Comparison Matrix Viewer..."
 find_implementations() {
     local implementations=()
     
-    # Add baremetal if it exists
-    if [[ -f "$PROJECT_ROOT/baremetal/python/tech-writer.py" ]]; then
-        implementations+=("baremetal:baremetal/python/tech-writer.py")
+    # Add noframework if it exists
+    if [[ -f "$PROJECT_ROOT/noframework/python/tech-writer.py" ]]; then
+        implementations+=("noframework:noframework/python/tech-writer.py")
     fi
     
     # Find all tech-writer.py files in oss-agent-makers

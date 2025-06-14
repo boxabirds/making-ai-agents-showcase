@@ -24,7 +24,7 @@
                         results.innerHTML += `<p><strong>Code files found:</strong> ${firstPart}...</p>`;
                         
                         // Check for each vendor
-                        const vendors = ['baremetal', 'adk-python', 'dspy', 'agno', 'langgraph', 'pydantic-ai', 'autogen', 'atomic-agents'];
+                        const vendors = ['noframework', 'adk-python', 'dspy', 'agno', 'langgraph', 'pydantic-ai', 'autogen', 'atomic-agents'];
                         vendors.forEach(vendor => {
                             const hasVendor = codeFilesStr.includes(`"${vendor}":`);
                             results.innerHTML += `<p>${vendor}: ${hasVendor ? '✓' : '✗'}</p>`;

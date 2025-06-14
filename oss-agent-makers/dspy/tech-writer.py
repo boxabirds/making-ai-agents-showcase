@@ -11,8 +11,8 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any
 
-# Add baremetal/python to path to import common modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baremetal" / "python"))
+# Add noframework/python to path to import common modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "noframework" / "python"))
 
 import dspy
 from common.utils import (

@@ -10,7 +10,7 @@ Use the tone of voice profile provided separately when writing all summaries, co
 Requirements:
 
 1. IMPLEMENTATIONS TO ANALYZE (Python only):
-   - baremetal/python/tech-writer.py (aka "No Framework")
+   - noframework/python/tech-writer.py (aka "No Framework")
    - oss-agent-makers/adk-python/tech-writer.py
    - oss-agent-makers/dspy/tech-writer.py
    - oss-agent-makers/agno/tech-writer.py
@@ -20,7 +20,7 @@ Requirements:
    - oss-agent-makers/atomic-agents/tech-writer.py
 
 2. COMPARISON STRUCTURE:
-   Except for baremetal (which should be referred to as "No framework", for each comparison pair, include:
+   Except for noframework (which should be referred to as "No framework", for each comparison pair, include:
    - vendor_a: string (implementation name without path)
    - vendor_b: string (implementation name without path)
    - summary: One paragraph comparing the approaches
@@ -101,12 +101,12 @@ Requirements:
        }
      ],
      "framework_assessments": {
-       "baremetal": {
+       "noframework": {
          "standout_features": {
            "strengths": ["Full control over implementation", "No framework dependencies", "..."],
            "weaknesses": ["Verbose and repetitive", "No built-in abstractions", "..."]
          },
-         "when_to_choose": "Choose baremetal when you need complete control and transparency, or when framework overhead is unacceptable",
+         "when_to_choose": "Choose noframework when you need complete control and transparency, or when framework overhead is unacceptable",
          "tagline": "Maximum control, maximum effort"
        },
        "autogen": {

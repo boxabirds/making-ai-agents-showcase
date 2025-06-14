@@ -12,8 +12,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 
-# Add baremetal/python to path to import common modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "baremetal" / "python"))
+# Add noframework/python to path to import common modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "noframework" / "python"))
 
 from common.tools import find_all_matching_files, read_file
 from common.utils import (

@@ -56,8 +56,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Change to the baremetal/python directory where tech-writer.py is located
-cd "$BASE_DIR/baremetal/python"
+# Change to the noframework/python directory where tech-writer.py is located
+cd "$BASE_DIR/noframework/python"
 
 # Function to run tech writer on a single repo
 function analyze_repo {

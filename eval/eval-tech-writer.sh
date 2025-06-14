@@ -8,8 +8,8 @@ set -euo pipefail
 # Check if script path is provided
 if [[ $# -lt 1 ]]; then
     echo "Usage: $0 <tech-writer-script-path>"
-    echo "Example: $0 ../baremetal/python/tech-writer.sh"
-    echo "Example: $0 ../baremetal/bash/tech-writer.sh"
+    echo "Example: $0 ../noframework/python/tech-writer.sh"
+    echo "Example: $0 ../noframework/bash/tech-writer.sh"
     exit 1
 fi
 

@@ -3,7 +3,7 @@
 ## Executive Summary
 
 This report provides an in-depth analysis of two implementations of the Tech Writer agent:
-1. **Baseline Implementation** (`baremetal/python/tech-writer.py`) - Custom ReAct agent using OpenAI client
+1. **Baseline Implementation** (`noframework/python/tech-writer.py`) - Custom ReAct agent using OpenAI client
 2. **ADK Implementation** (`oss-agent-makers/adk-python/tech-writer.py`) - Google Agent Development Kit port
 
 Both implementations achieve the same goal but differ significantly in architecture, complexity, and capabilities.

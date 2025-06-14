@@ -123,8 +123,8 @@
         <div id="matrix-view">
             <div class="matrix-container">
                 <h2>Select a Comparison</h2>
-                <button onclick="loadExample('baremetal', 'dspy')">Baremetal vs DSPy</button>
-                <button onclick="loadExample('baremetal', 'atomic-agents')">Baremetal vs Atomic Agents</button>
+                <button onclick="loadExample('noframework', 'dspy')">No Framework vs DSPy</button>
+                <button onclick="loadExample('noframework', 'atomic-agents')">No Framework vs Atomic Agents</button>
             </div>
             
             <div id="comparison-summary" class="comparison-summary">
@@ -152,7 +152,7 @@
     <script>
         // Sample data
         const sampleCode = {
-            baremetal: `from pathlib import Path
+            noframework: `from pathlib import Path
 import json
 import re
 from openai import OpenAI
