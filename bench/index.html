@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Writer Benchmark - Making AI Agents</title>
+    
+    <!-- Highlight.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+    
+    <!-- Highlight.js core and Python support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.9.0/highlightjs-line-numbers.min.js"></script>
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile header -->
+        <header class="mobile-header">
+            <button class="hamburger-btn" id="hamburgerBtn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <h1>Tech Writer Benchmark</h1>
+        </header>
+        
+        <!-- Left sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Frameworks</h2>
+                <button class="close-btn" id="closeSidebar">×</button>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-framework="overview">
+                    <span class="nav-icon">📊</span>
+                    Overview
+                </button>
+                <div class="nav-divider"></div>
+                <div class="nav-section" id="frameworkList">
+                    <!-- Framework list will be populated by JS -->
+                </div>
+            </nav>
+        </aside>
+        
+        <!-- Main chat area -->
+        <main class="chat-container">
+            <div class="chat-header">
+                <h2 id="chatTitle">Tech Writer Benchmark Overview</h2>
+                <p id="chatSubtitle">Explore implementations across frameworks</p>
+            </div>
+            
+            <!-- Messages area -->
+            <div class="messages-container" id="messagesContainer">
+                <div class="welcome-message">
+                    <h3>Welcome to the Tech Writer Benchmark! 👋</h3>
+                    <p>This interactive tool helps you explore how a tech writer agent was implemented across 50+ open source AI frameworks.</p>
+                    <p>Click the quick actions below or type a question to get started.</p>
+                </div>
+            </div>
+            
+            <!-- Typing indicator -->
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-bubble">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+            
+            <!-- Quick actions -->
+            <div class="quick-actions" id="quickActions">
+                <button class="quick-action-btn" data-action="summary">Summary</button>
+                <button class="quick-action-btn" data-action="leaderboard">Leaderboard</button>
+                <button class="quick-action-btn" data-action="method">Method</button>
+                <button class="quick-action-btn" data-action="future">Future</button>
+            </div>
+            
+            <!-- Input area -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        class="chat-input" 
+                        id="chatInput" 
+                        placeholder="Ask about implementations, compare frameworks..."
+                        autocomplete="off"
+                    >
+                    <button class="send-button" id="sendButton">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Vertical separator (desktop only) -->
+        <div class="separator-vertical" id="separatorVertical"></div>
+        
+        <!-- Right panel / Mobile tray -->
+        <aside class="detail-panel" id="detailPanel">
+            <div class="panel-header">
+                <h3 id="panelTitle">Details</h3>
+                <div class="panel-actions">
+                    <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                        </svg>
+                    </button>
+                    <button class="close-panel-btn" id="closePanelBtn">×</button>
+                </div>
+            </div>
+            <div class="panel-content" id="panelContent">
+                <!-- Content will be dynamically inserted -->
+            </div>
+            <!-- Tray chat input (visible on mobile) -->
+            <div class="tray-input-container">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        class="chat-input" 
+                        id="trayChatInput" 
+                        placeholder="Continue conversation..."
+                        autocomplete="off"
+                    >
+                    <button class="send-button" id="traySendButton">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Mobile overlay -->
+        <div class="mobile-overlay" id="mobileOverlay"></div>
+    </div>
+    
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
