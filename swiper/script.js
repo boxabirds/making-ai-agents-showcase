@@ -4,11 +4,16 @@ let totalCards = 0;
 let isScrolling = false;
 let touchStartY = 0;
 let touchEndY = 0;
+let touchStartX = 0;
+let touchEndX = 0;
 
 function initSwiper() {
     const track = document.getElementById('swiperTrack');
     const cards = document.querySelectorAll('.card');
     totalCards = cards.length;
+    
+    // Check if desktop
+    const isDesktop = window.innerWidth > 768;
     
     // Generate navigation dots
     generateNavDots();
@@ -82,13 +87,24 @@ function updateActiveCard(index) {
 
 function updateProgressBar() {
     const track = document.getElementById('swiperTrack');
-    const scrollPercentage = track.scrollTop / (track.scrollHeight - track.clientHeight);
+    const isDesktop = window.innerWidth > 768;
+    
+    let scrollPercentage;
+    let newIndex;
+    
+    if (isDesktop) {
+        scrollPercentage = track.scrollLeft / (track.scrollWidth - track.clientWidth);
+        const cardWidth = window.innerWidth;
+        newIndex = Math.round(track.scrollLeft / cardWidth);
+    } else {
+        scrollPercentage = track.scrollTop / (track.scrollHeight - track.clientHeight);
+        const cardHeight = window.innerHeight;
+        newIndex = Math.round(track.scrollTop / cardHeight);
+    }
+    
     const progressFill = document.getElementById('progressFill');
     progressFill.style.width = `${scrollPercentage * 100}%`;
     
-    // Update current index based on scroll
-    const cardHeight = window.innerHeight;
-    const newIndex = Math.round(track.scrollTop / cardHeight);
     if (newIndex !== currentIndex) {
         updateActiveCard(newIndex);
     }
@@ -96,11 +112,21 @@ function updateProgressBar() {
 
 function snapToNearestCard() {
     const track = document.getElementById('swiperTrack');
-    const cardHeight = window.innerHeight;
-    const scrollPosition = track.scrollTop;
-    const nearestCard = Math.round(scrollPosition / cardHeight);
+    const isDesktop = window.innerWidth > 768;
     
-    if (Math.abs(scrollPosition - nearestCard * cardHeight) > 5) {
+    let scrollPosition, cardSize, nearestCard;
+    
+    if (isDesktop) {
+        cardSize = window.innerWidth;
+        scrollPosition = track.scrollLeft;
+        nearestCard = Math.round(scrollPosition / cardSize);
+    } else {
+        cardSize = window.innerHeight;
+        scrollPosition = track.scrollTop;
+        nearestCard = Math.round(scrollPosition / cardSize);
+    }
+    
+    if (Math.abs(scrollPosition - nearestCard * cardSize) > 5) {
         scrollToCard(nearestCard);
     }
 }
@@ -109,50 +135,91 @@ function scrollToCard(index) {
     if (index < 0 || index >= totalCards) return;
     
     const track = document.getElementById('swiperTrack');
-    const cardHeight = window.innerHeight;
+    const isDesktop = window.innerWidth > 768;
     
-    track.scrollTo({
-        top: index * cardHeight,
-        behavior: 'smooth'
-    });
+    if (isDesktop) {
+        const cardWidth = window.innerWidth;
+        track.scrollTo({
+            left: index * cardWidth,
+            behavior: 'smooth'
+        });
+    } else {
+        const cardHeight = window.innerHeight;
+        track.scrollTo({
+            top: index * cardHeight,
+            behavior: 'smooth'
+        });
+    }
     
     updateActiveCard(index);
 }
 
 function handleTouchStart(e) {
     touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
 }
 
 function handleTouchEnd(e) {
     touchEndY = e.changedTouches[0].clientY;
+    touchEndX = e.changedTouches[0].clientX;
     handleSwipe();
 }
 
 function handleSwipe() {
-    const swipeDistance = touchStartY - touchEndY;
+    const isDesktop = window.innerWidth > 768;
     const threshold = 50; // Minimum swipe distance
     
-    if (Math.abs(swipeDistance) > threshold) {
-        if (swipeDistance > 0) {
-            // Swiped up
-            scrollToCard(currentIndex + 1);
-        } else {
-            // Swiped down
-            scrollToCard(currentIndex - 1);
+    if (isDesktop) {
+        const swipeDistanceX = touchStartX - touchEndX;
+        if (Math.abs(swipeDistanceX) > threshold) {
+            if (swipeDistanceX > 0) {
+                // Swiped left
+                scrollToCard(currentIndex + 1);
+            } else {
+                // Swiped right
+                scrollToCard(currentIndex - 1);
+            }
+        }
+    } else {
+        const swipeDistanceY = touchStartY - touchEndY;
+        if (Math.abs(swipeDistanceY) > threshold) {
+            if (swipeDistanceY > 0) {
+                // Swiped up
+                scrollToCard(currentIndex + 1);
+            } else {
+                // Swiped down
+                scrollToCard(currentIndex - 1);
+            }
         }
     }
 }
 
 function handleKeyboard(e) {
+    const isDesktop = window.innerWidth > 768;
+    
     switch(e.key) {
         case 'ArrowDown':
+            if (!isDesktop) {
+                e.preventDefault();
+                scrollToCard(currentIndex + 1);
+            }
+            break;
+        case 'ArrowUp':
+            if (!isDesktop) {
+                e.preventDefault();
+                scrollToCard(currentIndex - 1);
+            }
+            break;
+        case 'ArrowRight':
         case ' ': // Spacebar
             e.preventDefault();
             scrollToCard(currentIndex + 1);
             break;
-        case 'ArrowUp':
-            e.preventDefault();
-            scrollToCard(currentIndex - 1);
+        case 'ArrowLeft':
+            if (isDesktop) {
+                e.preventDefault();
+                scrollToCard(currentIndex - 1);
+            }
             break;
         case 'Home':
             e.preventDefault();
@@ -225,6 +292,16 @@ function applyMomentum() {
     
     animate();
 }
+
+// Handle window resize
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        // Reset to current card after resize
+        scrollToCard(currentIndex);
+    }, 250);
+});
 
 // Initialize enhanced physics after swiper is ready
 document.addEventListener('DOMContentLoaded', () => {

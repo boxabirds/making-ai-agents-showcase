@@ -62,7 +62,7 @@ body {
 
 .card-inner {
     width: 100%;
-    max-width: 450px;
+    max-width: 932px;
     height: calc(100% - 20px);
     max-height: 700px;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -291,6 +291,32 @@ body {
     transition: width 0.3s ease;
 }
 
+/* Desktop horizontal scrolling */
+@media (min-width: 769px) {
+    .swiper-track {
+        scroll-snap-type: x mandatory;
+        overflow-x: scroll;
+        overflow-y: hidden;
+        display: flex;
+        width: 100%;
+    }
+    
+    .card {
+        min-width: 100%;
+        height: 100%;
+        scroll-snap-align: center;
+    }
+    
+    .nav-dots {
+        flex-direction: row;
+        top: auto;
+        bottom: 20px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+    }
+}
+
 /* Mobile optimizations */
 @media (max-width: 768px) {
     .card-intro h1 {
@@ -302,7 +328,7 @@ body {
     }
     
     .card-inner {
-        max-width: calc(100vw - 20px);
+        max-width: 450px;
         height: calc(100vh - 40px);
         border-width: 5px;
     }
