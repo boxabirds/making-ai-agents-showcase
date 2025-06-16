@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Script to update all tech-writer.sh files with uv detection and simplified command
+
+# Function to create the new tech-writer.sh content
+create_new_content() {
+cat << 'EOF'
+#!/bin/bash
+
 # Check if uv is installed
 if ! command -v uv &> /dev/null; then
     echo "Error: uv is not installed."
@@ -48,3 +55,25 @@ fi
 
 # Run the script using uv (which automatically uses the virtual environment)
 uv run python ./tech-writer.py "$@"
+EOF
+}
+
+# Find all tech-writer.sh files
+echo "Finding all tech-writer.sh files..."
+tech_writer_files=$(find /Users/julian/expts/awesome-agent-showcase/oss-agent-makers -name "tech-writer.sh" -type f)
+
+# Update each file
+for file in $tech_writer_files; do
+    echo "Updating: $file"
+    
+    # Create new content
+    new_content=$(create_new_content)
+    
+    # Write the new content
+    echo "$new_content" > "$file"
+    
+    # Make it executable
+    chmod +x "$file"
+done
+
+echo "Updated $(echo "$tech_writer_files" | wc -l | tr -d ' ') tech-writer.sh files"
