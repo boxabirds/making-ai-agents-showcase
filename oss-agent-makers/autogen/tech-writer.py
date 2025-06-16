@@ -1,10 +1,8 @@
-import asyncio
 import sys
 from pathlib import Path
 from typing import List, Dict, Any
 from autogen_agentchat.agents import AssistantAgent
 
-# Works with any OpenAI API compatible LLM which is most of them 
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 import argparse
 
@@ -16,21 +14,15 @@ from common.utils import (
     read_prompt_file,
     save_results,
     create_metadata,
-    #REACT_SYSTEM_PROMPT,
     TECH_WRITER_SYSTEM_PROMPT,
     configure_code_base_source,
     get_command_line_args,
     MAX_ITERATIONS,
-    vendor_model_with_colons,
-    OPENAI_API_KEY,
-    GEMINI_API_KEY,
 )
 
 from common.tools import find_all_matching_files, read_file
 from common.logging import logger, configure_logging
 
-
-# Async wrapper functions for AutoGen compatibility
 async def find_all_matching_files_async(
     directory: str, 
     pattern: str = "*", 
@@ -38,11 +30,6 @@ async def find_all_matching_files_async(
     include_hidden: bool = False,
     include_subdirs: bool = True
 ) -> List[str]:
-    """Find all the files in a given directory matching a certain regex pattern 
-    optionally recursively (on by default),
-    optionally include hidden files (off by default),
-    respecting git's .gitignore file (on by default)
-    """
     return find_all_matching_files(
         directory=directory,
         pattern=pattern,
@@ -53,14 +40,7 @@ async def find_all_matching_files_async(
     )
 
 async def read_file_async(file_path: str) -> Dict[str, Any]:
-    """Read the contents of a specific file.
-    
-    Use this when you need to examine the actual content of a file.
-    Provide either an absolute path or a path relative to the base directory.
-    Returns the file content or an error message.
-    """
     return read_file(file_path)
-
 
 async def analyze_codebase(directory_path: str, prompt_file_path: str, model_name: str, base_url: str = None, repo_url: str = None, max_iters = MAX_ITERATIONS) -> tuple[str, str, str]:
     prompt = read_prompt_file(prompt_file_path)
@@ -70,12 +50,10 @@ async def analyze_codebase(directory_path: str, prompt_file_path: str, model_nam
     # default string sent is openai/gpt-4.1-mini which is SOTA cheap model currently
     _, model_id = model_name.split("/", 1)
     
-    # Configure the model client based on vendor
     model_client = OpenAIChatCompletionClient(
         model=model_id,
     )
   
-    # Create the agent with tools
     agent = AssistantAgent(
         name="tech_writer",
         model_client=model_client,
@@ -91,10 +69,8 @@ async def analyze_codebase(directory_path: str, prompt_file_path: str, model_nam
     repo_name = Path(directory_path).name
     return analysis_result, repo_name, repo_url or ""
 
-
 def main():
     import asyncio
-    
     async def async_main():
         try:
             configure_logging()
@@ -129,7 +105,6 @@ def main():
             sys.exit(1)
     
     asyncio.run(async_main())
-
 
 if __name__ == "__main__":
     main()

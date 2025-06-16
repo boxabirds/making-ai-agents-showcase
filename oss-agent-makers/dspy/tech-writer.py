@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Tech Writer Agent using DSPy's built-in ReAct module.
-
-This implementation uses DSPy's native ReAct agent for tool-based reasoning.
-"""
-
 import sys
 import os
 import json
@@ -25,17 +18,6 @@ from common.utils import (
     CustomEncoder,
 )
 from common.tools import TOOLS
-
-# DSPy uses docstrings as functional units -- it uses it as the main prompt. 
-# This approach can be very problematic because it prevents you from easily
-# being able to use variables for your prompt, which is clearly nonsense.
-# You'd have to do this hack below to modify the __doc__ variable:
-# class TechWriterSignature(dspy.Signature):
-
-#     TechWriterSignature.__doc__ = TECH_WRITER_SYSTEM_PROMPT
-#     😱
-# So I've inlined the text prompts. 
-
 
 class TechWriterSignature(dspy.Signature):
     """
@@ -95,7 +77,6 @@ def analyse_codebase(directory_path: str, prompt_file_path: str, model_name: str
     repo_name = Path(directory_path).name
     return analysis, repo_name, repo_url or ""
 
-
 def main():
     try:
         from common.logging import configure_logging
@@ -113,7 +94,6 @@ def main():
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

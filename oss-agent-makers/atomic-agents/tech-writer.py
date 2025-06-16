@@ -1,10 +1,7 @@
 import sys  
-import os  
-import textwrap  
 import instructor  
 import json  
 from pathlib import Path  
-from typing import Optional, List, Dict, Any, Union  
 from pydantic import Field  
   
 from atomic_agents.agents.base_agent import BaseAgent, BaseAgentConfig, BaseIOSchema  
@@ -30,7 +27,6 @@ from common.utils import (
 from common.logging import logger, configure_logging  
 from common.tools import TOOLS  
   
-# Atomic Agents Schema Definitions  
 class TechWriterInputSchema(BaseIOSchema):  
     """Input schema for the tech writer agent."""  
     prompt: str = Field(..., description="The analysis prompt")  
@@ -40,7 +36,6 @@ class TechWriterOutputSchema(BaseIOSchema):
     """Output schema for the tech writer agent."""  
     analysis_result: str = Field(..., description="The final analysis result")  
   
-# Context Provider for dynamic codebase information  
 class CodebaseContextProvider(SystemPromptContextProviderBase):  
     def __init__(self, title: str):  
         super().__init__(title=title)  
@@ -50,7 +45,6 @@ class CodebaseContextProvider(SystemPromptContextProviderBase):
     def get_info(self) -> str:  
         return f"Base directory: {self.base_directory}\n\nAnalysis prompt: {self.analysis_prompt}"  
   
-# FindAllMatchingFilesTool  
 class FindAllMatchingFilesInputSchema(BaseIOSchema):  
     """Input schema for finding matching files."""  
     directory: str = Field(..., description="Directory to search in")  
@@ -77,7 +71,6 @@ class FindAllMatchingFilesTool(BaseTool):
     def run(self, params: FindAllMatchingFilesInputSchema) -> FindAllMatchingFilesOutputSchema:  
         logger.info(f"FindAllMatchingFilesTool invoked with directory={params.directory}, pattern={params.pattern}")
         try:  
-            # Call your original function from TOOLS  
             tool_func = TOOLS["find_all_matching_files"]  
             result = tool_func(  
                 directory=params.directory,  
@@ -85,13 +78,12 @@ class FindAllMatchingFilesTool(BaseTool):
                 respect_gitignore=params.respect_gitignore,  
                 include_hidden=params.include_hidden,  
                 include_subdirs=params.include_subdirs,  
-                return_paths_as="str"  # Always return strings for JSON compatibility  
+                return_paths_as="str"  
             )  
             return FindAllMatchingFilesOutputSchema(result=json.dumps(result, cls=CustomEncoder, indent=2))  
         except Exception as e:  
             return FindAllMatchingFilesOutputSchema(result=f"Error finding files: {str(e)}")  
   
-# FileReaderTool  
 class FileReaderInputSchema(BaseIOSchema):  
     """Input schema for reading file contents."""  
     file_path: str = Field(..., description="Path to the file to read")  
@@ -110,11 +102,9 @@ class FileReaderTool(BaseTool):
             title="FileReaderTool",  
             description="Read the contents of a file"  
         ))  
-      
     def run(self, params: FileReaderInputSchema) -> FileReaderOutputSchema:  
         logger.info(f"FileReaderTool invoked with file_path={params.file_path}")
         try:  
-            # Call your original function from TOOLS  
             tool_func = TOOLS["read_file"]  
             result = tool_func(params.file_path)  
             return FileReaderOutputSchema(result=json.dumps(result, cls=CustomEncoder, indent=2))  

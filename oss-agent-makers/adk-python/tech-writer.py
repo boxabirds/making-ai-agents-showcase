@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Tech Writer Agent using Google ADK
-Direct port of baseline/tech-writer.py to use ADK framework
-"""
-
 import asyncio
 import sys
 from pathlib import Path
@@ -16,7 +10,6 @@ from google.genai import types
 # Add noframework/python to path to import common modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "noframework" / "python"))
 
-# Import from common modules - reuse everything possible
 from common.utils import (
     REACT_SYSTEM_PROMPT,
     read_prompt_file,
@@ -31,18 +24,14 @@ from common.logging import logger, configure_logging
 
 async def stupid_adk_hack_to_get_model(vendor_model_id_combo):
     # This feels like marketing getting in the way of clean API design
-    # openrouter and liteLLM both support <vendor>/<model id> but does ADK? 
-    # CONDITIONALLY
 
     vendor, model_id = vendor_model_id_combo.split("/", 1)
     if vendor == "google":
         # Gemini models can be used directly without vendor prefix
-        # Yeah this is some crappy DevUX for sure
         return model_id
     else:
         # Non-Google models need LiteLLM wrapper with full vendor/model string
         return LiteLlm(model=vendor_model_id_combo)
-
 
 async def analyse_codebase(directory_path: str, prompt_file_path: str, vendor_model_id_combo: str, repo_url: str = None) -> tuple[str, str, str]:
     prompt = read_prompt_file(prompt_file_path)
@@ -71,10 +60,8 @@ async def analyse_codebase(directory_path: str, prompt_file_path: str, vendor_mo
         user_id='cli_user'
     )
     
-    # Prepare the full prompt with directory context
     full_prompt = f"Base directory: {directory_path}\n\n{prompt}"
     
-    # Create user content
     content = types.Content(
         role='user',
         parts=[types.Part.from_text(text=full_prompt)]
@@ -94,18 +81,15 @@ async def analyse_codebase(directory_path: str, prompt_file_path: str, vendor_mo
         if event.content.parts and event.content.parts[0].text:
             full_response += event.content.parts[0].text
     
-    # Get repository name for output file
     repo_name = Path(directory_path).name
     
     return full_response, repo_name, repo_url or ""
-
 
 async def main():
     try:
         configure_logging()
         args = get_command_line_args()
         
-        # Configure codebase source (repo or directory)
         repo_url, directory_path = configure_code_base_source(args.repo, args.directory, args.cache_dir)
             
         analysis_result, repo_name, _ = await analyse_codebase(
@@ -115,17 +99,14 @@ async def main():
             repo_url
         )
         
-        # Save the results
         output_file = save_results(analysis_result, args.model, repo_name, args.output_dir, args.extension, args.file_name)
         logger.info(f"Analysis complete. Results saved to: {output_file}")
         
-        # Always create metadata (with optional evaluation)
         create_metadata(output_file, args.model, repo_url, repo_name, analysis_result, args.eval_prompt)
         
     except Exception as e:
         logger.error(f"Error: {str(e)}", exc_info=True)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

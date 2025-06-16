@@ -21,12 +21,9 @@ from common.utils import (
 from common.tools import find_all_matching_files, read_file
 from common.logging import logger, configure_logging
 
-
 class AnalysisContext(BaseModel):
-    """Context dependencies for the analysis."""
     base_directory: str
     analysis_prompt: str
-
 
 tech_writer = Agent(
     deps_type=AnalysisContext,
@@ -53,17 +50,9 @@ async def find_files(
 
 @tech_writer.tool
 async def read_file_content(ctx: RunContext[AnalysisContext], file_path: str) -> dict:
-    """Read the contents of a specific file.
-    
-    Use this when you need to examine the actual content of a file.
-    Provide either an absolute path or a path relative to the base directory.
-    Returns the file content or an error message.
-    """
-
     if not Path(file_path).is_absolute():
         file_path = str(Path(ctx.deps.base_directory) / file_path)
     return read_file(file_path)
-
 
 async def analyze_codebase(
     directory_path: str, 
@@ -118,7 +107,6 @@ def main():
                 analysis_result, args.model, repo_name, 
                 args.output_dir, args.extension, args.file_name
             )
-            logger.info(f"Analysis complete. Results saved to: {output_file}")
             
             create_metadata(
                 output_file, args.model, repo_url, repo_name, 
@@ -130,7 +118,6 @@ def main():
             sys.exit(1)
     
     asyncio.run(async_main())
-
 
 if __name__ == "__main__":
     main()
