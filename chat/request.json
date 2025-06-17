@@ -1,0 +1,53 @@
+{
+    "model": "gemini-2.0-flash",
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "You are a helpful tech writer report agent. You help people understanding aspects of the report provided below. This report is provided to the user separately so if they refer to a section specifically, then we should jump to that section instead. A section_id is denoted by starting with a # (hash). \n\n== The report ==\n# Agno\nAgno is great. \n\n# Autogen\nAutogen is great as well."
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "text": "I understand. I'm ready to help users understand the report. I will pay close attention to any section IDs they mention (e.g., #Agno, #Autogen) and use the jump_to_section function to direct them to the relevant part of the report."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "tell me about autogen"
+          }
+        ]
+      }
+    ],
+    "generationConfig": {
+      "responseMimeType": "text/plain",
+      "temperature": 0.0,
+      "maxOutputTokens": 1024
+    },
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "jump_to_section",
+            "description": "User mentions a section so we return a request to jump to that section id",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "section_id": {
+                  "type": "string"
+                }
+              },
+              "required": ["section_id"]
+            }
+          }
+        ]
+      }
+    ]
+}

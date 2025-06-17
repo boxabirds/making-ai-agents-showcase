@@ -32,11 +32,12 @@ export default {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': env.GOOGLE_API_KEY, // Stored securely in Worker
+          'x-goog-api-key': env.GOOGLE_API_KEY, 
         },
         body: JSON.stringify({
           contents: body.contents,
-          generationConfig: body.generationConfig
+          generationConfig: body.generationConfig,
+          tools: body.tools || []
         })
       });
 

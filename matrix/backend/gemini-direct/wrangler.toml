@@ -1,0 +1,9 @@
+name = "tech-writer-ai-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+GATEWAY_ID = "maia"
+
+[observability.logs]
+enabled = true

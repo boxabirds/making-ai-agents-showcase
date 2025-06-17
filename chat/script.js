@@ -480,9 +480,9 @@ function buildToolDefinitions() {
     const hierarchy = buildCompactHierarchy();
     
     return [{
-        functionDeclarations: [{
+        function_declarations: [{
             name: "navigate_to_section",
-            description: `User asks about any of the following sections then we need to navigate to the artifact rather than responding with a message. Sections: ${hierarchy}`,
+            description: `When user asks about any of the following sections, jump to that section instead of describing it. Sections: ${hierarchy}`,
             parameters: {
                 type: "object",
                 properties: {
@@ -566,13 +566,15 @@ Remember:
 - Base your answers on the document content provided above
 - Be helpful in navigating the document
 - Keep responses concise and relevant
-- When users ask about specific topics that are covered in the sections, use the navigation function to take them there`;
+- When users ask about specific topics that are covered in the sections, jump to that section instead of responding with a message`;
     
     return prompt;
 }
 
 async function callGeminiAPI(contents) {
     const tools = buildToolDefinitions();
+    
+    console.log('Calling Gemini API with tools:', JSON.stringify(tools, null, 2));
     
     const response = await fetch(CONFIG.WORKER_URL, {
         method: 'POST',
@@ -592,6 +594,8 @@ async function callGeminiAPI(contents) {
 
     const data = await response.json();
     
+    console.log('Gemini API response:', JSON.stringify(data, null, 2));
+    
     // Check if the response contains an error
     if (data.error) {
         if (data.error.code === 503 || data.error.status === 'UNAVAILABLE') {
@@ -610,16 +614,21 @@ async function callGeminiAPI(contents) {
 }
 
 function parseAssistantResponse(responseData) {
+    console.log('Parsing assistant response...');
+    
     // Check if the response has the expected structure
     if (!responseData.candidates || !responseData.candidates[0] || !responseData.candidates[0].content) {
+        console.error('Invalid response structure:', responseData);
         throw new Error('Invalid response format from AI model');
     }
     
     const content = responseData.candidates[0].content;
+    console.log('Response content:', JSON.stringify(content, null, 2));
     
     // Check if it's a function call response
     if (content.parts && content.parts[0] && content.parts[0].functionCall) {
         const functionCall = content.parts[0].functionCall;
+        console.log('Function call detected:', functionCall);
         return {
             toolCall: {
                 tool: functionCall.name,
@@ -631,27 +640,35 @@ function parseAssistantResponse(responseData) {
     
     // Regular text response
     if (content.parts && content.parts[0] && content.parts[0].text) {
+        console.log('Text response detected');
         return { text: content.parts[0].text };
     }
     
+    console.error('No valid content found in response');
     throw new Error('No valid content in response');
 }
 
 function handleToolCall(toolCall) {
+    console.log('Handling tool call:', toolCall);
+    
     if (toolCall.tool === 'navigate_to_section') {
         const section = window.documentParser.getSection(toolCall.sectionId);
+        console.log('Found section:', section);
         
         if (section) {
             if (section.level === 1) {
+                console.log('Navigating to main section:', toolCall.sectionId);
                 navigateToSection(toolCall.sectionId);
             } else {
                 // It's a subsection, navigate to parent with subsection
+                console.log('Navigating to subsection:', toolCall.sectionId, 'with parent:', section.parentId);
                 navigateToSection(section.parentId, toolCall.sectionId);
             }
             
             // Add artifact reference
             addArtifactToChat(section.title, section.level === 1 ? 'section' : 'subsection', toolCall.sectionId);
         } else {
+            console.error('Section not found:', toolCall.sectionId);
             addMessage("I couldn't find that section. Please check the section name and try again.", 'assistant');
         }
     }
@@ -737,24 +754,9 @@ function showDetailPanel() {
 }
 
 function scrollToSubsection(subsectionId) {
-    console.log('scrollToSubsection called with:', subsectionId);
-    console.log('Panel content exists:', !!elements.panelContent);
-    console.log('Panel content HTML length:', elements.panelContent.innerHTML.length);
-    
-    // Log all elements with IDs
-    const allWithIds = elements.panelContent.querySelectorAll('[id]');
-    console.log('All elements with IDs:', Array.from(allWithIds).map(el => ({
-        tag: el.tagName,
-        id: el.id,
-        text: el.textContent.substring(0, 50)
-    })));
-    
     const element = elements.panelContent.querySelector(`#${subsectionId}`);
     if (element) {
-        console.log('Found element:', element);
-        console.log('Element position:', element.getBoundingClientRect());
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        console.log('Scroll command sent');
     } else {
         console.warn(`Could not find element with ID: ${subsectionId}`);
     }

@@ -60,11 +60,6 @@ class DocumentParser {
                 // Start new subsection
                 // Generate ID from display title (after removing brackets)
                 const subsectionId = this.slugify(titleInfo.displayTitle);
-                console.log('Creating subsection:', {
-                    originalTitle: h2Match[1],
-                    displayTitle: titleInfo.displayTitle,
-                    id: subsectionId
-                });
                 
                 currentSubsection = {
                     id: subsectionId,
@@ -168,9 +163,6 @@ class DocumentParser {
     
     // Add IDs to H2 headings for in-page navigation
     addHeadingIds(html, currentSection) {
-        console.log('addHeadingIds called for section:', currentSection?.id);
-        console.log('HTML before adding IDs:', html.substring(0, 1000));
-        
         if (!currentSection || !currentSection.subsections) {
             return html;
         }
@@ -181,20 +173,10 @@ class DocumentParser {
             const searchPattern = `<h2>${this.escapeRegex(subsection.title)}</h2>`;
             const replacePattern = `<h2 id="${subsection.id}">${subsection.title}</h2>`;
             
-            console.log('Searching for:', searchPattern);
-            const found = html.includes(searchPattern.replace(/\\/g, ''));
-            console.log('Found in HTML:', found);
-            
-            if (found) {
-                const regex = new RegExp(searchPattern, 'g');
-                html = html.replace(regex, replacePattern);
-                console.log('Successfully added ID to H2:', subsection.id);
-            } else {
-                console.warn('Could not find H2 for:', subsection.title);
-            }
+            const regex = new RegExp(searchPattern, 'g');
+            html = html.replace(regex, replacePattern);
         });
         
-        console.log('HTML after adding IDs:', html.substring(0, 1000));
         return html;
     }
     
