@@ -126,14 +126,13 @@
                 transform: translateY(0);
             }
             
-            /* When document viewer is open, adjust input group position */
-            .chat-panel:has(+ .document-viewer.open) input-group {
+            /* When document viewer is open, move the input group to bottom of screen */
+            body:has(.document-viewer.open) .chat-panel input-group {
                 position: fixed;
-                bottom: 75vh;
+                bottom: 0;
                 left: 0;
                 right: 0;
-                z-index: 91;
-                box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+                z-index: 95;
             }
             
             .overlay {
@@ -272,18 +271,20 @@
     
     <script>
         // Initialize the input group component
-        const inputGroup = document.getElementById('mainInput');
+        const mainInput = document.getElementById('mainInput');
         
         // Set initial quick actions
-        inputGroup.quickActions = [
+        const initialActions = [
             { id: 'install', text: 'Installation' },
             { id: 'config', text: 'Configuration' },
             { id: 'first-steps', text: 'First Steps' },
             { id: 'troubleshoot', text: 'Troubleshooting' }
         ];
         
+        mainInput.quickActions = initialActions;
+        
         // Listen for events
-        inputGroup.addEventListener('message-submit', (e) => {
+        mainInput.addEventListener('message-submit', (e) => {
             console.log('Message submitted:', e.detail.message);
             addMessage('You', e.detail.message);
             
@@ -293,7 +294,7 @@
             }, 1000);
         });
         
-        inputGroup.addEventListener('action-click', (e) => {
+        mainInput.addEventListener('action-click', (e) => {
             console.log('Action clicked:', e.detail.actionId);
             addMessage('System', `Navigating to: ${e.detail.action.text}`);
             
@@ -327,17 +328,12 @@
         }
         
         function toggleQuickActions() {
-            const hasActions = inputGroup.quickActions.length > 0;
-            inputGroup.quickActions = hasActions ? [] : [
-                { id: 'install', text: 'Installation' },
-                { id: 'config', text: 'Configuration' },
-                { id: 'first-steps', text: 'First Steps' },
-                { id: 'troubleshoot', text: 'Troubleshooting' }
-            ];
+            const hasActions = mainInput.quickActions.length > 0;
+            mainInput.quickActions = hasActions ? [] : initialActions;
         }
         
         function changeActions() {
-            inputGroup.quickActions = [
+            mainInput.quickActions = [
                 { id: 'overview', text: 'Overview' },
                 { id: 'examples', text: 'Examples' },
                 { id: 'best-practices', text: 'Best Practices' }
@@ -345,7 +341,7 @@
         }
         
         function disableInput() {
-            inputGroup.disabled = !inputGroup.disabled;
+            mainInput.disabled = !mainInput.disabled;
         }
         
         function closeAll() {
