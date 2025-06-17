@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component-Based Chat Demo</title>
+    <style>
+        /* Global design tokens only */
+        :root {
+            --color-bg: #f7f8fa;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text: #1e293b;
+            --color-primary: #3b82f6;
+            --color-primary-dark: #2563eb;
+            
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --chat-width: 400px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Simple layout grid */
+        .app-layout {
+            display: grid;
+            height: 100vh;
+            grid-template-columns: var(--sidebar-width) var(--chat-width) 1fr;
+        }
+        
+        /* Basic containers */
+        .sidebar {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .chat-panel {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--color-bg);
+            border-radius: 0.5rem;
+        }
+        
+        .document-viewer {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        /* Mobile layout */
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: var(--header-height) 1fr;
+            }
+            
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                padding: 1rem;
+                background: var(--color-surface);
+                border-bottom: 1px solid var(--color-border);
+            }
+            
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 100;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .chat-panel {
+                grid-row: 2;
+                height: calc(100vh - var(--header-height));
+            }
+            
+            .document-viewer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 75vh;
+                background: var(--color-surface);
+                transform: translateY(100%);
+                transition: transform 0.3s ease;
+                border-radius: 1rem 1rem 0 0;
+                box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 90;
+            }
+            
+            .document-viewer.open {
+                transform: translateY(0);
+            }
+            
+            /* When document viewer is open, adjust input group position */
+            .chat-panel:has(+ .document-viewer.open) input-group {
+                position: fixed;
+                bottom: 75vh;
+                left: 0;
+                right: 0;
+                z-index: 91;
+                box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+            }
+            
+            .overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+                z-index: 85;
+            }
+            
+            .overlay.active {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+        
+        /* Desktop-only */
+        @media (min-width: 769px) {
+            .mobile-header {
+                display: none;
+            }
+            
+            .overlay {
+                display: none;
+            }
+            
+            /* Fullscreen document viewer on desktop */
+            .document-viewer.fullscreen {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 100;
+                padding: 3rem;
+                max-width: 1200px;
+                margin: 0 auto;
+                background: var(--color-surface);
+                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            }
+        }
+        
+        /* Demo controls */
+        .demo-controls {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+        }
+        
+        .demo-controls button {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        
+        .demo-controls button:hover {
+            background: var(--color-primary-dark);
+        }
+    </style>
+    
+    <!-- Load the component -->
+    <script src="input-group-component.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile header -->
+        <header class="mobile-header">
+            <button onclick="toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer;">☰</button>
+            <h1 style="margin: 0 auto; font-size: 1.25rem;">Document Chat</h1>
+        </header>
+        
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <h2>Sections</h2>
+            <div style="padding: 0.5rem; margin-bottom: 0.25rem; background: var(--color-bg); border-radius: 0.25rem; cursor: pointer;">Introduction</div>
+            <div style="padding: 0.5rem; margin-bottom: 0.25rem; background: var(--color-primary); color: white; border-radius: 0.25rem; cursor: pointer;">Getting Started</div>
+            <div style="padding: 0.5rem; margin-bottom: 0.25rem; background: var(--color-bg); border-radius: 0.25rem; cursor: pointer;">API Reference</div>
+        </aside>
+        
+        <!-- Chat panel -->
+        <section class="chat-panel">
+            <div class="messages-area">
+                <div class="message">
+                    <strong>You:</strong> Show me the getting started guide
+                </div>
+                <div class="message">
+                    <strong>Assistant:</strong> I'll navigate you to the Getting Started section. This section has several subsections you can explore using the quick actions below.
+                </div>
+            </div>
+            
+            <!-- The unified input group component -->
+            <input-group id="mainInput"></input-group>
+        </section>
+        
+        <!-- Document viewer -->
+        <section class="document-viewer" id="documentViewer">
+            <button onclick="toggleDocViewer()" style="position: absolute; top: 1rem; right: 1rem; padding: 0.5rem 1rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 0.25rem; cursor: pointer;">
+                ✕ Close
+            </button>
+            <h1>Getting Started</h1>
+            <p>Welcome to the getting started guide. This section covers:</p>
+            <ul>
+                <li>Installation</li>
+                <li>Configuration</li>
+                <li>First Steps</li>
+                <li>Troubleshooting</li>
+            </ul>
+            <p style="margin-top: 2rem;">Notice how the quick actions and input stay together as a cohesive unit, whether on desktop or mobile.</p>
+        </section>
+    </div>
+    
+    <!-- Mobile overlay -->
+    <div class="overlay" id="overlay" onclick="closeAll()"></div>
+    
+    <!-- Demo controls -->
+    <div class="demo-controls">
+        <h3 style="margin-bottom: 0.5rem;">Demo Controls</h3>
+        <button onclick="toggleQuickActions()">Toggle Quick Actions</button>
+        <button onclick="toggleDocViewer()">Toggle Document Viewer</button>
+        <button onclick="changeActions()">Change Quick Actions</button>
+        <button onclick="disableInput()">Toggle Disabled State</button>
+    </div>
+    
+    <script>
+        // Initialize the input group component
+        const inputGroup = document.getElementById('mainInput');
+        
+        // Set initial quick actions
+        inputGroup.quickActions = [
+            { id: 'install', text: 'Installation' },
+            { id: 'config', text: 'Configuration' },
+            { id: 'first-steps', text: 'First Steps' },
+            { id: 'troubleshoot', text: 'Troubleshooting' }
+        ];
+        
+        // Listen for events
+        inputGroup.addEventListener('message-submit', (e) => {
+            console.log('Message submitted:', e.detail.message);
+            addMessage('You', e.detail.message);
+            
+            // Simulate response
+            setTimeout(() => {
+                addMessage('Assistant', 'I understand your question. Let me help you with that.');
+            }, 1000);
+        });
+        
+        inputGroup.addEventListener('action-click', (e) => {
+            console.log('Action clicked:', e.detail.actionId);
+            addMessage('System', `Navigating to: ${e.detail.action.text}`);
+            
+            // On mobile, might open document viewer
+            if (window.innerWidth <= 768) {
+                document.getElementById('documentViewer').classList.add('open');
+                document.getElementById('overlay').classList.add('active');
+            }
+        });
+        
+        // Demo functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+        
+        function toggleDocViewer() {
+            const viewer = document.getElementById('documentViewer');
+            const overlay = document.getElementById('overlay');
+            
+            if (window.innerWidth <= 768) {
+                // Mobile: slide up from bottom
+                viewer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            } else {
+                // Desktop: toggle fullscreen
+                viewer.classList.toggle('fullscreen');
+            }
+        }
+        
+        function toggleQuickActions() {
+            const hasActions = inputGroup.quickActions.length > 0;
+            inputGroup.quickActions = hasActions ? [] : [
+                { id: 'install', text: 'Installation' },
+                { id: 'config', text: 'Configuration' },
+                { id: 'first-steps', text: 'First Steps' },
+                { id: 'troubleshoot', text: 'Troubleshooting' }
+            ];
+        }
+        
+        function changeActions() {
+            inputGroup.quickActions = [
+                { id: 'overview', text: 'Overview' },
+                { id: 'examples', text: 'Examples' },
+                { id: 'best-practices', text: 'Best Practices' }
+            ];
+        }
+        
+        function disableInput() {
+            inputGroup.disabled = !inputGroup.disabled;
+        }
+        
+        function closeAll() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('documentViewer').classList.remove('open');
+            document.getElementById('overlay').classList.remove('active');
+        }
+        
+        function addMessage(sender, text) {
+            const messagesArea = document.querySelector('.messages-area');
+            const message = document.createElement('div');
+            message.className = 'message';
+            message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            messagesArea.appendChild(message);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+    </script>
+</body>
+</html>
