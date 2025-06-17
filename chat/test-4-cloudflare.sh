@@ -68,6 +68,8 @@ EOF
 
 echo "Request being sent to worker:"
 echo "============================"
+echo "URL: ${WORKER_URL}"
+echo ""
 cat request.json | jq .
 echo ""
 

@@ -67,18 +67,19 @@ EOF
 
 echo "Request being sent:"
 echo "=================="
+echo "URL: https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:${GENERATE_CONTENT_API}?key=***"
+echo ""
 cat request.json | jq .
 echo ""
 
-# Run the test but save response
+echo "Response:"
+echo "========="
 response=$(curl -s \
 -X POST \
 -H "Content-Type: application/json" \
 "https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:${GENERATE_CONTENT_API}?key=${GEMINI_API_KEY}" \
 -d '@request.json')
 
-echo "Response:"
-echo "========="
 echo "$response" | jq .
 
 echo ""

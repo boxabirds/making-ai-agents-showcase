@@ -48,16 +48,21 @@ cat << EOF > request.json
         "functionDeclarations": [
           {
             "name": "navigate_to_section",
-            "description": "When user asks about any of the following sections, jump to that section instead of describing it. Sections: Introduction (Getting Started, Features); Usage Guide (Navigation, Asking Questions)",
+            "description": "When user asks about content related to these sections, navigate there instead of describing it. Available sections: Introduction (subsections: Getting Started, Features); Usage Guide (subsections: Navigation, Asking Questions)",
             "parameters": {
               "type": "object",
               "properties": {
-                "sectionId": {
+                "section": {
                   "type": "string",
-                  "description": "The ID of the section or subsection to navigate to"
+                  "description": "The main section name",
+                  "enum": ["Introduction", "Usage Guide"]
+                },
+                "subsection": {
+                  "type": "string",
+                  "description": "The subsection name within the main section (optional). Only provide if user asks about specific subsection content."
                 }
               },
-              "required": ["sectionId"]
+              "required": ["section"]
             }
           }
         ]
@@ -68,6 +73,8 @@ EOF
 
 echo "Request being sent:"
 echo "=================="
+echo "URL: https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:${GENERATE_CONTENT_API}?key=***"
+echo ""
 cat request.json | jq .
 echo ""
 
@@ -82,12 +89,18 @@ response=$(curl -s \
 echo "$response" | jq .
 
 echo ""
-echo "Expected: Function call to navigate_to_section with sectionId 'getting-started'"
+echo "Expected: Function call to navigate_to_section with section='Introduction' and subsection='Getting Started'"
 
-# Check if response contains a function call
+# Check if response contains a function call with correct parameters
 if echo "$response" | grep -q "functionCall"; then
-    echo "✅ Function call detected"
-    exit 0
+    if echo "$response" | grep -q '"section": "Introduction"' && echo "$response" | grep -q '"subsection": "Getting Started"'; then
+        echo "✅ Function call detected with correct section and subsection"
+        exit 0
+    else
+        echo "⚠️  Function call detected but with unexpected parameters"
+        echo "Check if section='Introduction' and subsection='Getting Started'"
+        exit 1
+    fi
 else
     echo "❌ No function call detected - got text response instead"
     exit 1

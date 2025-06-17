@@ -477,21 +477,50 @@ function buildCompactHierarchy() {
 }
 
 function buildToolDefinitions() {
-    const hierarchy = buildCompactHierarchy();
+    if (!window.documentParser || !window.documentParser.sections) {
+        return [];
+    }
+    
+    // Build structured hierarchy
+    const sections = window.documentParser.sections.map(s => ({
+        name: s.title,
+        subsections: s.subsections.map(sub => sub.title)
+    }));
+    
+    // Generate clear description listing all sections and their subsections
+    const sectionDescriptions = sections.map(s => {
+        if (s.subsections.length > 0) {
+            return `${s.name} (subsections: ${s.subsections.join(', ')})`;
+        }
+        return s.name;
+    }).join('; ');
+    
+    // Extract just the section names for the enum
+    const sectionNames = sections.map(s => s.name);
+    
+    // Extract all unique subsection names for the enum
+    const allSubsections = sections.flatMap(s => s.subsections);
+    const uniqueSubsections = [...new Set(allSubsections)];
     
     return [{
         function_declarations: [{
             name: "navigate_to_section",
-            description: `When user asks about any of the following sections, jump to that section instead of describing it. Sections: ${hierarchy}`,
+            description: `When user asks about content related to these sections, navigate there instead of describing it. Available sections: ${sectionDescriptions}`,
             parameters: {
                 type: "object",
                 properties: {
-                    sectionId: {
+                    section: {
                         type: "string",
-                        description: "The ID of the section or subsection to navigate to"
+                        description: "The main section name",
+                        enum: sectionNames
+                    },
+                    subsection: {
+                        type: "string",
+                        description: "The subsection name within the main section (optional). Only provide if user asks about specific subsection content. Must be a valid subsection under the chosen section.",
+                        enum: uniqueSubsections.length > 0 ? uniqueSubsections : undefined
                     }
                 },
-                required: ["sectionId"]
+                required: ["section"]
             }
         }]
     }];
@@ -632,7 +661,8 @@ function parseAssistantResponse(responseData) {
         return {
             toolCall: {
                 tool: functionCall.name,
-                sectionId: functionCall.args.sectionId
+                section: functionCall.args.section,
+                subsection: functionCall.args.subsection
             },
             text: "" // Gemini doesn't return text with function calls
         };
@@ -652,24 +682,42 @@ function handleToolCall(toolCall) {
     console.log('Handling tool call:', toolCall);
     
     if (toolCall.tool === 'navigate_to_section') {
-        const section = window.documentParser.getSection(toolCall.sectionId);
-        console.log('Found section:', section);
+        const { section: sectionName, subsection: subsectionName } = toolCall;
+        console.log(`Looking for section: "${sectionName}", subsection: "${subsectionName}"`);
         
-        if (section) {
-            if (section.level === 1) {
-                console.log('Navigating to main section:', toolCall.sectionId);
-                navigateToSection(toolCall.sectionId);
-            } else {
-                // It's a subsection, navigate to parent with subsection
-                console.log('Navigating to subsection:', toolCall.sectionId, 'with parent:', section.parentId);
-                navigateToSection(section.parentId, toolCall.sectionId);
-            }
+        // Find matching section by name (case-insensitive)
+        const sectionObj = window.documentParser.sections.find(
+            s => s.title.toLowerCase() === sectionName.toLowerCase()
+        );
+        
+        if (!sectionObj) {
+            console.error('Section not found:', sectionName);
+            addMessage(`I couldn't find the section "${sectionName}". Please check the section name and try again.`, 'assistant');
+            return;
+        }
+        
+        if (subsectionName) {
+            // User wants to navigate to a subsection
+            const subsectionObj = sectionObj.subsections.find(
+                sub => sub.title.toLowerCase() === subsectionName.toLowerCase()
+            );
             
-            // Add artifact reference
-            addArtifactToChat(section.title, section.level === 1 ? 'section' : 'subsection', toolCall.sectionId);
+            if (subsectionObj) {
+                console.log('Navigating to subsection:', subsectionObj.id, 'in section:', sectionObj.id);
+                navigateToSection(sectionObj.id, subsectionObj.id);
+                addArtifactToChat(`${sectionObj.title} > ${subsectionObj.title}`, 'subsection', subsectionObj.id);
+            } else {
+                // Subsection not found, fallback to main section
+                console.log('Subsection not found, falling back to main section');
+                navigateToSection(sectionObj.id);
+                addArtifactToChat(sectionObj.title, 'section', sectionObj.id);
+                addMessage(`I couldn't find the subsection "${subsectionName}" in ${sectionName}, so I'm showing the main section.`, 'assistant');
+            }
         } else {
-            console.error('Section not found:', toolCall.sectionId);
-            addMessage("I couldn't find that section. Please check the section name and try again.", 'assistant');
+            // Navigate to main section only
+            console.log('Navigating to main section:', sectionObj.id);
+            navigateToSection(sectionObj.id);
+            addArtifactToChat(sectionObj.title, 'section', sectionObj.id);
         }
     }
 }

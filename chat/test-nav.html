@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Protocol Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-case {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .query {
+            font-weight: bold;
+            color: #333;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 3px;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Navigation Protocol Test</h1>
+    <p>This page tests the new section/subsection navigation protocol.</p>
+    
+    <div class="test-case">
+        <div class="query">Test 1: "tell me about how agno handles tools"</div>
+        <div class="result" id="result1">Click to test...</div>
+        <button onclick="runTest(1)">Run Test 1</button>
+    </div>
+    
+    <div class="test-case">
+        <div class="query">Test 2: "what is autogen?"</div>
+        <div class="result" id="result2">Click to test...</div>
+        <button onclick="runTest(2)">Run Test 2</button>
+    </div>
+    
+    <div class="test-case">
+        <div class="query">Test 3: "how do I secure my deployment?"</div>
+        <div class="result" id="result3">Click to test...</div>
+        <button onclick="runTest(3)">Run Test 3</button>
+    </div>
+    
+    <script>
+        // Mock document parser with test data
+        window.documentParser = {
+            sections: [
+                {
+                    id: 'agno',
+                    title: 'Agno',
+                    subsections: [
+                        { id: 'architecture', title: 'Architecture' },
+                        { id: 'tools', title: 'Tools' },
+                        { id: 'performance', title: 'Performance' }
+                    ]
+                },
+                {
+                    id: 'autogen',
+                    title: 'Autogen',
+                    subsections: [
+                        { id: 'getting-started', title: 'Getting Started' },
+                        { id: 'advanced-features', title: 'Advanced Features' },
+                        { id: 'examples', title: 'Examples' }
+                    ]
+                },
+                {
+                    id: 'deployment-guide',
+                    title: 'Deployment Guide',
+                    subsections: [
+                        { id: 'cloud-deployment', title: 'Cloud Deployment' },
+                        { id: 'security', title: 'Security' }
+                    ]
+                }
+            ]
+        };
+        
+        // Mock navigation function
+        function navigateToSection(sectionId, subsectionId) {
+            console.log(`Navigate to section: ${sectionId}, subsection: ${subsectionId || 'none'}`);
+            return { sectionId, subsectionId };
+        }
+        
+        // Include the updated handleToolCall function
+        function handleToolCall(toolCall) {
+            console.log('Handling tool call:', toolCall);
+            
+            if (toolCall.tool === 'navigate_to_section') {
+                const { section: sectionName, subsection: subsectionName } = toolCall;
+                console.log(`Looking for section: "${sectionName}", subsection: "${subsectionName}"`);
+                
+                // Find matching section by name (case-insensitive)
+                const sectionObj = window.documentParser.sections.find(
+                    s => s.title.toLowerCase() === sectionName.toLowerCase()
+                );
+                
+                if (!sectionObj) {
+                    console.error('Section not found:', sectionName);
+                    return { error: `Section "${sectionName}" not found` };
+                }
+                
+                if (subsectionName) {
+                    // User wants to navigate to a subsection
+                    const subsectionObj = sectionObj.subsections.find(
+                        sub => sub.title.toLowerCase() === subsectionName.toLowerCase()
+                    );
+                    
+                    if (subsectionObj) {
+                        console.log('Navigating to subsection:', subsectionObj.id, 'in section:', sectionObj.id);
+                        return navigateToSection(sectionObj.id, subsectionObj.id);
+                    } else {
+                        // Subsection not found, fallback to main section
+                        console.log('Subsection not found, falling back to main section');
+                        return navigateToSection(sectionObj.id);
+                    }
+                } else {
+                    // Navigate to main section only
+                    console.log('Navigating to main section:', sectionObj.id);
+                    return navigateToSection(sectionObj.id);
+                }
+            }
+        }
+        
+        // Test cases
+        const testCases = {
+            1: { section: 'Agno', subsection: 'Tools' },
+            2: { section: 'Autogen' },
+            3: { section: 'Deployment Guide', subsection: 'Security' }
+        };
+        
+        function runTest(testNum) {
+            const testCase = testCases[testNum];
+            const toolCall = {
+                tool: 'navigate_to_section',
+                ...testCase
+            };
+            
+            const resultEl = document.getElementById(`result${testNum}`);
+            
+            try {
+                const result = handleToolCall(toolCall);
+                if (result.error) {
+                    resultEl.innerHTML = `<span class="error">Error: ${result.error}</span>`;
+                } else {
+                    resultEl.innerHTML = `<span class="success">Success!</span><br>` +
+                        `Section ID: ${result.sectionId}<br>` +
+                        `Subsection ID: ${result.subsectionId || 'none'}`;
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

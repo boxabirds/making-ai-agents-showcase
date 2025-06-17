@@ -1,11 +1,10 @@
 {
-    "model": "gemini-2.0-flash",
     "contents": [
       {
         "role": "user",
         "parts": [
           {
-            "text": "You are a helpful tech writer report agent. You help people understanding aspects of the report provided below. This report is provided to the user separately so if they refer to a section specifically, then we should jump to that section instead. A section_id is denoted by starting with a # (hash). \n\n== The report ==\n# Agno\nAgno is great. \n\n# Autogen\nAutogen is great as well."
+            "text": "You are a helpful tech writer report agent. You help people understanding aspects of the report provided below. This report is provided to the user separately so if they refer to a section specifically, then we should jump to that section instead of describing it. \n\n== The report ==\n# Agno\nAgno is a powerful AI agent framework designed for scalable agent deployment.\n\n## Architecture\nAgno uses a modular plugin-based architecture that allows developers to extend functionality.\n\n## Tools\nAgno provides various tools for agent development including debugging, monitoring, and deployment utilities.\n\n## Performance\nAgno achieves high performance through efficient task scheduling and resource management.\n\n# Autogen\nAutogen is Microsoft's framework for building multi-agent conversational systems.\n\n## Getting Started\nAutogen makes it easy to create agent systems with simple configuration.\n\n## Advanced Features\nAutogen supports complex multi-agent orchestration patterns and tool use.\n\n## Examples\nVarious examples demonstrate Autogen's capabilities in different domains.\n\n# Deployment Guide\nInstructions for deploying agent systems in production.\n\n## Cloud Deployment\nDeploy agents to various cloud providers.\n\n## Security\nBest practices for securing agent deployments."
           }
         ]
       },
@@ -13,7 +12,7 @@
         "role": "model",
         "parts": [
           {
-            "text": "I understand. I'm ready to help users understand the report. I will pay close attention to any section IDs they mention (e.g., #Agno, #Autogen) and use the jump_to_section function to direct them to the relevant part of the report."
+            "text": "I understand. I'm ready to help users navigate and understand this comprehensive report about agent frameworks. When users ask about specific topics, I'll use the navigation function to jump directly to the relevant section or subsection instead of describing the content."
           }
         ]
       },
@@ -21,7 +20,7 @@
         "role": "user",
         "parts": [
           {
-            "text": "tell me about autogen"
+            "text": "tell me about how agno handles tools"
           }
         ]
       }
@@ -35,16 +34,22 @@
       {
         "functionDeclarations": [
           {
-            "name": "jump_to_section",
-            "description": "User mentions a section so we return a request to jump to that section id",
+            "name": "navigate_to_section",
+            "description": "When user asks about content related to these sections, navigate there instead of describing it. Available sections: Agno (subsections: Architecture, Tools, Performance); Autogen (subsections: Getting Started, Advanced Features, Examples); Deployment Guide (subsections: Cloud Deployment, Security)",
             "parameters": {
               "type": "object",
               "properties": {
-                "section_id": {
-                  "type": "string"
+                "section": {
+                  "type": "string",
+                  "description": "The main section name",
+                  "enum": ["Agno", "Autogen", "Deployment Guide"]
+                },
+                "subsection": {
+                  "type": "string",
+                  "description": "The subsection name within the main section (optional). Only provide if user asks about specific subsection content."
                 }
               },
-              "required": ["section_id"]
+              "required": ["section"]
             }
           }
         ]

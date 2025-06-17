@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e -E
 
-# Test 3: Two-level section hierarchy
-echo "=== Test 3: Two-Level Section Hierarchy ==="
-echo "Testing navigation to both sections and subsections"
+# Test 3: Two-level section hierarchy with enum validation
+echo "=== Test 3: Two-Level Section Hierarchy with Enum Validation ==="
+echo "Testing navigation with enum constraints on both sections and subsections"
 echo ""
 
 GEMINI_API_KEY="$GEMINI_API_KEY"
@@ -47,17 +47,23 @@ cat << EOF > request.json
       {
         "functionDeclarations": [
           {
-            "name": "jump_to_section",
-            "description": "User mentions a section or subsection so we return a request to jump to that section id. Main sections use single hash (#) and subsections use double hash (##)",
+            "name": "navigate_to_section",
+            "description": "When user asks about content related to these sections, navigate there instead of describing it. Available sections: Agno (subsections: Architecture, Performance); Autogen (subsections: Getting Started, Advanced Features)",
             "parameters": {
               "type": "object",
               "properties": {
-                "section_id": {
+                "section": {
                   "type": "string",
-                  "description": "The section ID to navigate to (e.g., 'agno' for #Agno or 'architecture' for ##Architecture)"
+                  "description": "The main section name",
+                  "enum": ["Agno", "Autogen"]
+                },
+                "subsection": {
+                  "type": "string",
+                  "description": "The subsection name within the main section (optional). Only provide if user asks about specific subsection content. Must be a valid subsection under the chosen section.",
+                  "enum": ["Architecture", "Performance", "Getting Started", "Advanced Features"]
                 }
               },
-              "required": ["section_id"]
+              "required": ["section"]
             }
           }
         ]
@@ -68,6 +74,8 @@ EOF
 
 echo "Request being sent:"
 echo "=================="
+echo "URL: https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:${GENERATE_CONTENT_API}?key=***"
+echo ""
 cat request.json | jq .
 echo ""
 
@@ -82,12 +90,18 @@ response=$(curl -s \
 echo "$response" | jq .
 
 echo ""
-echo "Expected: Function call to jump_to_section with section_id 'architecture'"
+echo "Expected: Function call to navigate_to_section with section='Agno' and subsection='Architecture'"
 
-# Check if response contains a function call
+# Check if response contains a function call with correct parameters
 if echo "$response" | grep -q "functionCall"; then
-    echo "✅ Function call detected"
-    exit 0
+    if echo "$response" | grep -q '"section": "Agno"' && echo "$response" | grep -q '"subsection": "Architecture"'; then
+        echo "✅ Function call detected with correct section='Agno' and subsection='Architecture'"
+        echo "✅ Enum validation ensures only valid combinations are possible"
+        exit 0
+    else
+        echo "⚠️  Function call detected but with unexpected parameters"
+        exit 1
+    fi
 else
     echo "❌ No function call detected - got text response instead"
     exit 1

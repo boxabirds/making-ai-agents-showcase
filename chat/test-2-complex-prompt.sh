@@ -67,6 +67,8 @@ EOF
 
 echo "Request being sent:"
 echo "=================="
+echo "URL: https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:${GENERATE_CONTENT_API}?key=***"
+echo ""
 cat request.json | jq .
 echo ""
 
