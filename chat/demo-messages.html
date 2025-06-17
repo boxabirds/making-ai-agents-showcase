@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages Component Demo</title>
+    
+    <!-- CSS Variables -->
+    <link rel="stylesheet" href="src/styles/base/_variables.css">
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="src/styles/components/_messages.css">
+    
+    <!-- Libraries for markdown and syntax highlighting -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="src/styles/base/_highlight-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg);
+            color: var(--color-text);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .demo-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: var(--space-xl);
+        }
+        
+        .demo-header {
+            margin-bottom: var(--space-xl);
+        }
+        
+        .demo-controls {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            margin-bottom: var(--space-lg);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .control-group {
+            display: flex;
+            gap: var(--space-md);
+            flex-wrap: wrap;
+            margin-bottom: var(--space-md);
+        }
+        
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .demo-button {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--text-sm);
+            transition: background var(--transition-base);
+        }
+        
+        .demo-button:hover {
+            background: var(--color-primary-dark);
+        }
+        
+        .demo-button--secondary {
+            background: var(--color-surface);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+        
+        .demo-button--secondary:hover {
+            background: var(--color-bg);
+        }
+        
+        .messages-demo {
+            height: 600px;
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+        
+        .label {
+            font-size: var(--text-sm);
+            font-weight: var(--font-medium);
+            margin-bottom: var(--space-xs);
+            color: var(--color-text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>Messages Component Demo</h1>
+            <p style="color: var(--color-text-secondary);">
+                Test the messages component with various content types and interactions
+            </p>
+        </div>
+        
+        <div class="demo-controls">
+            <div class="label">Add Messages:</div>
+            <div class="control-group">
+                <button class="demo-button" onclick="demo.addTextMessage()">
+                    Add Text Message
+                </button>
+                <button class="demo-button" onclick="demo.addMarkdownMessage()">
+                    Add Markdown Message
+                </button>
+                <button class="demo-button" onclick="demo.addCodeMessage()">
+                    Add Code Message
+                </button>
+                <button class="demo-button" onclick="demo.addArtifactMessage()">
+                    Add Message with Artifacts
+                </button>
+            </div>
+            
+            <div class="label" style="margin-top: var(--space-md);">Actions:</div>
+            <div class="control-group">
+                <button class="demo-button demo-button--secondary" onclick="demo.toggleTyping()">
+                    Toggle Typing
+                </button>
+                <button class="demo-button demo-button--secondary" onclick="demo.clearMessages()">
+                    Clear Messages
+                </button>
+                <button class="demo-button demo-button--secondary" onclick="demo.simulateConversation()">
+                    Simulate Conversation
+                </button>
+            </div>
+        </div>
+        
+        <div class="messages-demo" id="messages-demo"></div>
+    </div>
+    
+    <script type="module">
+        import { Messages } from './src/components/messages.js';
+        import { state } from './src/state-manager.js';
+        
+        const demo = {
+            messagesComponent: null,
+            messageCount: 0,
+            isTyping: false,
+            
+            init() {
+                this.messagesComponent = new Messages('#messages-demo');
+                
+                // Listen for artifact clicks
+                this.messagesComponent.element.addEventListener('artifact-click', (e) => {
+                    alert(`Artifact clicked: ${e.detail.artifactId}`);
+                });
+                
+                // Add welcome message
+                this.messagesComponent.addMessage({
+                    type: 'assistant',
+                    text: 'Welcome! This is a demo of the Messages component. Try adding different types of messages using the buttons above.'
+                });
+            },
+            
+            addTextMessage() {
+                const messages = [
+                    'This is a simple text message.',
+                    'Hello! How can I help you today?',
+                    'Great question! Let me think about that.',
+                    'I understand what you\'re looking for.'
+                ];
+                
+                const isUser = this.messageCount % 2 === 0;
+                this.messagesComponent.addMessage({
+                    type: isUser ? 'user' : 'assistant',
+                    text: messages[Math.floor(Math.random() * messages.length)]
+                });
+                this.messageCount++;
+            },
+            
+            addMarkdownMessage() {
+                const markdownSamples = [
+                    `Here's a **bold** statement with *italic* text and a [link](https://example.com).`,
+                    `## Important Information\n\nThis message contains:\n- Bullet points\n- Multiple items\n- Clear structure`,
+                    `> This is a blockquote\n>\n> With multiple lines\n\nFollowed by regular text.`,
+                    `### Steps to follow:\n\n1. First, do this\n2. Then, do that\n3. Finally, complete the process`
+                ];
+                
+                this.messagesComponent.addMessage({
+                    type: 'assistant',
+                    markdown: markdownSamples[Math.floor(Math.random() * markdownSamples.length)]
+                });
+            },
+            
+            addCodeMessage() {
+                const codeSamples = [
+                    {
+                        text: 'Here\'s a JavaScript function:',
+                        code: `function fibonacci(n) {
+    if (n <= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+console.log(fibonacci(10)); // 55`
+                    },
+                    {
+                        text: 'CSS example for styling:',
+                        code: `.button {
+    padding: 0.5rem 1rem;
+    background: #3b82f6;
+    color: white;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.button:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+}`
+                    },
+                    {
+                        text: 'Python list comprehension:',
+                        code: `# Generate squares of even numbers
+squares = [x**2 for x in range(10) if x % 2 == 0]
+print(squares)  # [0, 4, 16, 36, 64]`
+                    }
+                ];
+                
+                const sample = codeSamples[Math.floor(Math.random() * codeSamples.length)];
+                const language = sample.text.includes('CSS') ? 'css' : sample.text.includes('Python') ? 'python' : 'javascript';
+                this.messagesComponent.addMessage({
+                    type: 'assistant',
+                    markdown: `${sample.text}\n\n\`\`\`${language}\n${sample.code}\n\`\`\``
+                });
+            },
+            
+            addArtifactMessage() {
+                const artifacts = [
+                    [
+                        { id: 'doc-1', title: 'requirements.txt' },
+                        { id: 'doc-2', title: 'setup.py' }
+                    ],
+                    [
+                        { id: 'file-1', title: 'main.js' },
+                        { id: 'file-2', title: 'styles.css' },
+                        { id: 'file-3', title: 'index.html' }
+                    ],
+                    [
+                        { id: 'img-1', title: 'diagram.png' }
+                    ]
+                ];
+                
+                this.messagesComponent.addMessage({
+                    type: 'assistant',
+                    text: 'I\'ve created the following files for you:',
+                    artifacts: artifacts[Math.floor(Math.random() * artifacts.length)]
+                });
+            },
+            
+            toggleTyping() {
+                this.isTyping = !this.isTyping;
+                this.messagesComponent.setTyping(this.isTyping);
+                state.set({ isProcessing: this.isTyping });
+            },
+            
+            clearMessages() {
+                if (confirm('Clear all messages?')) {
+                    this.messagesComponent.clearMessages();
+                    this.messageCount = 0;
+                }
+            },
+            
+            async simulateConversation() {
+                // Clear existing messages
+                this.messagesComponent.clearMessages();
+                
+                const conversation = [
+                    { type: 'user', text: 'Can you help me understand async/await in JavaScript?' },
+                    { type: 'assistant', text: 'Of course! I\'d be happy to explain async/await in JavaScript.', delay: 1000 },
+                    { type: 'assistant', markdown: `**Async/await** is a modern way to handle asynchronous operations in JavaScript. It makes asynchronous code look and behave more like synchronous code.
+
+Here are the key concepts:
+
+1. **async** - Declares an asynchronous function
+2. **await** - Pauses execution until a Promise resolves
+3. Makes code more readable than callbacks or .then()`, delay: 2000 },
+                    { type: 'user', text: 'Can you show me an example?', delay: 1000 },
+                    { type: 'assistant', markdown: `Sure! Here's a practical example:
+
+\`\`\`javascript
+// Traditional Promise approach
+function fetchUserData() {
+    return fetch('/api/user')
+        .then(response => response.json())
+        .then(data => console.log(data))
+        .catch(error => console.error(error));
+}
+
+// Async/await approach
+async function fetchUserData() {
+    try {
+        const response = await fetch('/api/user');
+        const data = await response.json();
+        console.log(data);
+    } catch (error) {
+        console.error(error);
+    }
+}
+\`\`\`
+
+The async/await version is much cleaner and easier to read!`, delay: 2500, artifacts: [{ id: 'example-1', title: 'async-await-example.js' }] },
+                    { type: 'user', text: 'That\'s really helpful, thanks!', delay: 1000 },
+                    { type: 'assistant', text: 'You\'re welcome! Feel free to ask if you have any more questions about JavaScript or any other programming topics.', delay: 1000 }
+                ];
+                
+                for (const msg of conversation) {
+                    if (msg.delay) {
+                        this.messagesComponent.setTyping(true);
+                        await new Promise(resolve => setTimeout(resolve, msg.delay));
+                        this.messagesComponent.setTyping(false);
+                    }
+                    
+                    const { delay, ...messageData } = msg;
+                    this.messagesComponent.addMessage(messageData);
+                    
+                    // Small delay between messages
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+        };
+        
+        // Initialize demo
+        window.demo = demo;
+        demo.init();
+    </script>
+</body>
+</html>

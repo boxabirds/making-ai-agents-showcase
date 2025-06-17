@@ -1,0 +1,139 @@
+/**
+ * Custom highlight.js theme overrides
+ * Tailored to match our design system
+ */
+
+/* Override highlight.js colors to match our theme */
+.hljs {
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-addition {
+  color: #d73a49;
+  font-weight: var(--font-medium);
+}
+
+.hljs-number,
+.hljs-string,
+.hljs-meta .hljs-meta-string,
+.hljs-literal,
+.hljs-doctag,
+.hljs-regexp {
+  color: #032f62;
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #6f42c1;
+  font-weight: var(--font-medium);
+}
+
+.hljs-attribute,
+.hljs-attr,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-class .hljs-title,
+.hljs-type {
+  color: #e36209;
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-subst,
+.hljs-meta,
+.hljs-meta .hljs-keyword,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-link {
+  color: #005cc5;
+}
+
+.hljs-built_in,
+.hljs-deletion {
+  color: #d73a49;
+}
+
+.hljs-formula {
+  background: var(--color-bg);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: var(--font-bold);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .hljs {
+    color: #c9d1d9;
+    background: #0d1117;
+  }
+  
+  .hljs-comment,
+  .hljs-quote {
+    color: #8b949e;
+  }
+  
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-addition {
+    color: #ff7b72;
+  }
+  
+  .hljs-number,
+  .hljs-string,
+  .hljs-meta .hljs-meta-string,
+  .hljs-literal,
+  .hljs-doctag,
+  .hljs-regexp {
+    color: #a5d6ff;
+  }
+  
+  .hljs-title,
+  .hljs-section,
+  .hljs-name,
+  .hljs-selector-id,
+  .hljs-selector-class {
+    color: #d2a8ff;
+  }
+  
+  .hljs-attribute,
+  .hljs-attr,
+  .hljs-variable,
+  .hljs-template-variable,
+  .hljs-class .hljs-title,
+  .hljs-type {
+    color: #ffa657;
+  }
+  
+  .hljs-symbol,
+  .hljs-bullet,
+  .hljs-subst,
+  .hljs-meta,
+  .hljs-meta .hljs-keyword,
+  .hljs-selector-attr,
+  .hljs-selector-pseudo,
+  .hljs-link {
+    color: #79c0ff;
+  }
+  
+  .hljs-built_in,
+  .hljs-deletion {
+    color: #ff7b72;
+  }
+}

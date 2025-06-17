@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component Architecture Demo (No Web Components)</title>
+    
+    <!-- Libraries for markdown and syntax highlighting -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="src/styles/base/_highlight-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- CSS Variables -->
+    <link rel="stylesheet" href="src/styles/base/_variables.css">
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="src/styles/components/_input-group.css">
+    <link rel="stylesheet" href="src/styles/components/_messages.css">
+    
+    <style>
+        /* Base styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+        }
+        
+        /* Demo layout */
+        .demo-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: var(--space-xl);
+        }
+        
+        .demo-section {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            margin-bottom: var(--space-xl);
+            overflow: hidden;
+        }
+        
+        .demo-header {
+            padding: var(--space-lg);
+            border-bottom: 1px solid var(--color-border);
+        }
+        
+        .demo-content {
+            padding: var(--space-lg);
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: var(--space-md);
+            flex-wrap: wrap;
+            margin-bottom: var(--space-lg);
+        }
+        
+        .demo-button {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--text-sm);
+            transition: background var(--transition-base);
+        }
+        
+        .demo-button:hover {
+            background: var(--color-primary-dark);
+        }
+        
+        .message-log {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+        }
+        
+        .message-entry {
+            padding: var(--space-xs) 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+        
+        .message-entry:last-child {
+            border-bottom: none;
+        }
+        
+        /* Chat demo */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: var(--space-md);
+            overflow-y: auto;
+            background: var(--color-bg);
+        }
+        
+        .chat-message {
+            margin-bottom: var(--space-md);
+            padding: var(--space-md);
+            background: var(--color-surface);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .chat-message--user {
+            margin-left: 20%;
+            background: var(--color-primary-light);
+        }
+        
+        .chat-message--assistant {
+            margin-right: 20%;
+        }
+        
+        /* State display */
+        .state-display {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>Component Architecture Demo</h1>
+        <p style="margin-bottom: var(--space-xl); color: var(--color-text-secondary);">
+            Clean, maintainable components without Web Components complexity
+        </p>
+        
+        <!-- Demo 1: Basic Input Group -->
+        <div class="demo-section">
+            <div class="demo-header">
+                <h2>Input Group Component</h2>
+                <p style="color: var(--color-text-secondary); margin-top: var(--space-xs);">
+                    Quick actions + chat input as a cohesive unit
+                </p>
+            </div>
+            <div class="demo-content">
+                <div class="demo-controls">
+                    <button class="demo-button" onclick="demo1.toggleQuickActions()">
+                        Toggle Quick Actions
+                    </button>
+                    <button class="demo-button" onclick="demo1.changeActions()">
+                        Change Actions
+                    </button>
+                    <button class="demo-button" onclick="demo1.toggleDisabled()">
+                        Toggle Disabled
+                    </button>
+                    <button class="demo-button" onclick="demo1.setProcessing()">
+                        Simulate Processing
+                    </button>
+                </div>
+                
+                <!-- Component container -->
+                <div id="input-group-1"></div>
+                
+                <h3 style="margin-top: var(--space-lg); margin-bottom: var(--space-sm);">Events Log:</h3>
+                <div class="message-log" id="log-1">
+                    <div class="message-entry">Waiting for events...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Demo 2: Full Chat Interface -->
+        <div class="demo-section">
+            <div class="demo-header">
+                <h2>Complete Chat Example</h2>
+                <p style="color: var(--color-text-secondary); margin-top: var(--space-xs);">
+                    Components working together with state management
+                </p>
+            </div>
+            <div class="demo-content">
+                <div class="chat-container">
+                    <div id="messages-container" style="flex: 1;"></div>
+                    <div id="input-group-2"></div>
+                </div>
+                
+                <h3 style="margin-top: var(--space-lg); margin-bottom: var(--space-sm);">Current State:</h3>
+                <div class="state-display" id="state-display">
+                    Loading state...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load ES modules -->
+    <script type="module">
+        import { state } from './src/state-manager.js';
+        import { InputGroup } from './src/components/input-group.js';
+        import { Messages } from './src/components/messages.js';
+        
+        // Make them available globally for demo
+        window.state = state;
+        
+        // Demo 1: Basic component
+        const demo1 = {
+            component: null,
+            hasActions: true,
+            
+            init() {
+                this.component = new InputGroup('#input-group-1');
+                
+                // Set initial quick actions
+                this.component.setQuickActions([
+                    { id: 'install', text: 'Installation' },
+                    { id: 'config', text: 'Configuration' },
+                    { id: 'quickstart', text: 'Quick Start' }
+                ]);
+                
+                // Listen to events
+                this.component.element.addEventListener('message-submit', (e) => {
+                    this.log(`Message sent: "${e.detail.message}"`);
+                });
+                
+                this.component.element.addEventListener('action-click', (e) => {
+                    this.log(`Action clicked: ${e.detail.action.text} (${e.detail.actionId})`);
+                });
+            },
+            
+            log(message) {
+                const log = document.getElementById('log-1');
+                const entry = document.createElement('div');
+                entry.className = 'message-entry';
+                entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                log.appendChild(entry);
+                log.scrollTop = log.scrollHeight;
+            },
+            
+            toggleQuickActions() {
+                this.hasActions = !this.hasActions;
+                this.component.setQuickActions(this.hasActions ? [
+                    { id: 'install', text: 'Installation' },
+                    { id: 'config', text: 'Configuration' },
+                    { id: 'quickstart', text: 'Quick Start' }
+                ] : []);
+            },
+            
+            changeActions() {
+                this.component.setQuickActions([
+                    { id: 'overview', text: 'Overview' },
+                    { id: 'api', text: 'API Reference' },
+                    { id: 'examples', text: 'Examples' }
+                ]);
+            },
+            
+            toggleDisabled() {
+                const currentState = this.component.state.disabled;
+                this.component.setDisabled(!currentState);
+                this.log(`Component ${!currentState ? 'disabled' : 'enabled'}`);
+            },
+            
+            setProcessing() {
+                state.set({ isProcessing: true });
+                this.log('Processing started...');
+                
+                setTimeout(() => {
+                    state.set({ isProcessing: false });
+                    this.log('Processing completed');
+                }, 2000);
+            }
+        };
+        
+        // Demo 2: Full chat with state management
+        const demo2 = {
+            inputGroup: null,
+            messagesComponent: null,
+            
+            init() {
+                // Initialize state with sections
+                state.set({
+                    sections: [
+                        {
+                            id: 'intro',
+                            title: 'Introduction',
+                            subsections: [
+                                { id: 'overview', text: 'Overview' },
+                                { id: 'getting-started', text: 'Getting Started' },
+                                { id: 'features', text: 'Features' }
+                            ]
+                        },
+                        {
+                            id: 'guide',
+                            title: 'User Guide',
+                            subsections: [
+                                { id: 'installation', text: 'Installation' },
+                                { id: 'configuration', text: 'Configuration' },
+                                { id: 'usage', text: 'Basic Usage' }
+                            ]
+                        }
+                    ],
+                    currentSection: 'intro'
+                });
+                
+                this.inputGroup = new InputGroup('#input-group-2');
+                this.inputGroup.updateQuickActions();
+                
+                // Initialize messages component
+                this.messagesComponent = new Messages('#messages-container');
+                
+                // Add initial message
+                this.messagesComponent.addMessage({
+                    type: 'assistant',
+                    text: 'Hello! I can help you navigate this document. Use the quick actions below or ask me anything.',
+                    timestamp: Date.now()
+                });
+                
+                // Handle events
+                this.inputGroup.element.addEventListener('message-submit', (e) => {
+                    this.messagesComponent.addMessage({
+                        type: 'user',
+                        text: e.detail.message
+                    });
+                    this.simulateResponse(e.detail.message);
+                });
+                
+                this.inputGroup.element.addEventListener('action-click', (e) => {
+                    this.messagesComponent.addMessage({
+                        type: 'assistant',
+                        text: `Navigating to section: **${e.detail.action.text}**`,
+                        markdown: `Navigating to section: **${e.detail.action.text}**`
+                    });
+                });
+                
+                // Display state
+                this.updateStateDisplay();
+                state.subscribe('*', () => this.updateStateDisplay());
+            },
+            
+            
+            simulateResponse(message) {
+                state.set({ isProcessing: true });
+                this.messagesComponent.setTyping(true);
+                
+                setTimeout(() => {
+                    this.messagesComponent.setTyping(false);
+                    
+                    // Simulate different response types
+                    if (message.toLowerCase().includes('code')) {
+                        this.messagesComponent.addMessage({
+                            type: 'assistant',
+                            markdown: `I can help you with code! Here's an example:
+
+\`\`\`javascript
+function greet(name) {
+    return \`Hello, \${name}!\`;
+}
+
+console.log(greet('World'));
+\`\`\`
+
+This function demonstrates template literals and basic JavaScript syntax.`,
+                            artifacts: [
+                                { id: 'example-1', title: 'code-example.js' }
+                            ]
+                        });
+                    } else if (message.toLowerCase().includes('list')) {
+                        this.messagesComponent.addMessage({
+                            type: 'assistant',
+                            markdown: `Here's a helpful list:
+
+1. **First item** - Important point
+2. **Second item** - Another key detail
+3. **Third item** - Final consideration
+
+Would you like more details on any of these?`
+                        });
+                    } else {
+                        this.messagesComponent.addMessage({
+                            type: 'assistant',
+                            text: `I understand you're asking about "${message}". Let me help you with that.`
+                        });
+                    }
+                    
+                    state.set({ isProcessing: false });
+                }, 1500);
+            },
+            
+            updateStateDisplay() {
+                const display = document.getElementById('state-display');
+                const currentState = state.get();
+                display.textContent = JSON.stringify({
+                    currentSection: currentState.currentSection,
+                    isProcessing: currentState.isProcessing,
+                    messageCount: currentState.messages.length,
+                    isMobile: currentState.isMobile
+                }, null, 2);
+            }
+        };
+        
+        // Initialize demos
+        window.demo1 = demo1;
+        window.demo2 = demo2;
+        
+        demo1.init();
+        demo2.init();
+    </script>
+</body>
+</html>

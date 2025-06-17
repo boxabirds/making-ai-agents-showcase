@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Component Library Compatibility Test</title>
+    
+    <!-- Load the libraries we need to test -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.9.0/highlightjs-line-numbers.min.js"></script>
+    
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f5f5f5;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        /* Global styles to test penetration */
+        h1 { color: red !important; }
+        code { background: yellow !important; }
+    </style>
+</head>
+<body>
+    <h1>Web Component Library Compatibility Test</h1>
+    <p>Testing if marked.js and highlight.js work within web components with shadow DOM.</p>
+    
+    <!-- Test 1: Basic Markdown Rendering -->
+    <div class="test-section">
+        <h2>Test 1: Markdown Renderer Component</h2>
+        <markdown-renderer id="test1"></markdown-renderer>
+        <div class="status" id="status1">Testing...</div>
+    </div>
+    
+    <!-- Test 2: Code Highlighting -->
+    <div class="test-section">
+        <h2>Test 2: Code Highlighter Component</h2>
+        <code-highlighter id="test2"></code-highlighter>
+        <div class="status" id="status2">Testing...</div>
+    </div>
+    
+    <!-- Test 3: Combined Usage -->
+    <div class="test-section">
+        <h2>Test 3: Combined Chat Message Component</h2>
+        <chat-message id="test3"></chat-message>
+        <div class="status" id="status3">Testing...</div>
+    </div>
+    
+    <!-- Test 4: Multiple Instances -->
+    <div class="test-section">
+        <h2>Test 4: Multiple Instances</h2>
+        <chat-message id="test4a"></chat-message>
+        <chat-message id="test4b"></chat-message>
+        <div class="status" id="status4">Testing...</div>
+    </div>
+    
+    <!-- Test 5: Dynamic Updates -->
+    <div class="test-section">
+        <h2>Test 5: Dynamic Content Updates</h2>
+        <chat-message id="test5"></chat-message>
+        <button onclick="updateDynamicContent()">Update Content</button>
+        <div class="status" id="status5">Testing...</div>
+    </div>
+    
+    <script>
+        // Component 1: Markdown Renderer
+        class MarkdownRenderer extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+            }
+            
+            set markdown(value) {
+                try {
+                    const html = marked.parse(value);
+                    this.shadowRoot.innerHTML = `
+                        <style>
+                            :host {
+                                display: block;
+                                padding: 1rem;
+                                border: 2px solid #e0e0e0;
+                                border-radius: 4px;
+                            }
+                            
+                            /* Test if these styles work */
+                            h1 { color: blue; font-size: 1.5rem; }
+                            h2 { color: green; font-size: 1.25rem; }
+                            p { line-height: 1.6; }
+                            code { 
+                                background: #f0f0f0; 
+                                padding: 0.2rem 0.4rem;
+                                border-radius: 3px;
+                                font-family: monospace;
+                            }
+                            pre {
+                                background: #f5f5f5;
+                                padding: 1rem;
+                                border-radius: 4px;
+                                overflow-x: auto;
+                            }
+                            blockquote {
+                                border-left: 4px solid #ddd;
+                                padding-left: 1rem;
+                                margin-left: 0;
+                                color: #666;
+                            }
+                        </style>
+                        <div class="content">
+                            ${html}
+                        </div>
+                    `;
+                    this.setAttribute('data-status', 'success');
+                } catch (error) {
+                    this.setAttribute('data-status', 'error');
+                    this.shadowRoot.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+                }
+            }
+        }
+        customElements.define('markdown-renderer', MarkdownRenderer);
+        
+        // Component 2: Code Highlighter
+        class CodeHighlighter extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            set code(value) {
+                try {
+                    this.shadowRoot.innerHTML = `
+                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+                        <style>
+                            :host {
+                                display: block;
+                                border: 2px solid #e0e0e0;
+                                border-radius: 4px;
+                                overflow: hidden;
+                            }
+                            pre {
+                                margin: 0;
+                                padding: 1rem;
+                            }
+                            code {
+                                font-family: 'Consolas', 'Monaco', monospace;
+                            }
+                            /* Line numbers styles */
+                            .hljs-ln-numbers {
+                                user-select: none;
+                                text-align: right;
+                                color: #999;
+                                border-right: 1px solid #ddd;
+                                padding-right: 0.5rem !important;
+                                margin-right: 0.5rem !important;
+                            }
+                        </style>
+                        <pre><code class="language-javascript">${this.escapeHtml(value)}</code></pre>
+                    `;
+                    
+                    // Try to highlight code in shadow DOM
+                    const codeBlocks = this.shadowRoot.querySelectorAll('pre code');
+                    codeBlocks.forEach((block) => {
+                        hljs.highlightElement(block);
+                        // Test line numbers plugin
+                        try {
+                            hljs.lineNumbersBlock(block);
+                        } catch (e) {
+                            console.warn('Line numbers plugin failed:', e);
+                        }
+                    });
+                    
+                    // Check if highlighting worked
+                    const highlighted = this.shadowRoot.querySelector('.hljs');
+                    if (highlighted) {
+                        this.setAttribute('data-status', 'success');
+                    } else {
+                        this.setAttribute('data-status', 'warning');
+                    }
+                } catch (error) {
+                    this.setAttribute('data-status', 'error');
+                    this.shadowRoot.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+                }
+            }
+        }
+        customElements.define('code-highlighter', CodeHighlighter);
+        
+        // Component 3: Combined Chat Message
+        class ChatMessage extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+            }
+            
+            set content(markdown) {
+                try {
+                    const html = marked.parse(markdown);
+                    this.shadowRoot.innerHTML = `
+                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+                        <style>
+                            :host {
+                                display: block;
+                                margin-bottom: 1rem;
+                            }
+                            .message {
+                                background: #f9f9f9;
+                                padding: 1rem;
+                                border-radius: 8px;
+                                border: 1px solid #e0e0e0;
+                            }
+                            h1, h2, h3 { 
+                                margin-top: 0;
+                                color: #333;
+                            }
+                            code {
+                                background: #f0f0f0;
+                                padding: 0.2rem 0.4rem;
+                                border-radius: 3px;
+                            }
+                            pre {
+                                background: #f5f5f5;
+                                padding: 1rem;
+                                border-radius: 4px;
+                                overflow-x: auto;
+                            }
+                            pre code {
+                                background: none;
+                                padding: 0;
+                            }
+                            /* Override highlight.js background */
+                            .hljs {
+                                background: #f5f5f5 !important;
+                            }
+                        </style>
+                        <div class="message">
+                            ${html}
+                        </div>
+                    `;
+                    
+                    // Highlight all code blocks
+                    requestAnimationFrame(() => {
+                        const codeBlocks = this.shadowRoot.querySelectorAll('pre code');
+                        codeBlocks.forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                        
+                        // Check success
+                        const highlighted = this.shadowRoot.querySelector('.hljs');
+                        if (highlighted) {
+                            this.setAttribute('data-status', 'success');
+                        } else {
+                            this.setAttribute('data-status', 'warning');
+                        }
+                    });
+                } catch (error) {
+                    this.setAttribute('data-status', 'error');
+                    this.shadowRoot.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+                }
+            }
+        }
+        customElements.define('chat-message', ChatMessage);
+        
+        // Run tests
+        window.addEventListener('DOMContentLoaded', () => {
+            // Test 1: Basic Markdown
+            const test1 = document.getElementById('test1');
+            test1.markdown = `# Hello World
+            
+This is a **test** of the markdown renderer with \`inline code\`.
+
+## Features
+- Lists work
+- *Emphasis* works
+- [Links](https://example.com) work
+
+> Blockquotes work too!
+
+\`\`\`javascript
+// Code blocks
+function test() {
+    return "Hello!";
+}
+\`\`\``;
+            
+            // Test 2: Code Highlighting
+            const test2 = document.getElementById('test2');
+            test2.code = `// JavaScript test
+function fibonacci(n) {
+    if (n <= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// Test various syntax features
+const obj = {
+    name: "Test",
+    value: 42,
+    nested: {
+        array: [1, 2, 3]
+    }
+};
+
+class Example extends Base {
+    constructor() {
+        super();
+        this.property = "value";
+    }
+}`;
+            
+            // Test 3: Combined usage
+            const test3 = document.getElementById('test3');
+            test3.content = `## Code Example
+
+Here's a Python function:
+
+\`\`\`python
+def factorial(n):
+    """Calculate factorial recursively"""
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+
+# Test it
+print(factorial(5))  # Output: 120
+\`\`\`
+
+And some inline \`JavaScript\` code: \`console.log("Hello!")\``;
+            
+            // Test 4: Multiple instances
+            const test4a = document.getElementById('test4a');
+            const test4b = document.getElementById('test4b');
+            test4a.content = `### Instance 1\nThis is the first instance with \`code\`.`;
+            test4b.content = `### Instance 2\nThis is the second instance with different \`code\`.`;
+            
+            // Test 5: Dynamic updates
+            const test5 = document.getElementById('test5');
+            test5.content = `### Initial Content\nThis content will be updated dynamically.`;
+            
+            // Check results after a delay
+            setTimeout(() => {
+                checkTestResults();
+            }, 1000);
+        });
+        
+        function updateDynamicContent() {
+            const test5 = document.getElementById('test5');
+            const timestamp = new Date().toLocaleTimeString();
+            test5.content = `### Updated at ${timestamp}
+
+\`\`\`javascript
+// New code block
+const updated = true;
+console.log("Content updated!");
+\`\`\``;
+            
+            setTimeout(() => {
+                updateStatus('status5', test5.getAttribute('data-status'));
+            }, 500);
+        }
+        
+        function checkTestResults() {
+            // Check each test
+            updateStatus('status1', document.getElementById('test1').getAttribute('data-status'));
+            updateStatus('status2', document.getElementById('test2').getAttribute('data-status'));
+            updateStatus('status3', document.getElementById('test3').getAttribute('data-status'));
+            
+            // Test 4: Check both instances
+            const test4aStatus = document.getElementById('test4a').getAttribute('data-status');
+            const test4bStatus = document.getElementById('test4b').getAttribute('data-status');
+            if (test4aStatus === 'success' && test4bStatus === 'success') {
+                updateStatus('status4', 'success');
+            } else {
+                updateStatus('status4', 'warning');
+            }
+            
+            updateStatus('status5', document.getElementById('test5').getAttribute('data-status'));
+            
+            // Additional checks
+            console.log('=== Web Component Library Test Results ===');
+            console.log('1. Marked.js in Shadow DOM:', document.getElementById('test1').getAttribute('data-status'));
+            console.log('2. Highlight.js in Shadow DOM:', document.getElementById('test2').getAttribute('data-status'));
+            console.log('3. Combined usage:', document.getElementById('test3').getAttribute('data-status'));
+            console.log('4. Multiple instances:', test4aStatus === 'success' && test4bStatus === 'success' ? 'success' : 'warning');
+            console.log('5. Dynamic updates:', document.getElementById('test5').getAttribute('data-status'));
+            
+            // Check style isolation
+            const test1Shadow = document.getElementById('test1').shadowRoot;
+            const h1InShadow = test1Shadow.querySelector('h1');
+            const h1Style = window.getComputedStyle(h1InShadow);
+            console.log('6. Style isolation (h1 color):', h1Style.color === 'rgb(0, 0, 255)' ? 'success (blue)' : 'failed (not blue)');
+        }
+        
+        function updateStatus(statusId, status) {
+            const statusEl = document.getElementById(statusId);
+            if (status === 'success') {
+                statusEl.textContent = '✓ Success - Library works in Shadow DOM';
+                statusEl.className = 'status success';
+            } else if (status === 'warning') {
+                statusEl.textContent = '⚠ Warning - Partial functionality';
+                statusEl.className = 'status warning';
+            } else {
+                statusEl.textContent = '✗ Error - Library failed in Shadow DOM';
+                statusEl.className = 'status error';
+            }
+        }
+    </script>
+</body>
+</html>
