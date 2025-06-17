@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Correct 3-Column Layout - Nav / Chat / Doc</title>
+    
+    <!-- CSS Variables -->
+    <link rel="stylesheet" href="src/styles/base/_variables.css">
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="src/styles/components/_sidebar.css">
+    <link rel="stylesheet" href="src/styles/components/_input-group.css">
+    <link rel="stylesheet" href="src/styles/components/_messages.css">
+    <link rel="stylesheet" href="src/styles/components/_document-viewer.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="src/styles/base/_highlight-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* CORRECT 3-COLUMN LAYOUT */
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Column 1: Navigation (Sidebar) */
+        .nav-column {
+            width: var(--sidebar-width);
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            flex-shrink: 0;
+        }
+        
+        /* Column 2: Chat */
+        .chat-column {
+            width: var(--chat-width);
+            display: flex;
+            flex-direction: column;
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            flex-shrink: 0;
+        }
+        
+        /* Column 3: Document */
+        .document-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-bg);
+            min-width: 0;
+        }
+        
+        /* Chat layout */
+        .messages-wrapper {
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Document viewer modifications for inline display */
+        .document-viewer-inline {
+            position: relative !important;
+            transform: none !important;
+            height: 100%;
+            z-index: 1 !important;
+            box-shadow: none !important;
+        }
+        
+        .document-viewer-inline .document-viewer {
+            position: relative;
+            transform: none !important;
+            height: 100%;
+        }
+        
+        .document-viewer-inline .document-viewer__header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        /* Hide close button in inline mode */
+        .document-viewer-inline .document-viewer__close {
+            display: none;
+        }
+        
+        /* Mobile Layout - Stack columns */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            /* Hide nav on mobile */
+            .nav-column {
+                display: none;
+            }
+            
+            /* Chat takes full width/height */
+            .chat-column {
+                width: 100%;
+                height: 100%;
+                border-right: none;
+            }
+            
+            /* Document becomes overlay on mobile */
+            .document-column {
+                display: none;
+            }
+            
+            /* Use original document viewer overlay on mobile */
+            .document-viewer-mobile {
+                display: block !important;
+            }
+            
+            .document-viewer-inline {
+                display: none !important;
+            }
+            
+            /* When document viewer is open, move input to bottom */
+            body:has(.document-viewer--open) .chat-column .input-group {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 95;
+                background: var(--color-surface);
+                box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+            }
+        }
+        
+        /* Desktop - show inline viewer */
+        @media (min-width: 769px) {
+            .document-viewer-mobile {
+                display: none !important;
+            }
+        }
+        
+        /* Header for demo */
+        .demo-header {
+            padding: var(--space-md) var(--space-lg);
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: var(--space-sm);
+        }
+        
+        .demo-button {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--text-sm);
+            transition: background var(--transition-base);
+        }
+        
+        .demo-button:hover {
+            background: var(--color-primary-dark);
+        }
+        
+        /* Empty state for document column */
+        .document-empty {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-text-muted);
+            text-align: center;
+            padding: var(--space-xl);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- COLUMN 1: Navigation -->
+        <div class="nav-column" id="sidebar-container"></div>
+        
+        <!-- COLUMN 2: Chat -->
+        <div class="chat-column">
+            <div class="messages-wrapper" id="messages-container"></div>
+            <div id="input-group-container"></div>
+        </div>
+        
+        <!-- COLUMN 3: Document (Desktop only) -->
+        <div class="document-column">
+            <div class="demo-header">
+                <h2>Document Viewer</h2>
+                <div class="demo-controls">
+                    <button class="demo-button" onclick="demo.loadDocument()">
+                        Load Sample Document
+                    </button>
+                </div>
+            </div>
+            <div id="document-viewer-inline" class="document-viewer-inline">
+                <div class="document-empty">
+                    <div>
+                        <h3>No Document Loaded</h3>
+                        <p>Click "Load Sample Document" or select a section from the sidebar</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mobile Document Viewer (Overlay) -->
+    <div id="document-viewer-mobile" class="document-viewer-mobile"></div>
+    
+    <script type="module">
+        import { state } from './src/state-manager.js';
+        import { Sidebar } from './src/components/sidebar.js';
+        import { DocumentViewer } from './src/components/document-viewer.js';
+        import { documentParser } from './src/components/document-parser.js';
+        import { InputGroup } from './src/components/input-group.js';
+        import { Messages } from './src/components/messages.js';
+        
+        const sampleDoc = `# Getting Started [Quickstart Guide]
+
+Welcome to the documentation. This guide will help you get up and running.
+
+## Installation
+
+Let's begin with installing the necessary dependencies.
+
+### Prerequisites
+
+Before you start, ensure you have:
+- Node.js 14.0 or higher
+- npm or yarn
+- Git
+
+### Basic Setup
+
+Clone the repository and install:
+
+\`\`\`bash
+git clone https://github.com/example/project.git
+cd project
+npm install
+\`\`\`
+
+## Configuration
+
+Configure your environment for development.
+
+### Environment Variables
+
+Create a \`.env\` file:
+
+\`\`\`env
+API_KEY=your_key_here
+DATABASE_URL=postgres://localhost:5432/db
+\`\`\`
+
+### Advanced Options
+
+For production builds:
+
+\`\`\`javascript
+module.exports = {
+  mode: 'production',
+  optimization: {
+    minimize: true
+  }
+};
+\`\`\`
+
+# API Reference [Developer Guide]
+
+Complete API documentation for developers.
+
+## Authentication
+
+All endpoints require authentication.
+
+### Getting Started
+
+Request an API token:
+
+\`\`\`javascript
+const token = await getAuthToken({
+  clientId: 'your_client_id',
+  clientSecret: 'your_secret'
+});
+\`\`\`
+
+## Endpoints
+
+### User Management
+
+- \`GET /api/users\` - List users
+- \`POST /api/users\` - Create user
+- \`PUT /api/users/:id\` - Update user`;
+        
+        const demo = {
+            sidebar: null,
+            messages: null,
+            inputGroup: null,
+            documentViewerDesktop: null,
+            documentViewerMobile: null,
+            isMobile: false,
+            
+            init() {
+                // Check if mobile
+                this.checkMobile();
+                window.addEventListener('resize', () => this.checkMobile());
+                
+                // Initialize components
+                this.sidebar = new Sidebar('#sidebar-container');
+                this.messages = new Messages('#messages-container');
+                this.inputGroup = new InputGroup('#input-group-container');
+                
+                // Initialize document viewers based on screen size
+                if (this.isMobile) {
+                    this.documentViewerMobile = new DocumentViewer('#document-viewer-mobile');
+                } else {
+                    // For desktop, use inline viewer
+                    this.documentViewerDesktop = new DocumentViewer('#document-viewer-inline');
+                    // Override the open/close behavior for inline display
+                    this.documentViewerDesktop.open = function() {
+                        this.setState({ isOpen: true });
+                        this.element.querySelector('.document-empty')?.remove();
+                    };
+                    this.documentViewerDesktop.close = function() {
+                        // Don't close on desktop
+                    };
+                }
+                
+                this.setupEventHandlers();
+                
+                // Welcome message
+                this.messages.addMessage({
+                    type: 'assistant',
+                    text: 'Welcome! This is the correct 3-column layout: Navigation | Chat | Document',
+                    timestamp: Date.now()
+                });
+            },
+            
+            checkMobile() {
+                const wasMobile = this.isMobile;
+                this.isMobile = window.innerWidth <= 768;
+                state.set({ isMobile: this.isMobile });
+                
+                // Reinitialize viewers if screen size changed
+                if (wasMobile !== this.isMobile) {
+                    this.initializeViewers();
+                }
+            },
+            
+            initializeViewers() {
+                // Clean up existing viewers
+                if (this.documentViewerDesktop) {
+                    this.documentViewerDesktop.cleanup();
+                    this.documentViewerDesktop = null;
+                }
+                if (this.documentViewerMobile) {
+                    this.documentViewerMobile.cleanup();
+                    this.documentViewerMobile = null;
+                }
+                
+                // Create appropriate viewer
+                if (this.isMobile) {
+                    this.documentViewerMobile = new DocumentViewer('#document-viewer-mobile');
+                } else {
+                    this.documentViewerDesktop = new DocumentViewer('#document-viewer-inline');
+                    this.documentViewerDesktop.open = function() {
+                        this.setState({ isOpen: true });
+                        this.element.querySelector('.document-empty')?.remove();
+                    };
+                    this.documentViewerDesktop.close = function() {};
+                }
+            },
+            
+            setupEventHandlers() {
+                // Sidebar navigation
+                this.sidebar.element.addEventListener('section-navigate', (e) => {
+                    const viewer = this.isMobile ? this.documentViewerMobile : this.documentViewerDesktop;
+                    if (viewer) {
+                        viewer.navigateToSection(e.detail.sectionId);
+                    }
+                });
+                
+                // Input group actions
+                this.inputGroup.element.addEventListener('action-click', (e) => {
+                    const viewer = this.isMobile ? this.documentViewerMobile : this.documentViewerDesktop;
+                    if (viewer) {
+                        viewer.navigateToSection(e.detail.actionId);
+                    }
+                    this.messages.addMessage({
+                        type: 'assistant',
+                        text: `Navigating to "${e.detail.action.text}"...`
+                    });
+                });
+                
+                // Message submission
+                this.inputGroup.element.addEventListener('message-submit', (e) => {
+                    this.messages.addMessage({
+                        type: 'user',
+                        text: e.detail.message
+                    });
+                    
+                    setTimeout(() => {
+                        this.messages.addMessage({
+                            type: 'assistant',
+                            markdown: `I can help you with "${e.detail.message}". The 3-column layout shows:
+- **Left**: Navigation sidebar
+- **Center**: This chat interface  
+- **Right**: Document viewer (desktop only)
+
+On mobile, the document viewer becomes an overlay.`
+                        });
+                    }, 500);
+                });
+            },
+            
+            loadDocument() {
+                // Parse document
+                documentParser.parseMarkdown(sampleDoc);
+                
+                // Load into appropriate viewer
+                const viewer = this.isMobile ? this.documentViewerMobile : this.documentViewerDesktop;
+                if (viewer) {
+                    viewer.loadDocument(sampleDoc);
+                }
+                
+                // Add message
+                this.messages.addMessage({
+                    type: 'assistant',
+                    markdown: `Document loaded! Notice the layout:
+                    
+**Desktop (3 columns)**:
+- Navigation sidebar (left)
+- Chat interface (center)  
+- Document viewer (right)
+
+**Mobile**:
+- Chat interface (full screen)
+- Document viewer (overlay)
+- Input moves to bottom`
+                });
+            }
+        };
+        
+        window.demo = demo;
+        demo.init();
+    </script>
+</body>
+</html>

@@ -123,6 +123,11 @@ export class BaseComponent {
     // Clear element
     this.element.innerHTML = '';
   }
+  
+  // Alias for destroy to match subclass expectations
+  cleanup() {
+    this.destroy();
+  }
 }
 
 // CSS class name generator with BEM convention

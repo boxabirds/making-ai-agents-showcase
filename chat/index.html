@@ -3,133 +3,422 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Document Chat</title>
+    <title>Chat Interface Demos - Index</title>
     
-    <!-- Highlight.js CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
-    
-    <!-- Highlight.js core and language support -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlightjs-line-numbers.js/2.9.0/highlightjs-line-numbers.min.js"></script>
-    
-    <!-- Marked.js for markdown parsing -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        :root {
+            --color-bg: #f7f8fa;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text: #1e293b;
+            --color-text-secondary: #64748b;
+            --color-primary: #3b82f6;
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --color-error: #ef4444;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: var(--color-text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 3rem;
+        }
+        
+        .section {
+            margin-bottom: 3rem;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .phase-badge {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 500;
+        }
+        
+        .phase-0 { background: var(--color-warning); color: white; }
+        .phase-1 { background: var(--color-primary); color: white; }
+        .phase-2 { background: var(--color-success); color: white; }
+        .phase-3 { background: #8b5cf6; color: white; }
+        .phase-4 { background: #ec4899; color: white; }
+        .phase-correct { background: var(--color-success); color: white; }
+        
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .demo-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+        
+        .demo-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        
+        .demo-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .demo-card .filename {
+            font-family: monospace;
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 0.75rem;
+        }
+        
+        .demo-card .description {
+            color: var(--color-text-secondary);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+        
+        .test-list {
+            list-style: none;
+            margin-bottom: 1rem;
+        }
+        
+        .test-list li {
+            padding-left: 1.5rem;
+            position: relative;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+        
+        .test-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--color-success);
+            font-weight: bold;
+        }
+        
+        .demo-link {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--color-primary);
+            color: white;
+            text-decoration: none;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+        
+        .demo-link:hover {
+            background: #2563eb;
+        }
+        
+        .highlight-card {
+            background: #dbeafe;
+            border: 2px solid var(--color-primary);
+        }
+        
+        .warning {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .warning h3 {
+            color: #d97706;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Mobile header -->
-        <header class="mobile-header">
-            <button class="hamburger-btn" id="hamburgerBtn">
-                <span></span>
-                <span></span>
-                <span></span>
-            </button>
-            <h1 id="documentTitle">Document Chat</h1>
-        </header>
+    <div class="container">
+        <h1>Chat Interface Component Demos</h1>
+        <p class="subtitle">Progressive implementation of a mobile-first chat interface with document viewer</p>
         
-        <!-- Left sidebar - Document sections -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <button class="close-btn" id="closeSidebar">×</button>
-            </div>
-            <nav class="sidebar-nav">
-                <div class="nav-section" id="sectionsList">
-                    <!-- H1 sections will be populated here -->
-                </div>
-            </nav>
-        </aside>
+        <div class="warning">
+            <h3>⚠️ Important: Start a Local Server</h3>
+            <p>These demos use ES modules and require a local server. Run one of these commands:</p>
+            <code>python3 -m http.server 8080</code> or <code>npx http-server -p 8080</code>
+        </div>
         
-        <!-- Main chat area -->
-        <main class="chat-container">
-            <!-- Messages area -->
-            <div class="messages-container" id="messagesContainer">
-                <div class="welcome-message">
-                    <h3>Welcome! 👋</h3>
-                    <p>I can help you navigate and understand this document.</p>
-                    <p>Click the quick actions below or ask me anything about the content.</p>
+        <!-- Correct Implementation -->
+        <div class="section">
+            <h2 class="section-title">
+                <span>✅ Correct Original Specification</span>
+                <span class="phase-badge phase-correct">REFERENCE</span>
+            </h2>
+            <div class="demo-grid">
+                <div class="demo-card highlight-card">
+                    <h3>3-Column Layout: Nav / Chat / Doc</h3>
+                    <div class="filename">demo-correct-3-column-layout.html</div>
+                    <p class="description">
+                        The CORRECT implementation with 3 columns on desktop.
+                        Navigation | Chat | Document viewer.
+                    </p>
+                    <ul class="test-list">
+                        <li>Desktop: 3 columns (nav/chat/doc)</li>
+                        <li>Mobile: Chat full screen</li>
+                        <li>Document viewer inline on desktop</li>
+                        <li>Document viewer overlay on mobile</li>
+                        <li>Input moves to bottom on mobile</li>
+                        <li>Fixed infinite loop issue</li>
+                    </ul>
+                    <a href="demo-correct-3-column-layout.html" class="demo-link">View Correct Demo →</a>
+                </div>
+                
+                <div class="demo-card">
+                    <h3>Previous Mobile-First Attempt</h3>
+                    <div class="filename">demo-correct-original-spec.html</div>
+                    <p class="description">
+                        Earlier attempt (has infinite loop bug). Shows mobile-first approach but wrong desktop layout.
+                    </p>
+                    <ul class="test-list">
+                        <li>Has infinite loop when loading document</li>
+                        <li>Wrong desktop layout (2 columns)</li>
+                        <li>Mobile behavior mostly correct</li>
+                    </ul>
+                    <a href="demo-correct-original-spec.html" class="demo-link">View Demo →</a>
                 </div>
             </div>
-            
-            <!-- Typing indicator -->
-            <div class="typing-indicator" id="typingIndicator">
-                <div class="typing-bubble">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
-            </div>
-            
-            <!-- Quick actions (H2 subsections of current H1) -->
-            <div class="quick-actions" id="quickActions">
-                <!-- Will be populated based on current section -->
-            </div>
-            
-            <!-- Input area -->
-            <div class="input-container">
-                <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        class="chat-input" 
-                        id="chatInput" 
-                        placeholder="Ask about the document..."
-                        autocomplete="off"
-                    >
-                    <button class="send-button" id="sendButton">
-                        <svg viewBox="0 0 24 24" width="20" height="20">
-                            <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </main>
+        </div>
         
-        <!-- Vertical separator (desktop only) -->
-        <div class="separator-vertical" id="separatorVertical"></div>
-        
-        <!-- Right panel / Mobile tray - Document viewer -->
-        <aside class="detail-panel" id="detailPanel" tabindex="-1">
-            <div class="panel-header">
-                <h3 id="panelTitle">Document</h3>
-                <div class="panel-actions">
-                    <button class="close-panel-btn" id="closePanelBtn">
-                        <svg class="zoom-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                        </svg>
-                        <span class="close-icon">×</span>
-                    </button>
+        <!-- Phase 0 -->
+        <div class="section">
+            <h2 class="section-title">
+                <span>Phase 0: Initial Prototypes</span>
+                <span class="phase-badge phase-0">EARLY</span>
+            </h2>
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h3>Layout Prototype</h3>
+                    <div class="filename">demo-phase0-layout-prototype.html</div>
+                    <p class="description">
+                        Early exploration of the layout structure with basic HTML/CSS.
+                    </p>
+                    <ul class="test-list">
+                        <li>Basic responsive layout</li>
+                        <li>Mobile tray behavior</li>
+                        <li>Quick actions panel</li>
+                    </ul>
+                    <a href="demo-phase0-layout-prototype.html" class="demo-link">View Demo →</a>
                 </div>
             </div>
-            <div class="panel-content" id="panelContent" tabindex="0">
-                <!-- Rendered markdown content will be displayed here -->
-            </div>
-            <!-- Tray chat input (visible on mobile) -->
-            <div class="tray-input-container">
-                <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        class="chat-input" 
-                        id="trayChatInput" 
-                        placeholder="Continue conversation..."
-                        autocomplete="off"
-                    >
-                    <button class="send-button" id="traySendButton">
-                        <svg viewBox="0 0 24 24" width="20" height="20">
-                            <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
-                        </svg>
-                    </button>
+        </div>
+        
+        <!-- Phase 1 -->
+        <div class="section">
+            <h2 class="section-title">
+                <span>Phase 1: Core Components</span>
+                <span class="phase-badge phase-1">PHASE 1</span>
+            </h2>
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h3>Initial Components</h3>
+                    <div class="filename">demo-phase1-initial-components.html</div>
+                    <p class="description">
+                        First implementation with web components. Has CORRECT mobile behavior with CSS fix.
+                    </p>
+                    <ul class="test-list">
+                        <li>Web component architecture</li>
+                        <li>Fixed mobile input positioning</li>
+                        <li>Document tray sliding</li>
+                        <li>Quick actions integration</li>
+                    </ul>
+                    <a href="demo-phase1-initial-components.html" class="demo-link">View Demo →</a>
+                </div>
+                
+                <div class="demo-card">
+                    <h3>Messages Component</h3>
+                    <div class="filename">demo-phase3-messages.html</div>
+                    <p class="description">
+                        Dedicated demo for the Messages component with various content types.
+                    </p>
+                    <ul class="test-list">
+                        <li>Text, markdown, code messages</li>
+                        <li>Syntax highlighting with highlight.js</li>
+                        <li>Typing indicators</li>
+                        <li>Artifact attachments</li>
+                        <li>Auto-scrolling behavior</li>
+                    </ul>
+                    <a href="demo-phase3-messages.html" class="demo-link">View Demo →</a>
                 </div>
             </div>
-        </aside>
+        </div>
         
-        <!-- Mobile overlay -->
-        <div class="mobile-overlay" id="mobileOverlay"></div>
+        <!-- Phase 2 -->
+        <div class="section">
+            <h2 class="section-title">
+                <span>Phase 2: Navigation Components</span>
+                <span class="phase-badge phase-2">PHASE 2</span>
+            </h2>
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h3>Phase 2 Corrected</h3>
+                    <div class="filename">demo-phase2-corrected.html</div>
+                    <p class="description">
+                        Proper Phase 2 building on Phase 1's correct layout. Maintains 3-column structure.
+                    </p>
+                    <ul class="test-list">
+                        <li>Preserves Phase 1 layout (nav/chat/doc)</li>
+                        <li>Sidebar toggle from Phase 1</li>
+                        <li>Enhanced sidebar with search</li>
+                        <li>Document parser integration</li>
+                        <li>Proper mobile behavior</li>
+                    </ul>
+                    <a href="demo-phase2-corrected.html" class="demo-link">View Demo →</a>
+                </div>
+                
+                <div class="demo-card" style="opacity: 0.7;">
+                    <h3>Sidebar & Document Viewer (Wrong)</h3>
+                    <div class="filename">demo-phase2.html</div>
+                    <p class="description">
+                        ⚠️ INCORRECT LAYOUT - Got sidetracked from original spec.
+                    </p>
+                    <ul class="test-list">
+                        <li>Wrong layout (chat on right)</li>
+                        <li>Lost the 3-column structure</li>
+                        <li>Different sidebar behavior</li>
+                        <li>Components work but layout wrong</li>
+                    </ul>
+                    <a href="demo-phase2.html" class="demo-link">View Demo →</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Phase 3/4 -->
+        <div class="section">
+            <h2 class="section-title">
+                <span>Phase 3/4: Final Architecture</span>
+                <span class="phase-badge phase-4">FINAL</span>
+            </h2>
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h3>No Web Components</h3>
+                    <div class="filename">demo-phase4-no-web-components.html</div>
+                    <p class="description">
+                        Clean architecture without web components after compatibility issues.
+                    </p>
+                    <ul class="test-list">
+                        <li>ES6 class-based components</li>
+                        <li>BEM CSS naming convention</li>
+                        <li>State management with pub/sub</li>
+                        <li>Event delegation</li>
+                        <li>All components integrated</li>
+                    </ul>
+                    <a href="demo-phase4-no-web-components.html" class="demo-link">View Demo →</a>
+                </div>
+                
+                <div class="demo-card">
+                    <h3>Original Layout (Attempt)</h3>
+                    <div class="filename">demo-original-layout.html</div>
+                    <p class="description">
+                        Attempt to recreate original layout with new components. Chat on left side.
+                    </p>
+                    <ul class="test-list">
+                        <li>Integration of all components</li>
+                        <li>Desktop/mobile layouts</li>
+                        <li>Document parser integration</li>
+                        <li>State management</li>
+                    </ul>
+                    <a href="demo-original-layout.html" class="demo-link">View Demo →</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Test Files -->
+        <div class="section">
+            <h2 class="section-title">
+                <span>Test Files</span>
+                <span class="phase-badge" style="background: #6b7280;">TESTS</span>
+            </h2>
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h3>Web Component Library Test</h3>
+                    <div class="filename">test-web-components.html</div>
+                    <p class="description">
+                        Tests marked.js and highlight.js compatibility with Shadow DOM.
+                    </p>
+                    <ul class="test-list">
+                        <li>Shadow DOM isolation tests</li>
+                        <li>Library compatibility checks</li>
+                        <li>Style encapsulation</li>
+                    </ul>
+                    <a href="test-web-components.html" class="demo-link">View Test →</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Other Files -->
+        <div class="section">
+            <h2 class="section-title">
+                <span>Other Files</span>
+                <span class="phase-badge" style="background: #6b7280;">MISC</span>
+            </h2>
+            <div class="demo-grid">
+                <div class="demo-card">
+                    <h3>Chat V1 Index</h3>
+                    <div class="filename">chat-v1-index.html</div>
+                    <p class="description">
+                        Previous version index file.
+                    </p>
+                    <a href="chat-v1-index.html" class="demo-link">View File →</a>
+                </div>
+            </div>
+        </div>
     </div>
-    
-    <script src="document-parser.js"></script>
-    <script src="script.js"></script>
 </body>
 </html>

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 2 Components Demo - Sidebar & Document Viewer</title>
+    
+    <!-- CSS Variables -->
+    <link rel="stylesheet" href="src/styles/base/_variables.css">
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="src/styles/components/_sidebar.css">
+    <link rel="stylesheet" href="src/styles/components/_document-viewer.css">
+    <link rel="stylesheet" href="src/styles/components/_input-group.css">
+    <link rel="stylesheet" href="src/styles/components/_messages.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="src/styles/base/_highlight-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Main layout */
+        .app-layout {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        
+        .header {
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-md) var(--space-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .header h1 {
+            font-size: var(--text-xl);
+            font-weight: var(--font-semibold);
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: var(--space-md);
+        }
+        
+        .demo-button {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--text-sm);
+            transition: background var(--transition-base);
+        }
+        
+        .demo-button:hover {
+            background: var(--color-primary-dark);
+        }
+        
+        .demo-button--secondary {
+            background: var(--color-surface);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+        
+        .demo-button--secondary:hover {
+            background: var(--color-bg);
+        }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .chat-panel {
+            width: 400px;
+            border-left: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            background: var(--color-surface);
+        }
+        
+        .center-content {
+            flex: 1;
+            padding: var(--space-xl);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .center-content h2 {
+            font-size: var(--text-2xl);
+            margin-bottom: var(--space-lg);
+            color: var(--color-text-secondary);
+        }
+        
+        .center-content p {
+            color: var(--color-text-muted);
+            margin-bottom: var(--space-xl);
+            max-width: 600px;
+        }
+        
+        .test-controls {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .chat-panel {
+                position: fixed;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                width: 100%;
+                max-width: 400px;
+                z-index: var(--z-overlay);
+                transform: translateX(100%);
+                transition: transform var(--transition-base);
+            }
+            
+            .chat-panel.open {
+                transform: translateX(0);
+                box-shadow: -4px 0 6px rgba(0, 0, 0, 0.1);
+            }
+            
+            .center-content {
+                padding: var(--space-md);
+            }
+        }
+        
+        /* Loading state */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <div id="sidebar-container"></div>
+        
+        <!-- Main content -->
+        <div class="main-content">
+            <header class="header">
+                <h1>Document Explorer Demo</h1>
+                <div class="header-controls">
+                    <button class="demo-button demo-button--secondary" onclick="demo.toggleSidebar()">
+                        Toggle Sidebar
+                    </button>
+                    <button class="demo-button" onclick="demo.loadSampleDocument()">
+                        Load Sample Document
+                    </button>
+                    <button class="demo-button demo-button--secondary" onclick="demo.toggleChat()">
+                        Toggle Chat
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-area">
+                <div class="center-content">
+                    <h2>Welcome to the Document Explorer</h2>
+                    <p>
+                        This demo showcases the Sidebar and Document Viewer components working together.
+                        Click "Load Sample Document" to begin exploring.
+                    </p>
+                    
+                    <div class="test-controls">
+                        <button class="demo-button" onclick="demo.testNavigation()">
+                            Test Navigation
+                        </button>
+                        <button class="demo-button demo-button--secondary" onclick="demo.testSearch()">
+                            Test Search
+                        </button>
+                        <button class="demo-button demo-button--secondary" onclick="demo.changeSection()">
+                            Jump to Random Section
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Chat Panel -->
+                <div class="chat-panel" id="chat-panel">
+                    <div class="messages-container" id="messages-container"></div>
+                    <div id="input-group-container"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Document Viewer -->
+        <div id="document-viewer-container"></div>
+    </div>
+    
+    <script type="module">
+        import { state } from './src/state-manager.js';
+        import { Sidebar } from './src/components/sidebar.js';
+        import { DocumentViewer } from './src/components/document-viewer.js';
+        import { documentParser } from './src/components/document-parser.js';
+        import { InputGroup } from './src/components/input-group.js';
+        import { Messages } from './src/components/messages.js';
+        
+        // Sample markdown document
+        const sampleDocument = `# Introduction [Getting Started]
+
+Welcome to our comprehensive guide. This document will help you understand the key concepts and features of our system.
+
+## Overview
+
+This section provides a high-level overview of the system architecture and main components. We'll explore how different parts work together to create a seamless experience.
+
+### Key Features
+
+- **Real-time collaboration**: Work together with your team in real-time
+- **Version control**: Track changes and maintain history
+- **Extensible architecture**: Easy to extend and customize
+
+## Getting Started
+
+Let's begin with the basics. This section will walk you through the initial setup process.
+
+### Prerequisites
+
+Before you begin, ensure you have:
+1. Node.js version 14 or higher
+2. A modern web browser
+3. Basic understanding of JavaScript
+
+### Installation
+
+\`\`\`bash
+npm install awesome-framework
+cd my-project
+npm start
+\`\`\`
+
+# User Guide [Daily Usage]
+
+This chapter covers everyday usage scenarios and best practices.
+
+## Basic Usage
+
+Understanding the core concepts is essential for effective use of the system.
+
+### Creating Your First Project
+
+Here's how to create your first project:
+
+\`\`\`javascript
+const project = new Project({
+    name: 'My Awesome Project',
+    description: 'A sample project to get started'
+});
+
+project.initialize();
+console.log('Project created:', project.name);
+\`\`\`
+
+## Advanced Features
+
+Once you're comfortable with the basics, explore these advanced features.
+
+### Custom Configurations
+
+You can customize the system behavior with configuration files:
+
+\`\`\`json
+{
+    "theme": "dark",
+    "autoSave": true,
+    "plugins": ["spell-check", "auto-complete"]
+}
+\`\`\`
+
+# API Reference [Technical Documentation]
+
+Complete API documentation for developers.
+
+## Core Classes
+
+### Project Class
+
+The main class for managing projects.
+
+#### Methods
+
+- \`initialize()\`: Initialize a new project
+- \`save()\`: Save project state
+- \`load(id)\`: Load existing project
+
+## Utility Functions
+
+### Helper Methods
+
+Common utility functions available throughout the system.
+
+# Troubleshooting [Common Issues]
+
+Solutions to common problems and FAQs.
+
+## Installation Issues
+
+### Node Version Conflicts
+
+If you encounter version conflicts, try using nvm:
+
+\`\`\`bash
+nvm use 14
+npm install
+\`\`\`
+
+## Runtime Errors
+
+### Memory Issues
+
+For large projects, increase the Node.js memory limit:
+
+\`\`\`bash
+node --max-old-space-size=4096 app.js
+\`\`\``;
+        
+        const demo = {
+            sidebar: null,
+            documentViewer: null,
+            inputGroup: null,
+            messages: null,
+            chatOpen: false,
+            
+            init() {
+                // Initialize components
+                this.sidebar = new Sidebar('#sidebar-container');
+                this.documentViewer = new DocumentViewer('#document-viewer-container');
+                this.inputGroup = new InputGroup('#input-group-container');
+                this.messages = new Messages('#messages-container');
+                
+                // Set up event listeners
+                this.setupEventListeners();
+                
+                // Initialize with welcome message
+                this.messages.addMessage({
+                    type: 'assistant',
+                    text: 'Welcome! I can help you navigate the document. Try loading the sample document to get started.'
+                });
+            },
+            
+            setupEventListeners() {
+                // Sidebar navigation
+                this.sidebar.element.addEventListener('section-navigate', (e) => {
+                    const { sectionId } = e.detail;
+                    this.messages.addMessage({
+                        type: 'assistant',
+                        text: `Navigating to: ${sectionId}`
+                    });
+                });
+                
+                // Document viewer events
+                this.documentViewer.element.addEventListener('viewer-open', () => {
+                    this.messages.addMessage({
+                        type: 'system',
+                        text: 'Document viewer opened'
+                    });
+                });
+                
+                this.documentViewer.element.addEventListener('viewer-close', () => {
+                    this.messages.addMessage({
+                        type: 'system',
+                        text: 'Document viewer closed'
+                    });
+                });
+                
+                // Input group events
+                this.inputGroup.element.addEventListener('message-submit', (e) => {
+                    this.messages.addMessage({
+                        type: 'user',
+                        text: e.detail.message
+                    });
+                    
+                    // Simulate response
+                    setTimeout(() => {
+                        this.messages.addMessage({
+                            type: 'assistant',
+                            text: `I received your message: "${e.detail.message}"`
+                        });
+                    }, 500);
+                });
+                
+                this.inputGroup.element.addEventListener('action-click', (e) => {
+                    this.documentViewer.navigateToSection(e.detail.actionId);
+                });
+            },
+            
+            loadSampleDocument() {
+                // Parse and load document
+                documentParser.parseMarkdown(sampleDocument);
+                
+                // Load into viewer
+                this.documentViewer.loadDocument(sampleDocument);
+                
+                // Update message
+                this.messages.addMessage({
+                    type: 'assistant',
+                    markdown: `Document loaded! Here's what you can do:
+                    
+- Use the **sidebar** to navigate sections
+- Click **quick actions** below to jump to subsections
+- Use keyboard shortcuts:
+  - **Space**: Next section
+  - **Shift+Space**: Previous section
+  - **Escape**: Close viewer`
+                });
+            },
+            
+            toggleSidebar() {
+                this.sidebar.toggle();
+            },
+            
+            toggleChat() {
+                this.chatOpen = !this.chatOpen;
+                const chatPanel = document.getElementById('chat-panel');
+                if (this.chatOpen) {
+                    chatPanel.classList.add('open');
+                } else {
+                    chatPanel.classList.remove('open');
+                }
+            },
+            
+            testNavigation() {
+                const sections = state.get('sections');
+                if (!sections || sections.length === 0) {
+                    alert('Please load a document first');
+                    return;
+                }
+                
+                // Navigate through sections
+                let index = 0;
+                const navigate = () => {
+                    if (index < sections.length) {
+                        state.set({ currentSection: sections[index].id });
+                        this.messages.addMessage({
+                            type: 'system',
+                            text: `Navigated to: ${sections[index].title}`
+                        });
+                        index++;
+                        setTimeout(navigate, 1500);
+                    }
+                };
+                navigate();
+            },
+            
+            testSearch() {
+                const searchTerms = ['installation', 'api', 'guide', 'error'];
+                const input = this.sidebar.$('.sidebar__search-input');
+                
+                if (!input) {
+                    alert('Sidebar not initialized');
+                    return;
+                }
+                
+                let index = 0;
+                const search = () => {
+                    if (index < searchTerms.length) {
+                        input.value = searchTerms[index];
+                        input.dispatchEvent(new Event('input'));
+                        this.messages.addMessage({
+                            type: 'system',
+                            text: `Searching for: "${searchTerms[index]}"`
+                        });
+                        index++;
+                        setTimeout(search, 2000);
+                    } else {
+                        input.value = '';
+                        input.dispatchEvent(new Event('input'));
+                    }
+                };
+                search();
+            },
+            
+            changeSection() {
+                const sections = state.get('sections');
+                if (!sections || sections.length === 0) {
+                    alert('Please load a document first');
+                    return;
+                }
+                
+                // Get all sections and subsections
+                const allSections = [];
+                sections.forEach(section => {
+                    allSections.push(section);
+                    if (section.subsections) {
+                        allSections.push(...section.subsections);
+                    }
+                });
+                
+                // Pick random section
+                const randomSection = allSections[Math.floor(Math.random() * allSections.length)];
+                state.set({ currentSection: randomSection.id });
+                
+                this.messages.addMessage({
+                    type: 'system',
+                    text: `Jumped to: ${randomSection.title}`
+                });
+            }
+        };
+        
+        // Initialize demo
+        window.demo = demo;
+        demo.init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Original Layout Demo - With New Components</title>
+    
+    <!-- CSS Variables -->
+    <link rel="stylesheet" href="src/styles/base/_variables.css">
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="src/styles/components/_sidebar.css">
+    <link rel="stylesheet" href="src/styles/components/_document-viewer.css">
+    <link rel="stylesheet" href="src/styles/components/_input-group.css">
+    <link rel="stylesheet" href="src/styles/components/_messages.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="src/styles/base/_highlight-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Main layout - matching original */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        
+        /* Chat panel - left side on desktop */
+        .chat-panel {
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+        }
+        
+        .messages-wrapper {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Main content area */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: var(--color-bg);
+        }
+        
+        .content-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-xl);
+        }
+        
+        .welcome-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .welcome-content h1 {
+            font-size: var(--text-2xl);
+            margin-bottom: var(--space-lg);
+        }
+        
+        .welcome-content p {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-md);
+            line-height: 1.6;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: var(--space-md);
+            margin-top: var(--space-xl);
+            flex-wrap: wrap;
+        }
+        
+        .demo-button {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--text-sm);
+            transition: background var(--transition-base);
+        }
+        
+        .demo-button:hover {
+            background: var(--color-primary-dark);
+        }
+        
+        /* Mobile layout - matching original */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            .chat-panel {
+                width: 100%;
+                height: 100%;
+                border-right: none;
+            }
+            
+            .main-area {
+                display: none;
+            }
+            
+            /* When document viewer is open, move input group to bottom */
+            body:has(.document-viewer--open) .chat-panel .input-group {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 95;
+                background: var(--color-surface);
+                box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+            }
+        }
+        
+        /* Hide sidebar on mobile by default */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+        }
+        
+        /* Sample content styling */
+        .sample-section {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            margin-bottom: var(--space-lg);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .sample-section h2 {
+            font-size: var(--text-xl);
+            margin-bottom: var(--space-md);
+        }
+        
+        .sample-section code {
+            background: var(--color-bg);
+            padding: 0.125rem 0.375rem;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: var(--text-sm);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Chat Panel (left on desktop, full screen on mobile) -->
+        <div class="chat-panel">
+            <div class="messages-wrapper">
+                <div id="messages-container"></div>
+            </div>
+            <div id="input-group-container"></div>
+        </div>
+        
+        <!-- Main Content Area (right on desktop, hidden on mobile) -->
+        <div class="main-area">
+            <!-- Sidebar -->
+            <div style="display: flex; flex: 1; overflow: hidden;">
+                <div id="sidebar-container"></div>
+                
+                <!-- Content -->
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="content-wrapper">
+                        <div class="welcome-content">
+                            <h1>Welcome to the Document Chat Interface</h1>
+                            <p>
+                                This demo shows the original mobile-first layout with the new component architecture.
+                                On mobile, the chat takes full screen with the document viewer sliding up from the bottom.
+                            </p>
+                            
+                            <div class="sample-section">
+                                <h2>How it works</h2>
+                                <p>
+                                    <strong>Desktop:</strong> Chat panel on the left, content on the right with sidebar navigation.
+                                </p>
+                                <p>
+                                    <strong>Mobile:</strong> Full-screen chat with document viewer as an overlay. Quick actions and input move to the bottom when the viewer is open.
+                                </p>
+                            </div>
+                            
+                            <div class="sample-section">
+                                <h2>Test the Components</h2>
+                                <div class="demo-controls">
+                                    <button class="demo-button" onclick="demo.loadDocument()">
+                                        Load Sample Document
+                                    </button>
+                                    <button class="demo-button" onclick="demo.simulateChat()">
+                                        Simulate Chat
+                                    </button>
+                                    <button class="demo-button" onclick="demo.testMobileView()">
+                                        Test Mobile View
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="sample-section">
+                                <h2>Keyboard Shortcuts</h2>
+                                <p><code>Space</code> - Next section in document viewer</p>
+                                <p><code>Shift + Space</code> - Previous section</p>
+                                <p><code>Escape</code> - Close document viewer</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Document Viewer (overlay) -->
+        <div id="document-viewer-container"></div>
+    </div>
+    
+    <script type="module">
+        import { state } from './src/state-manager.js';
+        import { Sidebar } from './src/components/sidebar.js';
+        import { DocumentViewer } from './src/components/document-viewer.js';
+        import { documentParser } from './src/components/document-parser.js';
+        import { InputGroup } from './src/components/input-group.js';
+        import { Messages } from './src/components/messages.js';
+        
+        // Sample markdown content
+        const sampleMarkdown = `# Getting Started [Quick Guide]
+
+Welcome to our platform! This guide will help you get up and running quickly.
+
+## Installation
+
+First, let's install the necessary dependencies for your project.
+
+### System Requirements
+
+Before proceeding, ensure your system meets these requirements:
+- Node.js 14.0 or higher
+- npm or yarn package manager
+- 2GB of available disk space
+
+### Installation Steps
+
+Follow these steps to install:
+
+\`\`\`bash
+# Clone the repository
+git clone https://github.com/example/project.git
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+\`\`\`
+
+## Configuration
+
+After installation, you'll need to configure your environment.
+
+### Basic Configuration
+
+Create a \`.env\` file in your project root:
+
+\`\`\`env
+API_KEY=your_api_key_here
+DATABASE_URL=postgres://localhost:5432/mydb
+PORT=3000
+\`\`\`
+
+### Advanced Settings
+
+For production deployments, consider these additional settings:
+
+\`\`\`javascript
+module.exports = {
+  production: {
+    minify: true,
+    sourceMaps: false,
+    optimization: {
+      splitChunks: true
+    }
+  }
+};
+\`\`\`
+
+# Features [Core Functionality]
+
+Let's explore the main features of our application.
+
+## Real-time Collaboration
+
+Work together with your team in real-time with automatic conflict resolution.
+
+### Starting a Session
+
+To begin collaborating:
+1. Create or open a project
+2. Click "Share" in the toolbar
+3. Send the invitation link to team members
+
+## Version Control
+
+Built-in version control keeps track of all changes.
+
+### Creating Snapshots
+
+Save your work at any point:
+- Press \`Cmd/Ctrl + S\` to create a snapshot
+- Add a descriptive message
+- View history in the sidebar
+
+# API Reference [Developer Docs]
+
+Complete API documentation for developers.
+
+## Authentication
+
+All API requests require authentication using Bearer tokens.
+
+### Getting a Token
+
+Request a token using your API credentials:
+
+\`\`\`javascript
+const response = await fetch('/api/auth/token', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    clientId: 'your_client_id',
+    clientSecret: 'your_client_secret'
+  })
+});
+
+const { token } = await response.json();
+\`\`\`
+
+## Endpoints
+
+### Projects Endpoint
+
+Manage your projects through the REST API:
+
+- \`GET /api/projects\` - List all projects
+- \`POST /api/projects\` - Create new project
+- \`PUT /api/projects/:id\` - Update project
+- \`DELETE /api/projects/:id\` - Delete project`;
+        
+        const demo = {
+            sidebar: null,
+            documentViewer: null,
+            inputGroup: null,
+            messages: null,
+            
+            init() {
+                // Initialize components
+                this.messages = new Messages('#messages-container');
+                this.inputGroup = new InputGroup('#input-group-container');
+                this.documentViewer = new DocumentViewer('#document-viewer-container');
+                this.sidebar = new Sidebar('#sidebar-container');
+                
+                // Set up event handlers
+                this.setupEventHandlers();
+                
+                // Add welcome message
+                this.messages.addMessage({
+                    type: 'assistant',
+                    text: 'Hello! I can help you navigate documents. Try clicking "Load Sample Document" to see how it works.',
+                    timestamp: Date.now()
+                });
+                
+                // Check if mobile
+                this.checkMobileView();
+                window.addEventListener('resize', () => this.checkMobileView());
+            },
+            
+            setupEventHandlers() {
+                // Handle quick action clicks
+                this.inputGroup.element.addEventListener('action-click', (e) => {
+                    const { actionId, action } = e.detail;
+                    this.documentViewer.navigateToSection(actionId);
+                    this.messages.addMessage({
+                        type: 'assistant',
+                        text: `Navigating to "${action.text}"...`
+                    });
+                });
+                
+                // Handle message submissions
+                this.inputGroup.element.addEventListener('message-submit', (e) => {
+                    const { message } = e.detail;
+                    this.messages.addMessage({
+                        type: 'user',
+                        text: message
+                    });
+                    
+                    // Simulate AI response
+                    setTimeout(() => {
+                        this.messages.addMessage({
+                            type: 'assistant',
+                            text: `I understand you want to know about "${message}". Let me help you with that.`
+                        });
+                    }, 1000);
+                });
+                
+                // Handle sidebar navigation
+                this.sidebar.element.addEventListener('section-navigate', (e) => {
+                    const { sectionId } = e.detail;
+                    this.documentViewer.navigateToSection(sectionId);
+                });
+                
+                // Handle document viewer events
+                this.documentViewer.element.addEventListener('viewer-open', () => {
+                    state.set({ documentViewerOpen: true });
+                });
+                
+                this.documentViewer.element.addEventListener('viewer-close', () => {
+                    state.set({ documentViewerOpen: false });
+                });
+            },
+            
+            checkMobileView() {
+                const isMobile = window.innerWidth <= 768;
+                state.set({ isMobile });
+            },
+            
+            loadDocument() {
+                // Parse the document
+                documentParser.parseMarkdown(sampleMarkdown);
+                
+                // Load into viewer
+                this.documentViewer.loadDocument(sampleMarkdown);
+                
+                // Add message
+                this.messages.addMessage({
+                    type: 'assistant',
+                    markdown: `Great! I've loaded the documentation. You can:
+- Use the **quick actions** below to jump to specific sections
+- Navigate with **Space** (next) and **Shift+Space** (previous)
+- Close the viewer with **Escape**
+
+What would you like to know more about?`
+                });
+            },
+            
+            simulateChat() {
+                const conversation = [
+                    { type: 'user', text: 'How do I install this?' },
+                    { 
+                        type: 'assistant', 
+                        markdown: 'To install, you need Node.js 14+ and npm. Run:\n\n```bash\nnpm install\n```\n\nWould you like me to show you the installation guide?',
+                        delay: 1000
+                    },
+                    { type: 'user', text: 'Yes, show me the guide', delay: 2000 },
+                    {
+                        type: 'assistant',
+                        text: 'Opening the installation guide for you...',
+                        delay: 3000,
+                        action: () => {
+                            this.loadDocument();
+                            setTimeout(() => {
+                                state.set({ currentSection: 'installation' });
+                            }, 500);
+                        }
+                    }
+                ];
+                
+                let index = 0;
+                const addMessage = () => {
+                    if (index < conversation.length) {
+                        const msg = conversation[index];
+                        setTimeout(() => {
+                            this.messages.addMessage({
+                                type: msg.type,
+                                text: msg.text,
+                                markdown: msg.markdown
+                            });
+                            if (msg.action) {
+                                msg.action();
+                            }
+                            index++;
+                            addMessage();
+                        }, msg.delay || 0);
+                    }
+                };
+                addMessage();
+            },
+            
+            testMobileView() {
+                // Show mobile view instructions
+                this.messages.addMessage({
+                    type: 'assistant',
+                    markdown: `To test the mobile view:
+
+1. **Resize your browser** to less than 768px wide
+2. Or use **Developer Tools** (F12) and toggle device mode
+3. On mobile, the chat takes full screen
+4. The document viewer slides up from the bottom
+5. Quick actions and input move to the bottom when viewing docs
+
+Try it now!`
+                });
+                
+                // If already mobile, load document
+                if (state.get('isMobile')) {
+                    setTimeout(() => {
+                        this.loadDocument();
+                    }, 2000);
+                }
+            }
+        };
+        
+        // Initialize on load
+        window.demo = demo;
+        document.addEventListener('DOMContentLoaded', () => {
+            demo.init();
+        });
+    </script>
+</body>
+</html>

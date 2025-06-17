@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 2 - Reusing Phase 1 Layout</title>
+    <style>
+        /* EXACT SAME STYLES FROM PHASE 1 - DO NOT CHANGE */
+        /* Global design tokens only */
+        :root {
+            --color-bg: #f7f8fa;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text: #1e293b;
+            --color-primary: #3b82f6;
+            --color-primary-dark: #2563eb;
+            
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --chat-width: 400px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Simple layout grid */
+        .app-layout {
+            display: grid;
+            height: 100vh;
+            grid-template-columns: var(--sidebar-width) var(--chat-width) 1fr;
+        }
+        
+        /* Basic containers */
+        .sidebar {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .chat-panel {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--color-bg);
+            border-radius: 0.5rem;
+        }
+        
+        .document-viewer {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        /* Mobile layout */
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: var(--header-height) 1fr;
+            }
+            
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                padding: 1rem;
+                background: var(--color-surface);
+                border-bottom: 1px solid var(--color-border);
+            }
+            
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 100;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .chat-panel {
+                grid-row: 2;
+                height: calc(100vh - var(--header-height));
+            }
+            
+            .document-viewer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 75vh;
+                background: var(--color-surface);
+                transform: translateY(100%);
+                transition: transform 0.3s ease;
+                border-radius: 1rem 1rem 0 0;
+                box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 90;
+            }
+            
+            .document-viewer.open {
+                transform: translateY(0);
+            }
+            
+            /* When document viewer is open, move the input group to bottom of screen */
+            body:has(.document-viewer.open) .chat-panel .input-group {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 95;
+            }
+            
+            .overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+                z-index: 85;
+            }
+            
+            .overlay.active {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+        
+        /* Desktop-only */
+        @media (min-width: 769px) {
+            .mobile-header {
+                display: none;
+            }
+            
+            .overlay {
+                display: none;
+            }
+            
+            /* Fullscreen document viewer on desktop */
+            .document-viewer.fullscreen {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 100;
+                padding: 3rem;
+                max-width: 1200px;
+                margin: 0 auto;
+                background: var(--color-surface);
+                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            }
+        }
+        
+        /* Demo controls */
+        .demo-controls {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+        }
+        
+        .demo-controls button {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        
+        .demo-controls button:hover {
+            background: var(--color-primary-dark);
+        }
+    </style>
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="src/styles/components/_input-group.css">
+    <link rel="stylesheet" href="src/styles/components/_messages.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile header - EXACT SAME -->
+        <header class="mobile-header">
+            <button onclick="toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer;">☰</button>
+            <h1 style="margin: 0 auto; font-size: 1.25rem;">Document Chat</h1>
+        </header>
+        
+        <!-- Sidebar - KEEP SIMPLE HTML -->
+        <aside class="sidebar" id="sidebar">
+            <h2>Sections</h2>
+            <div style="padding: 0.5rem; margin-bottom: 0.25rem; background: var(--color-bg); border-radius: 0.25rem; cursor: pointer;">Introduction</div>
+            <div style="padding: 0.5rem; margin-bottom: 0.25rem; background: var(--color-primary); color: white; border-radius: 0.25rem; cursor: pointer;">Getting Started</div>
+            <div style="padding: 0.5rem; margin-bottom: 0.25rem; background: var(--color-bg); border-radius: 0.25rem; cursor: pointer;">API Reference</div>
+        </aside>
+        
+        <!-- Chat panel - KEEP EXACT SAME STRUCTURE -->
+        <section class="chat-panel">
+            <div class="messages-area" id="messages-area">
+                <div class="message">
+                    <strong>You:</strong> Show me the getting started guide
+                </div>
+                <div class="message">
+                    <strong>Assistant:</strong> I'll navigate you to the Getting Started section. This section has several subsections you can explore using the quick actions below.
+                </div>
+            </div>
+            
+            <!-- Only replace the input component -->
+            <div id="input-group-container"></div>
+        </section>
+        
+        <!-- Document viewer - EXACT SAME -->
+        <section class="document-viewer" id="documentViewer">
+            <button onclick="toggleDocViewer()" style="position: absolute; top: 1rem; right: 1rem; padding: 0.5rem 1rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 0.25rem; cursor: pointer;">
+                ✕ Close
+            </button>
+            <h1>Getting Started</h1>
+            <p>Welcome to the getting started guide. This section covers:</p>
+            <ul>
+                <li>Installation</li>
+                <li>Configuration</li>
+                <li>First Steps</li>
+                <li>Troubleshooting</li>
+            </ul>
+            <p style="margin-top: 2rem;">Notice how the quick actions and input stay together as a cohesive unit, whether on desktop or mobile.</p>
+        </section>
+    </div>
+    
+    <!-- Mobile overlay - EXACT SAME -->
+    <div class="overlay" id="overlay" onclick="closeAll()"></div>
+    
+    <!-- Demo controls - EXACT SAME -->
+    <div class="demo-controls">
+        <h3 style="margin-bottom: 0.5rem;">Demo Controls</h3>
+        <button onclick="toggleQuickActions()">Toggle Quick Actions</button>
+        <button onclick="toggleDocViewer()">Toggle Document Viewer</button>
+        <button onclick="changeActions()">Change Quick Actions</button>
+        <button onclick="disableInput()">Toggle Disabled State</button>
+    </div>
+    
+    <script type="module">
+        // Import ONLY the input group
+        import { InputGroup } from './src/components/input-group.js';
+        
+        // Initialize ONLY the input group
+        const inputGroup = new InputGroup('#input-group-container');
+        
+        // Set initial quick actions - SAME AS PHASE 1
+        const initialActions = [
+            { id: 'install', text: 'Installation' },
+            { id: 'config', text: 'Configuration' },
+            { id: 'first-steps', text: 'First Steps' },
+            { id: 'troubleshoot', text: 'Troubleshooting' }
+        ];
+        
+        inputGroup.setQuickActions(initialActions);
+        
+        // SAME addMessage function from Phase 1
+        function addMessage(sender, text) {
+            const messagesArea = document.getElementById('messages-area');
+            const message = document.createElement('div');
+            message.className = 'message';
+            message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            messagesArea.appendChild(message);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+        
+        // Listen for events - SAME LOGIC AS PHASE 1
+        inputGroup.element.addEventListener('message-submit', (e) => {
+            console.log('Message submitted:', e.detail.message);
+            addMessage('You', e.detail.message);
+            
+            // Simulate response
+            setTimeout(() => {
+                addMessage('Assistant', 'I understand your question. Let me help you with that.');
+            }, 1000);
+        });
+        
+        inputGroup.element.addEventListener('action-click', (e) => {
+            console.log('Action clicked:', e.detail.actionId);
+            addMessage('System', `Navigating to: ${e.detail.action.text}`);
+            
+            // On mobile, might open document viewer
+            if (window.innerWidth <= 768) {
+                document.getElementById('documentViewer').classList.add('open');
+                document.getElementById('overlay').classList.add('active');
+            }
+        });
+        
+        // EXACT SAME DEMO FUNCTIONS FROM PHASE 1
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+        
+        window.toggleDocViewer = function() {
+            const viewer = document.getElementById('documentViewer');
+            const overlay = document.getElementById('overlay');
+            
+            if (window.innerWidth <= 768) {
+                // Mobile: slide up from bottom
+                viewer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            } else {
+                // Desktop: toggle fullscreen
+                viewer.classList.toggle('fullscreen');
+            }
+        }
+        
+        window.toggleQuickActions = function() {
+            const hasActions = inputGroup.state.quickActions.length > 0;
+            inputGroup.setQuickActions(hasActions ? [] : initialActions);
+        }
+        
+        window.changeActions = function() {
+            inputGroup.setQuickActions([
+                { id: 'overview', text: 'Overview' },
+                { id: 'examples', text: 'Examples' },
+                { id: 'best-practices', text: 'Best Practices' }
+            ]);
+        }
+        
+        window.disableInput = function() {
+            inputGroup.setDisabled(!inputGroup.state.disabled);
+        }
+        
+        window.closeAll = function() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('documentViewer').classList.remove('open');
+            document.getElementById('overlay').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

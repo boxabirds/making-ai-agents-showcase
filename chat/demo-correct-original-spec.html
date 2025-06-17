@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Original Spec - Correct Mobile Layout</title>
+    
+    <!-- CSS Variables -->
+    <link rel="stylesheet" href="src/styles/base/_variables.css">
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="src/styles/components/_input-group.css">
+    <link rel="stylesheet" href="src/styles/components/_messages.css">
+    <link rel="stylesheet" href="src/styles/components/_document-viewer.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="src/styles/base/_highlight-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* ORIGINAL SPEC: Chat panel is the main interface */
+        .chat-panel {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-surface);
+        }
+        
+        /* Messages take up most of the space */
+        .messages-container {
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Input group at bottom */
+        .input-container {
+            flex-shrink: 0;
+        }
+        
+        /* CRITICAL: When document viewer is open, input group moves to bottom */
+        body:has(.document-viewer--open) .chat-panel .input-group {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 95;
+            background: var(--color-surface);
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Desktop: Show sidebar on the side */
+        @media (min-width: 769px) {
+            .app-container {
+                display: flex;
+                height: 100vh;
+            }
+            
+            .chat-panel {
+                width: 400px;
+                border-right: 1px solid var(--color-border);
+            }
+            
+            .content-area {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                background: var(--color-bg);
+                overflow: hidden;
+            }
+            
+            .content-header {
+                padding: var(--space-lg);
+                background: var(--color-surface);
+                border-bottom: 1px solid var(--color-border);
+            }
+            
+            .content-body {
+                flex: 1;
+                padding: var(--space-xl);
+                overflow-y: auto;
+            }
+        }
+        
+        /* Mobile: Chat takes full screen */
+        @media (max-width: 768px) {
+            .chat-panel {
+                width: 100%;
+            }
+            
+            .content-area {
+                display: none;
+            }
+        }
+        
+        /* Demo content */
+        .demo-info {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .demo-info h1 {
+            font-size: var(--text-2xl);
+            margin-bottom: var(--space-lg);
+        }
+        
+        .demo-info p {
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+            margin-bottom: var(--space-md);
+        }
+        
+        .demo-button {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--text-sm);
+            transition: background var(--transition-base);
+            margin-right: var(--space-sm);
+        }
+        
+        .demo-button:hover {
+            background: var(--color-primary-dark);
+        }
+        
+        .highlight-box {
+            background: var(--color-primary-light);
+            border: 2px solid var(--color-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            margin: var(--space-lg) 0;
+        }
+        
+        .highlight-box h3 {
+            color: var(--color-primary);
+            margin-bottom: var(--space-sm);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- CHAT PANEL - Primary Interface -->
+        <div class="chat-panel">
+            <div class="messages-container" id="messages"></div>
+            <div class="input-container" id="input-group"></div>
+        </div>
+        
+        <!-- CONTENT AREA - Desktop Only -->
+        <div class="content-area">
+            <div class="content-header">
+                <h2>Original Specification Demo</h2>
+            </div>
+            <div class="content-body">
+                <div class="demo-info">
+                    <h1>This is the Correct Original Layout</h1>
+                    
+                    <div class="highlight-box">
+                        <h3>✅ Key Mobile Behaviors:</h3>
+                        <ul>
+                            <li>Chat panel is PRIMARY (full screen on mobile)</li>
+                            <li>Document viewer slides UP from bottom</li>
+                            <li>Input group moves to bottom when viewer is open</li>
+                            <li>Quick actions stay with input as one unit</li>
+                        </ul>
+                    </div>
+                    
+                    <p>
+                        This demo shows the ORIGINAL SPECIFICATION where the mobile experience
+                        is primary. The chat interface is the main interaction point.
+                    </p>
+                    
+                    <p>
+                        <strong>Test it:</strong> Resize your browser to mobile width (&lt; 768px)
+                        or use DevTools mobile mode to see the correct behavior.
+                    </p>
+                    
+                    <div style="margin-top: var(--space-xl);">
+                        <button class="demo-button" onclick="demo.loadDocument()">
+                            Load Document (Opens Viewer)
+                        </button>
+                        <button class="demo-button" onclick="demo.addTestMessages()">
+                            Add Test Messages
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- DOCUMENT VIEWER - Overlay -->
+    <div id="document-viewer"></div>
+    
+    <script type="module">
+        import { InputGroup } from './src/components/input-group.js';
+        import { Messages } from './src/components/messages.js';
+        import { DocumentViewer } from './src/components/document-viewer.js';
+        import { documentParser } from './src/components/document-parser.js';
+        import { state } from './src/state-manager.js';
+        
+        const sampleDoc = `# Mobile-First Design
+
+This document demonstrates the mobile-first approach.
+
+## Key Principles
+
+The chat interface is the primary interaction point.
+
+### Mobile Experience
+
+On mobile devices:
+- Chat takes full screen
+- Document viewer slides up from bottom
+- Input group moves to bottom of screen
+
+### Desktop Enhancement
+
+On desktop:
+- Chat panel on left (400px)
+- Content area on right
+- Same core interactions
+
+## Quick Actions
+
+Quick actions help navigate sections quickly.
+
+### Navigation Shortcuts
+
+Use these shortcuts:
+- Space: Next section
+- Shift+Space: Previous section
+- Escape: Close viewer`;
+        
+        const demo = {
+            messages: null,
+            inputGroup: null,
+            documentViewer: null,
+            
+            init() {
+                // Initialize components
+                this.messages = new Messages('#messages');
+                this.inputGroup = new InputGroup('#input-group');
+                this.documentViewer = new DocumentViewer('#document-viewer');
+                
+                // Set initial quick actions
+                this.inputGroup.setQuickActions([
+                    { id: 'principles', text: 'Key Principles' },
+                    { id: 'mobile', text: 'Mobile Experience' },
+                    { id: 'desktop', text: 'Desktop Enhancement' }
+                ]);
+                
+                // Add welcome message
+                this.messages.addMessage({
+                    type: 'assistant',
+                    text: 'Welcome! This demo shows the correct original mobile-first layout. Try loading a document to see how the input group moves to the bottom on mobile.',
+                    timestamp: Date.now()
+                });
+                
+                // Handle events
+                this.setupEvents();
+            },
+            
+            setupEvents() {
+                this.inputGroup.element.addEventListener('message-submit', (e) => {
+                    this.messages.addMessage({
+                        type: 'user',
+                        text: e.detail.message
+                    });
+                    
+                    setTimeout(() => {
+                        this.messages.addMessage({
+                            type: 'assistant',
+                            text: 'I understand. The key is that the input group moves to the bottom when the document viewer is open on mobile.',
+                            timestamp: Date.now()
+                        });
+                    }, 500);
+                });
+                
+                this.inputGroup.element.addEventListener('action-click', (e) => {
+                    this.messages.addMessage({
+                        type: 'assistant',
+                        text: `Navigating to "${e.detail.action.text}"...`
+                    });
+                });
+            },
+            
+            loadDocument() {
+                documentParser.parseMarkdown(sampleDoc);
+                this.documentViewer.loadDocument(sampleDoc);
+                
+                this.messages.addMessage({
+                    type: 'assistant',
+                    markdown: `Document loaded! On mobile, notice how:
+- The viewer slides up from the bottom
+- The input group (with quick actions) moves to the bottom
+- Everything stays accessible
+
+Try resizing your browser to see the mobile behavior.`
+                });
+            },
+            
+            addTestMessages() {
+                const messages = [
+                    { type: 'user', text: 'How does the mobile layout work?' },
+                    { type: 'assistant', text: 'On mobile, the chat interface takes the full screen. When you open a document, it slides up from the bottom.' },
+                    { type: 'user', text: 'What about the input?' },
+                    { type: 'assistant', markdown: 'The input group (including quick actions) **moves to the bottom** of the screen when the document viewer is open. This keeps it accessible while reading.' }
+                ];
+                
+                let i = 0;
+                const addNext = () => {
+                    if (i < messages.length) {
+                        this.messages.addMessage(messages[i]);
+                        i++;
+                        setTimeout(addNext, 800);
+                    }
+                };
+                addNext();
+            }
+        };
+        
+        window.demo = demo;
+        demo.init();
+    </script>
+</body>
+</html>

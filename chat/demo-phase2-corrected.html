@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 2 - Building on Phase 1 Correct Layout</title>
+    
+    <!-- CSS Variables -->
+    <link rel="stylesheet" href="src/styles/base/_variables.css">
+    
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="src/styles/components/_sidebar.css">
+    <link rel="stylesheet" href="src/styles/components/_input-group.css">
+    <link rel="stylesheet" href="src/styles/components/_messages.css">
+    <link rel="stylesheet" href="src/styles/components/_document-viewer.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="src/styles/base/_highlight-theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        /* Base from phase 1 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* CORRECT 3-COLUMN LAYOUT FROM PHASE 1 */
+        .app-layout {
+            display: grid;
+            height: 100vh;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            position: relative;
+        }
+        
+        /* When sidebar is closed */
+        .app-layout.sidebar-closed {
+            grid-template-columns: 0 1fr;
+        }
+        
+        .app-layout.sidebar-closed .sidebar {
+            transform: translateX(-100%);
+        }
+        
+        /* Main content = chat + document */
+        .main-content {
+            display: grid;
+            grid-template-columns: var(--chat-width) 1fr;
+            overflow: hidden;
+        }
+        
+        /* Override sidebar component styles for better integration */
+        #sidebar-container .sidebar {
+            width: 100%;
+            transform: none;
+            transition: none;
+        }
+        
+        #sidebar-container {
+            transition: transform var(--transition-base);
+            overflow: hidden;
+        }
+        
+        /* Chat panel */
+        .chat-panel {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Document area */
+        .document-area {
+            background: var(--color-bg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .document-header {
+            padding: var(--space-md) var(--space-lg);
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .document-header h2 {
+            font-size: var(--text-lg);
+            font-weight: var(--font-semibold);
+        }
+        
+        .toggle-sidebar-btn {
+            padding: var(--space-xs) var(--space-sm);
+            background: transparent;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-size: var(--text-sm);
+            transition: all var(--transition-base);
+        }
+        
+        .toggle-sidebar-btn:hover {
+            background: var(--color-bg);
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+        
+        /* Document viewer inline */
+        .document-viewer-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .document-viewer-wrapper .document-viewer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            transform: none !important;
+            z-index: 1;
+        }
+        
+        .document-viewer-wrapper .document-viewer__close {
+            display: none;
+        }
+        
+        /* Mobile layout - matching phase 1 */
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            #sidebar-container {
+                display: none;
+            }
+            
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .chat-panel {
+                width: 100%;
+            }
+            
+            .document-area {
+                display: none;
+            }
+            
+            /* Document viewer as overlay on mobile */
+            .document-viewer-mobile {
+                display: block !important;
+            }
+            
+            .document-viewer-wrapper {
+                display: none !important;
+            }
+            
+            /* Input moves to bottom when viewer open */
+            body:has(.document-viewer--open) .chat-panel .input-group {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 95;
+                background: var(--color-surface);
+                box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .document-viewer-mobile {
+                display: none !important;
+            }
+        }
+        
+        /* Empty state */
+        .document-empty {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--color-text-muted);
+            padding: var(--space-xl);
+        }
+        
+        /* Demo button */
+        .demo-button {
+            padding: var(--space-sm) var(--space-md);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--text-sm);
+            transition: background var(--transition-base);
+        }
+        
+        .demo-button:hover {
+            background: var(--color-primary-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout" id="app-layout">
+        <!-- COLUMN 1: Sidebar (Nav) -->
+        <div id="sidebar-container"></div>
+        
+        <!-- COLUMNS 2-3: Main Content -->
+        <div class="main-content">
+            <!-- COLUMN 2: Chat -->
+            <div class="chat-panel">
+                <div class="messages-container" id="messages-container"></div>
+                <div id="input-group-container"></div>
+            </div>
+            
+            <!-- COLUMN 3: Document -->
+            <div class="document-area">
+                <div class="document-header">
+                    <button class="toggle-sidebar-btn" onclick="demo.toggleSidebar()">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                        </svg>
+                        <span>Toggle Sidebar</span>
+                    </button>
+                    <h2>Document Viewer</h2>
+                    <button class="demo-button" onclick="demo.loadDocument()">
+                        Load Document
+                    </button>
+                </div>
+                <div class="document-viewer-wrapper" id="document-viewer-desktop">
+                    <div class="document-empty">
+                        <div>
+                            <h3>No Document Loaded</h3>
+                            <p>Click "Load Document" or select from sidebar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mobile Document Viewer (overlay) -->
+    <div id="document-viewer-mobile" class="document-viewer-mobile"></div>
+    
+    <script type="module">
+        import { state } from './src/state-manager.js';
+        import { Sidebar } from './src/components/sidebar.js';
+        import { DocumentViewer } from './src/components/document-viewer.js';
+        import { documentParser } from './src/components/document-parser.js';
+        import { InputGroup } from './src/components/input-group.js';
+        import { Messages } from './src/components/messages.js';
+        
+        const sampleDoc = `# Getting Started [Overview]
+
+Welcome to Phase 2, building on the correct layout from Phase 1.
+
+## Key Improvements
+
+This phase adds the new component architecture while preserving the correct layout.
+
+### What's Preserved
+
+From Phase 1:
+- 3-column layout (nav/chat/doc)
+- Sidebar toggle functionality
+- Mobile overlay behavior
+- Input group positioning
+
+### What's New
+
+Phase 2 components:
+- Enhanced Sidebar with search
+- Document Parser for markdown
+- Messages component with styling
+- State management system
+
+## Navigation Features
+
+The sidebar now includes advanced features.
+
+### Search Functionality
+
+Type in the search box to filter sections quickly.
+
+### Keyboard Navigation
+
+Use arrow keys to navigate:
+- Up/Down: Navigate items
+- Right: Expand section
+- Left: Collapse section
+
+## Document Viewer
+
+Enhanced document viewing experience.
+
+### Desktop Mode
+
+Document viewer is inline in the third column, always visible.
+
+### Mobile Mode
+
+Document viewer slides up as an overlay, with input group moving to bottom.
+
+# API Documentation [Reference]
+
+Complete API reference for the components.
+
+## Component Architecture
+
+All components extend BaseComponent.
+
+### State Management
+
+Centralized state with pub/sub pattern:
+
+\`\`\`javascript
+// Subscribe to state changes
+state.subscribe('currentSection', (value) => {
+    console.log('Section changed:', value);
+});
+
+// Update state
+state.set({ currentSection: 'overview' });
+\`\`\`
+
+## Event System
+
+Components communicate via custom events.
+
+### Event Examples
+
+\`\`\`javascript
+// Listen for navigation
+element.addEventListener('section-navigate', (e) => {
+    navigateToSection(e.detail.sectionId);
+});
+\`\`\``;
+        
+        const demo = {
+            sidebar: null,
+            messages: null,
+            inputGroup: null,
+            documentViewerDesktop: null,
+            documentViewerMobile: null,
+            sidebarOpen: true,
+            
+            init() {
+                // Initialize components
+                this.sidebar = new Sidebar('#sidebar-container');
+                this.messages = new Messages('#messages-container');
+                this.inputGroup = new InputGroup('#input-group-container');
+                
+                // Initialize viewers
+                const isMobile = window.innerWidth <= 768;
+                if (isMobile) {
+                    this.documentViewerMobile = new DocumentViewer('#document-viewer-mobile');
+                } else {
+                    this.initDesktopViewer();
+                }
+                
+                // Setup event handlers
+                this.setupEventHandlers();
+                
+                // Welcome message
+                this.messages.addMessage({
+                    type: 'assistant',
+                    markdown: `Welcome to **Phase 2**! This builds on the correct 3-column layout from Phase 1:
+                    
+- **Sidebar toggle** is preserved (top of document area)
+- **3 columns**: Navigation | Chat | Document
+- **Mobile behavior** matches Phase 1
+- **New components** with enhanced features
+
+Try toggling the sidebar or loading a document!`
+                });
+            },
+            
+            initDesktopViewer() {
+                this.documentViewerDesktop = new DocumentViewer('#document-viewer-desktop');
+                // Override for inline display
+                this.documentViewerDesktop.open = function() {
+                    this.setState({ isOpen: true });
+                    const empty = this.element.querySelector('.document-empty');
+                    if (empty) empty.style.display = 'none';
+                };
+                this.documentViewerDesktop.close = function() {
+                    // Don't close on desktop
+                };
+            },
+            
+            setupEventHandlers() {
+                // Sidebar navigation
+                this.sidebar.element.addEventListener('section-navigate', (e) => {
+                    const viewer = window.innerWidth <= 768 ? 
+                        this.documentViewerMobile : this.documentViewerDesktop;
+                    if (viewer) {
+                        viewer.navigateToSection(e.detail.sectionId);
+                    }
+                });
+                
+                // Input group actions
+                this.inputGroup.element.addEventListener('action-click', (e) => {
+                    const viewer = window.innerWidth <= 768 ? 
+                        this.documentViewerMobile : this.documentViewerDesktop;
+                    if (viewer) {
+                        viewer.navigateToSection(e.detail.actionId);
+                    }
+                });
+                
+                // Messages
+                this.inputGroup.element.addEventListener('message-submit', (e) => {
+                    this.messages.addMessage({
+                        type: 'user',
+                        text: e.detail.message
+                    });
+                    
+                    setTimeout(() => {
+                        this.messages.addMessage({
+                            type: 'assistant',
+                            text: `I understand. This layout preserves the correct structure from Phase 1 while adding the new component features.`
+                        });
+                    }, 500);
+                });
+                
+                // Handle resize
+                window.addEventListener('resize', () => this.handleResize());
+            },
+            
+            handleResize() {
+                const isMobile = window.innerWidth <= 768;
+                const wasMobile = !!this.documentViewerMobile;
+                
+                if (isMobile && !wasMobile) {
+                    // Switch to mobile
+                    if (this.documentViewerDesktop) {
+                        this.documentViewerDesktop.cleanup();
+                        this.documentViewerDesktop = null;
+                    }
+                    this.documentViewerMobile = new DocumentViewer('#document-viewer-mobile');
+                } else if (!isMobile && wasMobile) {
+                    // Switch to desktop
+                    if (this.documentViewerMobile) {
+                        this.documentViewerMobile.cleanup();
+                        this.documentViewerMobile = null;
+                    }
+                    this.initDesktopViewer();
+                }
+            },
+            
+            toggleSidebar() {
+                this.sidebarOpen = !this.sidebarOpen;
+                const layout = document.getElementById('app-layout');
+                if (this.sidebarOpen) {
+                    layout.classList.remove('sidebar-closed');
+                } else {
+                    layout.classList.add('sidebar-closed');
+                }
+                
+                this.messages.addMessage({
+                    type: 'system',
+                    text: `Sidebar ${this.sidebarOpen ? 'opened' : 'closed'}`
+                });
+            },
+            
+            loadDocument() {
+                // Parse document
+                documentParser.parseMarkdown(sampleDoc);
+                
+                // Load into appropriate viewer
+                const viewer = window.innerWidth <= 768 ? 
+                    this.documentViewerMobile : this.documentViewerDesktop;
+                if (viewer) {
+                    viewer.loadDocument(sampleDoc);
+                }
+                
+                this.messages.addMessage({
+                    type: 'assistant',
+                    text: 'Document loaded! The viewer behavior matches Phase 1: inline on desktop, overlay on mobile.'
+                });
+            }
+        };
+        
+        window.demo = demo;
+        demo.init();
+    </script>
+</body>
+</html>
