@@ -64,7 +64,6 @@ function initializeElements() {
     elements.trayChatInput = document.getElementById('trayChatInput');
     elements.traySendButton = document.getElementById('traySendButton');
     elements.separatorVertical = document.getElementById('separatorVertical');
-    elements.fullscreenBtn = document.getElementById('fullscreenBtn');
     elements.chatContainer = document.querySelector('.chat-container');
 }
 
@@ -210,6 +209,11 @@ function navigateToSection(sectionId, subsectionId = null) {
     if (window.innerWidth <= 768) {
         showDetailPanel();
     }
+    
+    // Focus panel content for keyboard navigation
+    setTimeout(() => {
+        elements.panelContent.focus();
+    }, 100);
 }
 
 function updateQuickActions(sectionId) {
@@ -248,11 +252,19 @@ function setupEventListeners() {
     });
     
     elements.closeSidebar.addEventListener('click', closeSidebar);
-    elements.mobileOverlay.addEventListener('click', closeSidebar);
+    elements.mobileOverlay.addEventListener('click', () => {
+        // Close sidebar if it's open
+        if (elements.sidebar.classList.contains('active')) {
+            closeSidebar();
+        }
+        // Close detail panel if it's open
+        if (elements.detailPanel.classList.contains('active')) {
+            hideDetailPanel();
+        }
+    });
     
     // Panel controls
-    elements.closePanelBtn.addEventListener('click', hideDetailPanel);
-    elements.fullscreenBtn.addEventListener('click', toggleFullscreen);
+    elements.closePanelBtn.addEventListener('click', handleClosePanelClick);
     
     // Chat input
     elements.chatInput.addEventListener('keypress', handleChatInput);
@@ -277,6 +289,18 @@ function setupEventListeners() {
             if (elements.detailPanel.classList.contains('active')) {
                 hideDetailPanel();
             }
+        }
+    });
+    
+    // Panel content scroll detection for spacebar navigation
+    elements.panelContent.addEventListener('scroll', () => {
+        checkScrollEnd();
+    });
+    
+    // Spacebar navigation when panel content has focus
+    elements.panelContent.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Spacebar') {
+            handleSpacebarNavigation(e);
         }
     });
 }
@@ -434,16 +458,54 @@ function closeSidebar() {
     elements.mobileOverlay.classList.remove('active');
 }
 
-function toggleFullscreen() {
-    elements.detailPanel.classList.toggle('fullscreen');
-    const isFullscreen = elements.detailPanel.classList.contains('fullscreen');
-    
-    if (isFullscreen) {
-        elements.separatorVertical.style.display = 'none';
-        elements.chatContainer.style.display = 'none';
+function handleClosePanelClick() {
+    if (window.innerWidth <= 768) {
+        // Mobile: hide the panel
+        hideDetailPanel();
     } else {
-        elements.separatorVertical.style.display = '';
-        elements.chatContainer.style.display = '';
+        // Desktop: toggle fullscreen
+        const isFullscreen = document.body.classList.contains('panel-fullscreen');
+        if (isFullscreen) {
+            // Exit fullscreen
+            document.body.classList.remove('panel-fullscreen');
+        } else {
+            // Enter fullscreen
+            document.body.classList.add('panel-fullscreen');
+        }
+    }
+}
+
+// Check if at end of panel content
+function checkScrollEnd() {
+    const panel = elements.panelContent;
+    const isAtEnd = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 10;
+    elements.detailPanel.dataset.atEnd = isAtEnd;
+}
+
+// Handle spacebar navigation
+function handleSpacebarNavigation(e) {
+    const panel = elements.panelContent;
+    const isAtEnd = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 10;
+    
+    if (isAtEnd) {
+        // Move to next section
+        e.preventDefault();
+        const sections = window.documentParser.getMainSections();
+        const currentIndex = sections.findIndex(s => s.id === state.currentSection);
+        
+        if (currentIndex >= 0 && currentIndex < sections.length - 1) {
+            // Navigate to next section
+            const nextSection = sections[currentIndex + 1];
+            navigateToSection(nextSection.id);
+            
+            // Scroll to top of new section
+            setTimeout(() => {
+                elements.panelContent.scrollTop = 0;
+            }, 50);
+        }
+    } else {
+        // Let default spacebar scrolling work
+        // No need to prevent default
     }
 }
 
@@ -464,8 +526,9 @@ function setupResizer() {
         
         const containerRect = document.querySelector('.app-container').getBoundingClientRect();
         const sidebarWidth = elements.sidebar.offsetWidth;
+        const minChatWidth = 375;
         const minPanelWidth = 300;
-        const maxPanelWidth = containerRect.width - sidebarWidth - 375 - 4;
+        const maxPanelWidth = containerRect.width - sidebarWidth - minChatWidth - 4;
         
         let newWidth = containerRect.right - e.clientX;
         newWidth = Math.max(minPanelWidth, Math.min(maxPanelWidth, newWidth));

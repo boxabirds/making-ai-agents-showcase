@@ -34,7 +34,6 @@
         <!-- Left sidebar - Document sections -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2>Sections</h2>
                 <button class="close-btn" id="closeSidebar">×</button>
             </div>
             <nav class="sidebar-nav">
@@ -92,19 +91,19 @@
         <div class="separator-vertical" id="separatorVertical"></div>
         
         <!-- Right panel / Mobile tray - Document viewer -->
-        <aside class="detail-panel" id="detailPanel">
+        <aside class="detail-panel" id="detailPanel" tabindex="-1">
             <div class="panel-header">
                 <h3 id="panelTitle">Document</h3>
                 <div class="panel-actions">
-                    <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="close-panel-btn" id="closePanelBtn">
+                        <svg class="zoom-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
                         </svg>
+                        <span class="close-icon">×</span>
                     </button>
-                    <button class="close-panel-btn" id="closePanelBtn">×</button>
                 </div>
             </div>
-            <div class="panel-content" id="panelContent">
+            <div class="panel-content" id="panelContent" tabindex="0">
                 <!-- Rendered markdown content will be displayed here -->
             </div>
             <!-- Tray chat input (visible on mobile) -->

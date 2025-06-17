@@ -13,4 +13,3 @@ with socketserver.TCPServer(("", PORT), Handler) as httpd:
     print("Open this URL in your browser to view the chat interface")
     print("Press Ctrl+C to stop the server")
     httpd.serve_forever()
-EOF < /dev/null

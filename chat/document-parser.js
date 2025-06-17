@@ -33,10 +33,15 @@ class DocumentParser {
                     this.sections.push(currentSection);
                 }
                 
+                // Parse title for bracketed phrase
+                const titleInfo = this.parseTitleWithBrackets(h1Match[1]);
+                
                 // Start new section
                 currentSection = {
-                    id: this.slugify(h1Match[1]),
-                    title: h1Match[1],
+                    id: this.slugify(titleInfo.displayTitle),
+                    title: titleInfo.displayTitle,
+                    fullTitle: h1Match[1],
+                    bracketedPhrase: titleInfo.bracketedPhrase,
                     level: 1,
                     content: '',
                     subsections: [],
@@ -49,10 +54,15 @@ class DocumentParser {
                     currentSubsection.content = contentBuffer.join('\n');
                 }
                 
+                // Parse title for bracketed phrase
+                const titleInfo = this.parseTitleWithBrackets(h2Match[1]);
+                
                 // Start new subsection
                 currentSubsection = {
-                    id: this.slugify(h2Match[1]),
-                    title: h2Match[1],
+                    id: this.slugify(titleInfo.displayTitle),
+                    title: titleInfo.displayTitle,
+                    fullTitle: h2Match[1],
+                    bracketedPhrase: titleInfo.bracketedPhrase,
                     level: 2,
                     content: '',
                     parentId: currentSection.id,
@@ -119,8 +129,10 @@ class DocumentParser {
     // Add IDs to H2 headings for in-page navigation
     addHeadingIds(html) {
         return html.replace(/<h2>(.*?)<\/h2>/g, (match, title) => {
-            const id = this.slugify(title);
-            return `<h2 id="${id}">${title}</h2>`;
+            // Parse for bracketed phrase and use display title
+            const titleInfo = this.parseTitleWithBrackets(title);
+            const id = this.slugify(titleInfo.displayTitle);
+            return `<h2 id="${id}">${titleInfo.displayTitle}</h2>`;
         });
     }
 
@@ -130,10 +142,16 @@ class DocumentParser {
         if (!section) return [];
         
         return section.subsections.map(sub => {
-            const words = sub.title.split(' ');
-            const displayText = words.length > 2 
-                ? words.slice(0, 2).join(' ') + '...'
-                : sub.title;
+            // Use bracketed phrase if available, otherwise use first 2 words
+            let displayText;
+            if (sub.bracketedPhrase) {
+                displayText = sub.bracketedPhrase;
+            } else {
+                const words = sub.title.split(' ');
+                displayText = words.length > 2 
+                    ? words.slice(0, 2).join(' ') + '...'
+                    : sub.title;
+            }
             
             return {
                 id: sub.id,
@@ -143,6 +161,21 @@ class DocumentParser {
         });
     }
 
+    // Parse title with bracketed phrase at end
+    parseTitleWithBrackets(title) {
+        const bracketMatch = title.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+        if (bracketMatch) {
+            return {
+                displayTitle: bracketMatch[1].trim(),
+                bracketedPhrase: bracketMatch[2].trim()
+            };
+        }
+        return {
+            displayTitle: title,
+            bracketedPhrase: null
+        };
+    }
+    
     // Create slug from title
     slugify(text) {
         return text
