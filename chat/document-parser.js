@@ -58,9 +58,18 @@ class DocumentParser {
                 const titleInfo = this.parseTitleWithBrackets(h2Match[1]);
                 
                 // Start new subsection
+                // Generate ID from display title (after removing brackets)
+                const subsectionId = this.slugify(titleInfo.displayTitle);
+                console.log('Creating subsection:', {
+                    originalTitle: h2Match[1],
+                    displayTitle: titleInfo.displayTitle,
+                    id: subsectionId
+                });
+                
                 currentSubsection = {
-                    id: this.slugify(titleInfo.displayTitle),
+                    id: subsectionId,
                     title: titleInfo.displayTitle,
+                    displayTitle: titleInfo.displayTitle,
                     fullTitle: h2Match[1],
                     bracketedPhrase: titleInfo.bracketedPhrase,
                     level: 2,
@@ -112,28 +121,86 @@ class DocumentParser {
         if (!section) return '';
         
         if (section.level === 1) {
-            // Include all subsections for H1
-            let fullContent = section.content;
-            section.subsections.forEach(sub => {
-                fullContent += '\n' + sub.content;
-            });
+            // Build content with processed titles
+            let processedContent = this.processContentTitles(section);
+            
             // Add IDs to headings for navigation
-            const html = marked.parse(fullContent);
-            return this.addHeadingIds(html);
+            const html = marked.parse(processedContent);
+            return this.addHeadingIds(html, section);
         } else {
             // Just the subsection content for H2
             return marked.parse(section.content);
         }
     }
     
-    // Add IDs to H2 headings for in-page navigation
-    addHeadingIds(html) {
-        return html.replace(/<h2>(.*?)<\/h2>/g, (match, title) => {
-            // Parse for bracketed phrase and use display title
-            const titleInfo = this.parseTitleWithBrackets(title);
-            const id = this.slugify(titleInfo.displayTitle);
-            return `<h2 id="${id}">${titleInfo.displayTitle}</h2>`;
+    // Process content to use display titles (without brackets)
+    processContentTitles(section) {
+        // Start with the H1 line using display title
+        let content = `# ${section.title}\n`;
+        
+        // Add the content after the H1 (but before the first H2)
+        const lines = section.content.split('\n');
+        let inH1Content = true;
+        
+        for (let i = 1; i < lines.length; i++) { // Skip first line (the H1)
+            const line = lines[i];
+            if (line.match(/^##\s+/)) {
+                inH1Content = false;
+                break;
+            }
+            if (inH1Content) {
+                content += line + '\n';
+            }
+        }
+        
+        // Add each subsection with its display title
+        section.subsections.forEach(sub => {
+            content += `\n## ${sub.title}\n`;
+            // Add subsection content (excluding the H2 line)
+            const subLines = sub.content.split('\n');
+            for (let i = 1; i < subLines.length; i++) {
+                content += subLines[i] + '\n';
+            }
         });
+        
+        return content;
+    }
+    
+    // Add IDs to H2 headings for in-page navigation
+    addHeadingIds(html, currentSection) {
+        console.log('addHeadingIds called for section:', currentSection?.id);
+        console.log('HTML before adding IDs:', html.substring(0, 1000));
+        
+        if (!currentSection || !currentSection.subsections) {
+            return html;
+        }
+        
+        // Replace H2s with their proper IDs from subsection data
+        currentSection.subsections.forEach(subsection => {
+            // Match the display title in the HTML
+            const searchPattern = `<h2>${this.escapeRegex(subsection.title)}</h2>`;
+            const replacePattern = `<h2 id="${subsection.id}">${subsection.title}</h2>`;
+            
+            console.log('Searching for:', searchPattern);
+            const found = html.includes(searchPattern.replace(/\\/g, ''));
+            console.log('Found in HTML:', found);
+            
+            if (found) {
+                const regex = new RegExp(searchPattern, 'g');
+                html = html.replace(regex, replacePattern);
+                console.log('Successfully added ID to H2:', subsection.id);
+            } else {
+                console.warn('Could not find H2 for:', subsection.title);
+            }
+        });
+        
+        console.log('HTML after adding IDs:', html.substring(0, 1000));
+        return html;
+    }
+    
+    // Helper to escape regex special characters
+    escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     // Get quick actions (first 2 words of H2 titles) for a section

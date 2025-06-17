@@ -191,12 +191,10 @@ function navigateToSection(sectionId, subsectionId = null) {
     
     // Scroll to subsection if specified
     if (subsectionId) {
-        setTimeout(() => {
-            const element = elements.panelContent.querySelector(`#${subsectionId}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 100);
+        // Scroll after next paint to ensure content is rendered
+        requestAnimationFrame(() => {
+            scrollToSubsection(subsectionId);
+        });
     }
     
     // Highlight code blocks
@@ -208,12 +206,24 @@ function navigateToSection(sectionId, subsectionId = null) {
     // Show panel on mobile
     if (window.innerWidth <= 768) {
         showDetailPanel();
+    } else {
+        // On desktop, ensure panel is visible
+        if (!elements.detailPanel.classList.contains('active')) {
+            elements.detailPanel.classList.add('active');
+            elements.separatorVertical.classList.add('active');
+        }
+        
+        // Scroll to subsection if specified
+        if (subsectionId) {
+            // Use requestAnimationFrame to ensure DOM is ready
+            requestAnimationFrame(() => {
+                scrollToSubsection(subsectionId);
+            });
+        }
     }
     
     // Focus panel content for keyboard navigation
-    setTimeout(() => {
-        elements.panelContent.focus();
-    }, 100);
+    elements.panelContent.focus();
 }
 
 function updateQuickActions(sectionId) {
@@ -285,9 +295,17 @@ function setupEventListeners() {
     
     // Escape key handling
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && window.innerWidth <= 768) {
-            if (elements.detailPanel.classList.contains('active')) {
-                hideDetailPanel();
+        if (e.key === 'Escape') {
+            if (window.innerWidth <= 768) {
+                // Mobile: hide panel if active
+                if (elements.detailPanel.classList.contains('active')) {
+                    hideDetailPanel();
+                }
+            } else {
+                // Desktop: exit fullscreen if active
+                if (document.body.classList.contains('panel-fullscreen')) {
+                    document.body.classList.remove('panel-fullscreen');
+                }
             }
         }
     });
@@ -303,6 +321,8 @@ function setupEventListeners() {
             handleSpacebarNavigation(e);
         }
     });
+    
+    // Remove unreliable transition handling - scrolling happens in navigateToSection
 }
 
 function handleChatInput(e) {
@@ -447,6 +467,30 @@ function showDetailPanel() {
     }
 }
 
+function scrollToSubsection(subsectionId) {
+    console.log('scrollToSubsection called with:', subsectionId);
+    console.log('Panel content exists:', !!elements.panelContent);
+    console.log('Panel content HTML length:', elements.panelContent.innerHTML.length);
+    
+    // Log all elements with IDs
+    const allWithIds = elements.panelContent.querySelectorAll('[id]');
+    console.log('All elements with IDs:', Array.from(allWithIds).map(el => ({
+        tag: el.tagName,
+        id: el.id,
+        text: el.textContent.substring(0, 50)
+    })));
+    
+    const element = elements.panelContent.querySelector(`#${subsectionId}`);
+    if (element) {
+        console.log('Found element:', element);
+        console.log('Element position:', element.getBoundingClientRect());
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        console.log('Scroll command sent');
+    } else {
+        console.warn(`Could not find element with ID: ${subsectionId}`);
+    }
+}
+
 function hideDetailPanel() {
     elements.detailPanel.classList.remove('active');
     elements.mobileOverlay.classList.remove('active');
@@ -511,35 +555,47 @@ function handleSpacebarNavigation(e) {
 
 // Resizer functionality
 function setupResizer() {
+    if (window.innerWidth <= 768) return; // Skip on mobile
+    
+    // Set initial flex value for chat container
+    elements.chatContainer.style.flex = '0 0 400px';
+    
     let isResizing = false;
+    let startX = 0;
+    let startWidthChat = 0;
+    let startWidthPanel = 0;
     
     elements.separatorVertical.addEventListener('mousedown', (e) => {
         if (window.innerWidth <= 768) return;
         
         isResizing = true;
+        startX = e.clientX;
+        startWidthChat = elements.chatContainer.offsetWidth;
+        startWidthPanel = elements.detailPanel.offsetWidth;
         document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
         e.preventDefault();
     });
     
     document.addEventListener('mousemove', (e) => {
         if (!isResizing) return;
         
-        const containerRect = document.querySelector('.app-container').getBoundingClientRect();
-        const sidebarWidth = elements.sidebar.offsetWidth;
-        const minChatWidth = 375;
-        const minPanelWidth = 300;
-        const maxPanelWidth = containerRect.width - sidebarWidth - minChatWidth - 4;
+        const deltaX = e.clientX - startX;
+        const newChatWidth = startWidthChat + deltaX;
+        const newPanelWidth = startWidthPanel - deltaX;
         
-        let newWidth = containerRect.right - e.clientX;
-        newWidth = Math.max(minPanelWidth, Math.min(maxPanelWidth, newWidth));
-        
-        elements.detailPanel.style.width = `${newWidth}px`;
+        // Enforce minimum width for chat (375px) and panel (300px)
+        if (newChatWidth >= 375 && newPanelWidth >= 300) {
+            elements.chatContainer.style.flex = `0 0 ${newChatWidth}px`;
+            elements.detailPanel.style.width = `${newPanelWidth}px`;
+        }
     });
     
     document.addEventListener('mouseup', () => {
         if (isResizing) {
             isResizing = false;
             document.body.style.cursor = '';
+            document.body.style.userSelect = '';
         }
     });
 }

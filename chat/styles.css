@@ -198,12 +198,13 @@ body {
 /* Chat Container */
 .chat-container {
     width: var(--chat-width);
-    flex: 0 0 auto;
+    flex: 0 0 var(--chat-width);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     background: var(--bg-primary);
     min-width: 375px;
+    max-width: var(--chat-width);
 }
 
 /* Chat header removed as per requirements */
@@ -220,6 +221,8 @@ body {
     overflow-y: auto;
     scrollbar-width: none;
     align-content: flex-start;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .quick-actions::-webkit-scrollbar {
