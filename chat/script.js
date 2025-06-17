@@ -58,9 +58,9 @@ const state = {
     currentSection: null,
     currentSubsection: null,
     chatHistory: [],
-    isTyping: false,
     documentContent: null,
-    conversationHistory: []
+    conversationHistory: [],
+    isProcessing: false
 };
 
 // DOM elements
@@ -393,7 +393,11 @@ function handleChatInput(e) {
 
 async function sendMessage() {
     const message = elements.chatInput.value.trim();
-    if (!message || state.isTyping) return;
+    if (!message || state.isProcessing) return;
+    
+    state.isProcessing = true;
+    elements.sendButton.disabled = true;
+    elements.traySendButton.disabled = true;
     
     // Clear inputs
     elements.chatInput.value = '';
@@ -430,6 +434,11 @@ async function sendMessage() {
         hideTyping();
         addMessage(`I apologize, but I encountered an error: ${error.message}`, 'assistant');
         console.error('Chat error:', error);
+    } finally {
+        state.isProcessing = false;
+        elements.sendButton.disabled = false;
+        elements.traySendButton.disabled = false;
+        elements.chatInput.focus();
     }
 }
 
@@ -439,15 +448,53 @@ async function processUserMessage(message) {
     
     try {
         // Call LLM API
-        const response = await callGeminiAPI(contents);
+        const responseData = await callGeminiAPI(contents);
         
         // Parse response for tool calls
-        const parsedResponse = parseAssistantResponse(response);
+        const parsedResponse = parseAssistantResponse(responseData);
         
         return parsedResponse;
     } catch (error) {
         throw error;
     }
+}
+
+function buildCompactHierarchy() {
+    if (!window.documentParser || !window.documentParser.sections) {
+        return "No sections available";
+    }
+    
+    let hierarchy = "";
+    window.documentParser.sections.forEach((section, index) => {
+        if (index > 0) hierarchy += "; ";
+        hierarchy += section.title;
+        if (section.subsections.length > 0) {
+            hierarchy += ` (${section.subsections.map(sub => sub.title).join(', ')})`;
+        }
+    });
+    
+    return hierarchy;
+}
+
+function buildToolDefinitions() {
+    const hierarchy = buildCompactHierarchy();
+    
+    return [{
+        functionDeclarations: [{
+            name: "navigate_to_section",
+            description: `User asks about any of the following sections then we need to navigate to the artifact rather than responding with a message. Sections: ${hierarchy}`,
+            parameters: {
+                type: "object",
+                properties: {
+                    sectionId: {
+                        type: "string",
+                        description: "The ID of the section or subsection to navigate to"
+                    }
+                },
+                required: ["sectionId"]
+            }
+        }]
+    }];
 }
 
 function buildContents(currentMessage) {
@@ -484,11 +531,12 @@ function buildContents(currentMessage) {
 }
 
 function buildSystemPrompt() {
-    let prompt = `You are a helpful AI assistant that helps users navigate and understand a markdown document. You respond in a tone of voice profile as defined below. Your answers should be accurate, concise, and helpful.
+    let prompt = `You are a helpful AI assistant that helps users navigate and understand the report.
+    You respond in a tone of voice profile as defined below. Your answers should be accurate, concise, and helpful.
 
-<document-content>
+<report>
 ${state.documentContent || 'No document loaded yet.'}
-</document-content>
+</report>
 
 <available-sections>
 `;
@@ -510,15 +558,6 @@ ${state.documentContent || 'No document loaded yet.'}
     
     prompt += `</available-sections>
 
-<tools>
-You have access to a navigation tool. When the user asks to go to a specific section or topic, you should use this tool by responding with:
-TOOL_CALL: navigate_to_section
-SECTION_ID: [the id of the section]
-END_TOOL_CALL
-
-After using the tool, provide a brief description of what the section contains.
-</tools>
-
 <tone-profile>
 ${TONE_PROFILE}
 </tone-profile>
@@ -526,13 +565,15 @@ ${TONE_PROFILE}
 Remember: 
 - Base your answers on the document content provided above
 - Be helpful in navigating the document
-- Use the navigation tool when users want to go to specific sections
-- Keep responses concise and relevant`;
+- Keep responses concise and relevant
+- When users ask about specific topics that are covered in the sections, use the navigation function to take them there`;
     
     return prompt;
 }
 
 async function callGeminiAPI(contents) {
+    const tools = buildToolDefinitions();
+    
     const response = await fetch(CONFIG.WORKER_URL, {
         method: 'POST',
         headers: {
@@ -541,6 +582,7 @@ async function callGeminiAPI(contents) {
         body: JSON.stringify({
             model: CONFIG.MODEL,
             contents: contents,
+            tools: tools,
             generationConfig: {
                 temperature: CONFIG.TEMPERATURE,
                 maxOutputTokens: CONFIG.MAX_TOKENS
@@ -563,33 +605,36 @@ async function callGeminiAPI(contents) {
         }
     }
     
-    // Check if the response has the expected structure
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
-        throw new Error('Received an invalid response from the AI model. Please try again.');
-    }
-    
-    return data.candidates[0].content.parts[0].text;
+    // Return the full response data for parsing
+    return data;
 }
 
-function parseAssistantResponse(response) {
-    // Check for tool calls
-    const toolCallMatch = response.match(/TOOL_CALL:\s*navigate_to_section\s*\nSECTION_ID:\s*([^\n]+)\s*\nEND_TOOL_CALL/i);
+function parseAssistantResponse(responseData) {
+    // Check if the response has the expected structure
+    if (!responseData.candidates || !responseData.candidates[0] || !responseData.candidates[0].content) {
+        throw new Error('Invalid response format from AI model');
+    }
     
-    if (toolCallMatch) {
-        const sectionId = toolCallMatch[1].trim();
-        // Get the text after the tool call
-        const textAfterTool = response.split('END_TOOL_CALL')[1]?.trim() || '';
-        
+    const content = responseData.candidates[0].content;
+    
+    // Check if it's a function call response
+    if (content.parts && content.parts[0] && content.parts[0].functionCall) {
+        const functionCall = content.parts[0].functionCall;
         return {
             toolCall: {
-                tool: 'navigate_to_section',
-                sectionId: sectionId
+                tool: functionCall.name,
+                sectionId: functionCall.args.sectionId
             },
-            text: textAfterTool
+            text: "" // Gemini doesn't return text with function calls
         };
     }
     
-    return { text: response };
+    // Regular text response
+    if (content.parts && content.parts[0] && content.parts[0].text) {
+        return { text: content.parts[0].text };
+    }
+    
+    throw new Error('No valid content in response');
 }
 
 function handleToolCall(toolCall) {
@@ -671,13 +716,11 @@ function addArtifactToChat(title, type, sectionId) {
 }
 
 function showTyping() {
-    state.isTyping = true;
     elements.typingIndicator.style.display = 'block';
     scrollToBottom();
 }
 
 function hideTyping() {
-    state.isTyping = false;
     elements.typingIndicator.style.display = 'none';
 }
 
