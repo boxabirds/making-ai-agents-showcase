@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Calling Integration Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .code-block {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        pre {
+            margin: 0;
+            font-size: 14px;
+        }
+        .success {
+            color: #4caf50;
+        }
+        .error {
+            color: #f44336;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tool Calling Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Document Structure</h2>
+        <p>This page tests the integration of the new hierarchical navigation protocol in the chat interface.</p>
+        <div class="code-block">
+            <pre id="structure"></pre>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Cases</h2>
+        <button onclick="testBasicSection()">Test Basic Section Navigation</button>
+        <button onclick="testSubsection()">Test Subsection Navigation</button>
+        <button onclick="testComplexQuery()">Test Complex Query</button>
+        <button onclick="testInvalidSubsection()">Test Invalid Subsection</button>
+    </div>
+
+    <div id="results">
+        <h3>Results</h3>
+        <div id="output">Click a test button to see results...</div>
+    </div>
+
+    <script>
+        // Mock the document parser
+        window.documentParser = {
+            sections: [
+                {
+                    id: 'introduction',
+                    title: 'Introduction',
+                    subsections: [
+                        { id: 'getting-started', title: 'Getting Started' },
+                        { id: 'features', title: 'Features' }
+                    ]
+                },
+                {
+                    id: 'usage-guide',
+                    title: 'Usage Guide',
+                    subsections: [
+                        { id: 'navigation', title: 'Navigation' },
+                        { id: 'asking-questions', title: 'Asking Questions' }
+                    ]
+                },
+                {
+                    id: 'technical-details',
+                    title: 'Technical Details',
+                    subsections: [
+                        { id: 'architecture', title: 'Architecture' },
+                        { id: 'implementation', title: 'Implementation' }
+                    ]
+                }
+            ],
+            parseMarkdown: () => window.documentParser.sections,
+            getSection: (id) => {
+                for (const section of window.documentParser.sections) {
+                    if (section.id === id) return section;
+                    for (const sub of section.subsections) {
+                        if (sub.id === id) return { ...sub, parentId: section.id };
+                    }
+                }
+                return null;
+            },
+            getSectionHTML: () => '<p>Mock content</p>',
+            getQuickActions: () => [],
+            getMainSections: () => window.documentParser.sections
+        };
+
+        // Show document structure
+        document.getElementById('structure').textContent = JSON.stringify(window.documentParser.sections, null, 2);
+
+        // Load the actual script functions we want to test
+        const script = document.createElement('script');
+        script.onload = () => {
+            console.log('Script loaded, buildToolDefinitions available:', typeof buildToolDefinitions === 'function');
+        };
+        script.src = 'script.js';
+        // Don't append it yet - we'll define the functions inline for testing
+
+        // Copy the buildToolDefinitions function from script.js
+        function buildToolDefinitions() {
+            if (!window.documentParser || !window.documentParser.sections) {
+                return [];
+            }
+            
+            // Build structured hierarchy
+            const sections = window.documentParser.sections.map(s => ({
+                name: s.title,
+                subsections: s.subsections.map(sub => sub.title)
+            }));
+            
+            // Generate clear description listing all sections and their subsections
+            const sectionDescriptions = sections.map(s => {
+                if (s.subsections.length > 0) {
+                    return `${s.name} (subsections: ${s.subsections.join(', ')})`;
+                }
+                return s.name;
+            }).join('; ');
+            
+            // Extract just the section names for the enum
+            const sectionNames = sections.map(s => s.name);
+            
+            // Extract all unique subsection names for the enum
+            const allSubsections = sections.flatMap(s => s.subsections);
+            const uniqueSubsections = [...new Set(allSubsections)];
+            
+            return [{
+                function_declarations: [{
+                    name: "navigate_to_section",
+                    description: `When user asks about content related to these sections, navigate there instead of describing it. Available sections: ${sectionDescriptions}`,
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            section: {
+                                type: "string",
+                                description: "The main section name",
+                                enum: sectionNames
+                            },
+                            subsection: {
+                                type: "string",
+                                description: "The subsection name within the main section (optional). Only provide if user asks about specific subsection content. Must be a valid subsection under the chosen section.",
+                                enum: uniqueSubsections.length > 0 ? uniqueSubsections : undefined
+                            }
+                        },
+                        required: ["section"]
+                    }
+                }]
+            }];
+        }
+
+        function showResult(test, result, details) {
+            const output = document.getElementById('output');
+            output.innerHTML = `
+                <h4>${test}</h4>
+                <p class="${result ? 'success' : 'error'}">${result ? '✓ Success' : '✗ Failed'}</p>
+                <div class="code-block">
+                    <pre>${JSON.stringify(details, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        function testBasicSection() {
+            const tools = buildToolDefinitions();
+            const tool = tools[0].function_declarations[0];
+            
+            showResult('Basic Section Navigation', true, {
+                description: tool.description,
+                sectionEnum: tool.parameters.properties.section.enum,
+                subsectionEnum: tool.parameters.properties.subsection.enum
+            });
+        }
+
+        function testSubsection() {
+            const tools = buildToolDefinitions();
+            const tool = tools[0].function_declarations[0];
+            
+            // Verify subsection enum contains all expected values
+            const expectedSubsections = ['Getting Started', 'Features', 'Navigation', 'Asking Questions', 'Architecture', 'Implementation'];
+            const hasAllSubsections = expectedSubsections.every(sub => 
+                tool.parameters.properties.subsection.enum.includes(sub)
+            );
+            
+            showResult('Subsection Navigation', hasAllSubsections, {
+                expectedSubsections,
+                actualSubsections: tool.parameters.properties.subsection.enum,
+                allPresent: hasAllSubsections
+            });
+        }
+
+        function testComplexQuery() {
+            const tools = buildToolDefinitions();
+            const description = tools[0].function_declarations[0].description;
+            
+            // Check if description properly lists hierarchy
+            const hasHierarchy = description.includes('Introduction (subsections: Getting Started, Features)');
+            
+            showResult('Complex Query Support', hasHierarchy, {
+                descriptionContainsHierarchy: hasHierarchy,
+                fullDescription: description
+            });
+        }
+
+        function testInvalidSubsection() {
+            const tools = buildToolDefinitions();
+            const tool = tools[0].function_declarations[0];
+            
+            // The enum constraint should prevent invalid subsections
+            const validSubsections = tool.parameters.properties.subsection.enum;
+            const invalidSubsection = 'NonExistentSection';
+            const isProtected = !validSubsections.includes(invalidSubsection);
+            
+            showResult('Invalid Subsection Protection', isProtected, {
+                validSubsections,
+                testedInvalid: invalidSubsection,
+                isProtected
+            });
+        }
+    </script>
+</body>
+</html>

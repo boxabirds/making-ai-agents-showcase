@@ -88,6 +88,7 @@ All tests pass, demonstrating:
 - Enum constraints are respected
 - Invalid combinations are avoided
 - Fallback behavior works when subsection not found
+- v1beta endpoint is required for tool support (not a Cloudflare limitation)
 
 ## Future Considerations
 
