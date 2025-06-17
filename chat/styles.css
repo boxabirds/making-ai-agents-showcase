@@ -211,7 +211,7 @@ body {
 
 /* Quick Actions */
 .quick-actions {
-    padding: 0.75rem 2rem;
+    padding: 0.75rem 1rem;
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
     display: flex;
@@ -962,13 +962,7 @@ body.panel-fullscreen .close-panel-btn .close-icon {
         transition: opacity 0.2s ease;
     }
     
-    /* Keep quick actions visible and above tray */
-    body:has(.detail-panel.active) .quick-actions {
-        position: relative;
-        z-index: 96;
-        background: var(--bg-primary);
-        box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
-    }
+    
     
     .mobile-overlay.active {
         display: block;
@@ -983,13 +977,15 @@ body.panel-fullscreen .close-panel-btn .close-icon {
     /* Adjust chat container */
     .chat-container {
         width: 100%;
+        flex: 1 1 auto;
+        max-width: 100%;
+        min-width: 100%;
     }
     
     /* Adjust paddings */
     .chat-header,
     .messages-container,
-    .input-container,
-    .quick-actions {
+    .input-container {
         padding-left: 1rem;
         padding-right: 1rem;
     }

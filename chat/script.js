@@ -374,10 +374,12 @@ function setupEventListeners() {
         checkScrollEnd();
     });
     
-    // Spacebar navigation when panel content has focus
+    // Spacebar and arrow key navigation when panel content has focus
     elements.panelContent.addEventListener('keydown', (e) => {
         if (e.key === ' ' || e.key === 'Spacebar') {
             handleSpacebarNavigation(e);
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            handleArrowNavigation(e);
         }
     });
     
@@ -425,11 +427,56 @@ async function sendMessage() {
             addMessage(response.text, 'assistant');
         }
         
-        // Update conversation history
+        // Update conversation history with proper tool call format
         state.conversationHistory.push(
-            { role: 'user', content: message },
-            { role: 'assistant', content: response.text || `Navigated to section` }
+            { role: 'user', content: message }
         );
+        
+        if (response.toolCall) {
+            // Add the tool call to history in Gemini's expected format
+            state.conversationHistory.push({
+                role: 'assistant',
+                content: '',
+                parts: [{
+                    functionCall: {
+                        name: response.toolCall.tool,
+                        args: {
+                            section: response.toolCall.section,
+                            subsection: response.toolCall.subsection || ''
+                        }
+                    }
+                }]
+            });
+            
+            // Add the tool response
+            state.conversationHistory.push({
+                role: 'function',
+                content: '',
+                parts: [{
+                    functionResponse: {
+                        name: response.toolCall.tool,
+                        response: {
+                            success: true,
+                            message: `Navigated to ${response.toolCall.section}${response.toolCall.subsection ? ' > ' + response.toolCall.subsection : ''}`
+                        }
+                    }
+                }]
+            });
+            
+            // Add any text response after the tool call
+            if (response.text) {
+                state.conversationHistory.push({
+                    role: 'assistant',
+                    content: response.text
+                });
+            }
+        } else {
+            // Regular text response
+            state.conversationHistory.push({
+                role: 'assistant',
+                content: response.text
+            });
+        }
     } catch (error) {
         hideTyping();
         addMessage(`I apologize, but I encountered an error: ${error.message}`, 'assistant');
@@ -544,10 +591,25 @@ function buildContents(currentMessage) {
     
     // Add conversation history
     state.conversationHistory.forEach(msg => {
-        contents.push({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.content }]
-        });
+        if (msg.role === 'function') {
+            // Function responses use the exact format from history
+            contents.push({
+                role: 'function',
+                parts: msg.parts
+            });
+        } else if (msg.parts) {
+            // Tool calls with parts array
+            contents.push({
+                role: msg.role === 'assistant' ? 'model' : msg.role,
+                parts: msg.parts
+            });
+        } else {
+            // Regular text messages
+            contents.push({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.content }]
+            });
+        }
     });
     
     // Add current message
@@ -842,16 +904,35 @@ function handleClosePanelClick() {
 function checkScrollEnd() {
     const panel = elements.panelContent;
     const isAtEnd = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 10;
+    const isAtTop = panel.scrollTop <= 10;
     elements.detailPanel.dataset.atEnd = isAtEnd;
+    elements.detailPanel.dataset.atTop = isAtTop;
 }
 
 // Handle spacebar navigation
 function handleSpacebarNavigation(e) {
     const panel = elements.panelContent;
     const isAtEnd = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 10;
+    const isAtTop = panel.scrollTop <= 10;
     
-    if (isAtEnd) {
-        // Move to next section
+    if (e.shiftKey && isAtTop) {
+        // Shift+spacebar at top: Move to previous section
+        e.preventDefault();
+        const sections = window.documentParser.getMainSections();
+        const currentIndex = sections.findIndex(s => s.id === state.currentSection);
+        
+        if (currentIndex > 0) {
+            // Navigate to previous section
+            const prevSection = sections[currentIndex - 1];
+            navigateToSection(prevSection.id);
+            
+            // Scroll to bottom of previous section
+            setTimeout(() => {
+                elements.panelContent.scrollTop = elements.panelContent.scrollHeight;
+            }, 50);
+        }
+    } else if (!e.shiftKey && isAtEnd) {
+        // Spacebar at end: Move to next section
         e.preventDefault();
         const sections = window.documentParser.getMainSections();
         const currentIndex = sections.findIndex(s => s.id === state.currentSection);
@@ -870,6 +951,48 @@ function handleSpacebarNavigation(e) {
         // Let default spacebar scrolling work
         // No need to prevent default
     }
+}
+
+// Handle arrow key navigation
+function handleArrowNavigation(e) {
+    const panel = elements.panelContent;
+    const isAtEnd = panel.scrollHeight - panel.scrollTop <= panel.clientHeight + 10;
+    const isAtTop = panel.scrollTop <= 10;
+    
+    if (e.key === 'ArrowUp' && isAtTop) {
+        // Up arrow at top: Move to previous section
+        e.preventDefault();
+        const sections = window.documentParser.getMainSections();
+        const currentIndex = sections.findIndex(s => s.id === state.currentSection);
+        
+        if (currentIndex > 0) {
+            // Navigate to previous section
+            const prevSection = sections[currentIndex - 1];
+            navigateToSection(prevSection.id);
+            
+            // Scroll to bottom of previous section
+            setTimeout(() => {
+                elements.panelContent.scrollTop = elements.panelContent.scrollHeight;
+            }, 50);
+        }
+    } else if (e.key === 'ArrowDown' && isAtEnd) {
+        // Down arrow at end: Move to next section
+        e.preventDefault();
+        const sections = window.documentParser.getMainSections();
+        const currentIndex = sections.findIndex(s => s.id === state.currentSection);
+        
+        if (currentIndex >= 0 && currentIndex < sections.length - 1) {
+            // Navigate to next section
+            const nextSection = sections[currentIndex + 1];
+            navigateToSection(nextSection.id);
+            
+            // Scroll to top of new section
+            setTimeout(() => {
+                elements.panelContent.scrollTop = 0;
+            }, 50);
+        }
+    }
+    // If not at boundaries, let default arrow scrolling work
 }
 
 // Resizer functionality

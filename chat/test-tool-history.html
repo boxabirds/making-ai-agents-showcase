@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Call History Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .success {
+            color: #4caf50;
+        }
+        .error {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tool Call History Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Conversation History with Tool Calls</h2>
+        <p>This test verifies that tool calls are properly stored in conversation history.</p>
+        
+        <button onclick="testToolCallHistory()">Run Test</button>
+        <button onclick="clearHistory()">Clear History</button>
+        <button onclick="showHistory()">Show Current History</button>
+    </div>
+
+    <div class="test-section">
+        <h2>History Output</h2>
+        <pre id="output">Click "Run Test" to see the conversation history...</pre>
+    </div>
+
+    <script>
+        // Mock state
+        const state = {
+            conversationHistory: []
+        };
+
+        function testToolCallHistory() {
+            // Clear history first
+            state.conversationHistory = [];
+            
+            // Simulate a user message
+            state.conversationHistory.push(
+                { role: 'user', content: 'Show me the architecture section' }
+            );
+            
+            // Simulate a tool call response
+            state.conversationHistory.push({
+                role: 'assistant',
+                content: '',
+                parts: [{
+                    functionCall: {
+                        name: 'navigate_to_section',
+                        args: {
+                            section: 'Technical Details',
+                            subsection: 'Architecture'
+                        }
+                    }
+                }]
+            });
+            
+            // Add the tool response
+            state.conversationHistory.push({
+                role: 'function',
+                content: '',
+                parts: [{
+                    functionResponse: {
+                        name: 'navigate_to_section',
+                        response: {
+                            success: true,
+                            message: 'Navigated to Technical Details > Architecture'
+                        }
+                    }
+                }]
+            });
+            
+            // Add another user message
+            state.conversationHistory.push(
+                { role: 'user', content: 'What about implementation details?' }
+            );
+            
+            // Regular text response
+            state.conversationHistory.push({
+                role: 'assistant',
+                content: 'Let me navigate you to the implementation section.'
+            });
+            
+            showHistory();
+        }
+
+        function clearHistory() {
+            state.conversationHistory = [];
+            document.getElementById('output').textContent = 'History cleared.';
+        }
+
+        function showHistory() {
+            const output = document.getElementById('output');
+            
+            if (state.conversationHistory.length === 0) {
+                output.textContent = 'No conversation history yet.';
+                return;
+            }
+            
+            // Format the history for display
+            const formattedHistory = state.conversationHistory.map((msg, index) => {
+                let formatted = `[${index}] Role: ${msg.role}\n`;
+                
+                if (msg.content) {
+                    formatted += `    Content: "${msg.content}"\n`;
+                }
+                
+                if (msg.parts) {
+                    formatted += `    Parts: ${JSON.stringify(msg.parts, null, 2).split('\n').map((line, i) => i === 0 ? line : '    ' + line).join('\n')}\n`;
+                }
+                
+                return formatted;
+            }).join('\n');
+            
+            output.textContent = formattedHistory;
+        }
+
+        // Test buildContents function
+        function buildContents(currentMessage) {
+            const contents = [];
+            
+            // Add mock system prompt
+            contents.push({
+                role: "user",
+                parts: [{ text: "System prompt here..." }]
+            });
+            contents.push({
+                role: "model", 
+                parts: [{ text: "I understand." }]
+            });
+            
+            // Add conversation history (copy of the actual implementation)
+            state.conversationHistory.forEach(msg => {
+                if (msg.role === 'function') {
+                    // Function responses use the exact format from history
+                    contents.push({
+                        role: 'function',
+                        parts: msg.parts
+                    });
+                } else if (msg.parts) {
+                    // Tool calls with parts array
+                    contents.push({
+                        role: msg.role === 'assistant' ? 'model' : msg.role,
+                        parts: msg.parts
+                    });
+                } else {
+                    // Regular text messages
+                    contents.push({
+                        role: msg.role === 'user' ? 'user' : 'model',
+                        parts: [{ text: msg.content }]
+                    });
+                }
+            });
+            
+            // Add current message
+            contents.push({
+                role: "user",
+                parts: [{ text: currentMessage }]
+            });
+            
+            return contents;
+        }
+        
+        // Add a test for buildContents
+        window.testBuildContents = function() {
+            testToolCallHistory(); // Setup test data
+            const contents = buildContents("What's in this section?");
+            console.log('Built contents:', JSON.stringify(contents, null, 2));
+            alert('Check console for buildContents output');
+        };
+    </script>
+</body>
+</html>
