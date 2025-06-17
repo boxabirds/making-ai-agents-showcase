@@ -1,10 +1,66 @@
+// Configuration
+const CONFIG = {
+    WORKER_URL: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+    MODEL: 'gemini-2.0-flash',
+    MAX_TOKENS: 1024,
+    TEMPERATURE: 0.0
+};
+
+// Tone profile constant
+const TONE_PROFILE = `TONE OF VOICE PROFILE
+
+Skeptical Optimism (Core Dimension):
+Description: A foundational tone that approaches claims with healthy skepticism but maintains an underlying optimism about the potential of Vibe Coding and AI agents. It questions hype while looking for genuine value and practical applications.
+Example from User: "truthful skeptical but optimistic."
+Application: Critically evaluate tools and success stories, acknowledge limitations and potential pitfalls, but ultimately highlight the empowering aspects and future possibilities in a positive light.
+
+Upbeat & Engaging:
+Description: The overall energy should be positive, enthusiastic, and engaging, drawing the reader in rather than presenting information dryly.
+Example from User: "more upbeat."
+Application: Use active voice, varied sentence structure, and a generally positive framing, even when discussing complex or challenging topics.
+
+Truthful & Accurate (Evidence-Based):
+Description: All information, especially claims and technical descriptions, must be grounded in verifiable facts and evidence. Avoid making unsubstantiated statements.
+Example from User: "still very truthful."
+Application: Prioritize accuracy in describing tools, technologies, and case studies. Clearly distinguish between established facts, reported claims (with sources), and speculative future trends.
+
+Slightly Sarcastic / Witty Humor:
+Description: Incorporate occasional, subtle sarcasm or witty observations to add personality and make the content more relatable and entertaining. The humor should be intelligent and not overly broad or offensive.
+Example from User: "slightly sarcastic, funny occasionally."
+Application: Use sparingly in appropriate contexts, perhaps when commenting on industry hype, common misconceptions, or the quirks of technology. It should lighten the tone without undermining credibility.
+
+Analytical & Discerning:
+Description: A critical thinking approach that dissects information, compares and contrasts, and doesn't take claims at face value. This aligns with the "skeptical" aspect.
+Application: When discussing tools, provide balanced comparisons. When analyzing case studies, look for underlying factors of success or failure, and question the generalizability of results.
+
+Clear & Accessible (Non-Technical Focus):
+Description: While the author is knowledgeable, the language must remain accessible to the target audience of non-technical people with business ideas. Avoid jargon where possible, or explain it clearly.
+Application: Break down complex concepts into simpler terms. Use analogies or relatable examples. Focus on the implications and value for the reader, not just the technical details.
+
+Direct & Experiential:
+Description: The Substack conveys a sense of sharing direct experience and personal insights. The book should echo this by feeling authentic and based on real understanding, even if it's synthesizing broader research.
+Application: Frame advice and analysis in a way that feels like it's coming from someone who has navigated this space. Use phrases that suggest firsthand knowledge or deep consideration.
+
+Pragmatic & Action-Oriented:
+Description: While analytical, the tone should also be practical, offering readers actionable insights and takeaways they can apply to their own ideas and projects.
+Application: Conclude sections or chapters with clear summaries of key lessons or actionable steps. Focus on what the reader can do with the information.
+
+Confident but Humble:
+Description: The author's expertise should come through confidently, but without arrogance. Acknowledge the rapidly evolving nature of the field and the possibility of different perspectives.
+Application: Present information with conviction where it's well-supported, but be open about areas of uncertainty or ongoing debate.
+
+Conversational & Relatable:
+Description: Avoid overly academic or formal language. The tone should feel more like an engaging conversation with a knowledgeable guide.
+Application: Use contractions where appropriate. Address the reader directly at times (e.g., "you might find that..."). Incorporate rhetorical questions to stimulate thought.`;
+
 // State management
 const state = {
     currentSection: null,
     currentSubsection: null,
     chatHistory: [],
     isTyping: false,
-    documentContent: null
+    documentContent: null,
+    conversationHistory: []
 };
 
 // DOM elements
@@ -138,6 +194,9 @@ function processDocument(markdown) {
     // Parse the markdown document
     const sections = window.documentParser.parseMarkdown(markdown);
     state.documentContent = markdown;
+    
+    // Clear conversation history when new document is loaded
+    state.conversationHistory = [];
     
     // Render sections in sidebar
     renderSections(sections);
@@ -334,7 +393,7 @@ function handleChatInput(e) {
 
 async function sendMessage() {
     const message = elements.chatInput.value.trim();
-    if (!message) return;
+    if (!message || state.isTyping) return;
     
     // Clear inputs
     elements.chatInput.value = '';
@@ -346,43 +405,210 @@ async function sendMessage() {
     // Show typing indicator
     showTyping();
     
-    // Process message (simulate for now)
-    setTimeout(() => {
-        processUserMessage(message);
-    }, 1000);
+    // Process message with LLM
+    try {
+        const response = await processUserMessage(message);
+        hideTyping();
+        
+        // Check if response contains tool calls
+        if (response.toolCall) {
+            handleToolCall(response.toolCall);
+            // Add any additional text from the response
+            if (response.text) {
+                addMessage(response.text, 'assistant');
+            }
+        } else {
+            addMessage(response.text, 'assistant');
+        }
+        
+        // Update conversation history
+        state.conversationHistory.push(
+            { role: 'user', content: message },
+            { role: 'assistant', content: response.text || `Navigated to section` }
+        );
+    } catch (error) {
+        hideTyping();
+        addMessage(`I apologize, but I encountered an error: ${error.message}`, 'assistant');
+        console.error('Chat error:', error);
+    }
 }
 
-function processUserMessage(message) {
-    hideTyping();
+async function processUserMessage(message) {
+    // Build conversation contents for LLM
+    const contents = buildContents(message);
     
-    // Simple navigation intent detection for demo
-    const lowerMessage = message.toLowerCase();
-    
-    // Check for navigation requests
-    if (lowerMessage.includes('go to') || lowerMessage.includes('show') || lowerMessage.includes('navigate')) {
-        // Search for matching sections
-        const results = window.documentParser.searchContent(message);
+    try {
+        // Call LLM API
+        const response = await callGeminiAPI(contents);
         
-        if (results.length > 0) {
-            const result = results[0];
-            if (result.type === 'section') {
-                navigateToSection(result.sectionId);
+        // Parse response for tool calls
+        const parsedResponse = parseAssistantResponse(response);
+        
+        return parsedResponse;
+    } catch (error) {
+        throw error;
+    }
+}
+
+function buildContents(currentMessage) {
+    const contents = [];
+    
+    // Build system prompt
+    const systemPrompt = buildSystemPrompt();
+    
+    // Always include system prompt at the beginning
+    contents.push({
+        role: "user",
+        parts: [{ text: systemPrompt }]
+    });
+    contents.push({
+        role: "model", 
+        parts: [{ text: "I understand. I'm ready to help you navigate and understand this document. I can answer questions about its content and help you find specific sections." }]
+    });
+    
+    // Add conversation history
+    state.conversationHistory.forEach(msg => {
+        contents.push({
+            role: msg.role === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.content }]
+        });
+    });
+    
+    // Add current message
+    contents.push({
+        role: "user",
+        parts: [{ text: currentMessage }]
+    });
+    
+    return contents;
+}
+
+function buildSystemPrompt() {
+    let prompt = `You are a helpful AI assistant that helps users navigate and understand a markdown document. You respond in a tone of voice profile as defined below. Your answers should be accurate, concise, and helpful.
+
+<document-content>
+${state.documentContent || 'No document loaded yet.'}
+</document-content>
+
+<available-sections>
+`;
+    
+    // Add available sections for navigation
+    if (window.documentParser) {
+        const sections = window.documentParser.sections;
+        sections.forEach(section => {
+            prompt += `- ${section.title} (id: ${section.id})`;
+            if (section.subsections.length > 0) {
+                prompt += '\n  Subsections:';
+                section.subsections.forEach(sub => {
+                    prompt += `\n    - ${sub.title} (id: ${sub.id})`;
+                });
+            }
+            prompt += '\n';
+        });
+    }
+    
+    prompt += `</available-sections>
+
+<tools>
+You have access to a navigation tool. When the user asks to go to a specific section or topic, you should use this tool by responding with:
+TOOL_CALL: navigate_to_section
+SECTION_ID: [the id of the section]
+END_TOOL_CALL
+
+After using the tool, provide a brief description of what the section contains.
+</tools>
+
+<tone-profile>
+${TONE_PROFILE}
+</tone-profile>
+
+Remember: 
+- Base your answers on the document content provided above
+- Be helpful in navigating the document
+- Use the navigation tool when users want to go to specific sections
+- Keep responses concise and relevant`;
+    
+    return prompt;
+}
+
+async function callGeminiAPI(contents) {
+    const response = await fetch(CONFIG.WORKER_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: CONFIG.MODEL,
+            contents: contents,
+            generationConfig: {
+                temperature: CONFIG.TEMPERATURE,
+                maxOutputTokens: CONFIG.MAX_TOKENS
+            }
+        })
+    });
+
+    const data = await response.json();
+    
+    // Check if the response contains an error
+    if (data.error) {
+        if (data.error.code === 503 || data.error.status === 'UNAVAILABLE') {
+            throw new Error('The AI model is currently overloaded. Please try again in a few moments.');
+        } else if (data.error.code === 429) {
+            throw new Error('Too many requests. Please wait a moment before trying again.');
+        } else if (data.error.message) {
+            throw new Error(data.error.message);
+        } else {
+            throw new Error('An unexpected error occurred. Please try again.');
+        }
+    }
+    
+    // Check if the response has the expected structure
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+        throw new Error('Received an invalid response from the AI model. Please try again.');
+    }
+    
+    return data.candidates[0].content.parts[0].text;
+}
+
+function parseAssistantResponse(response) {
+    // Check for tool calls
+    const toolCallMatch = response.match(/TOOL_CALL:\s*navigate_to_section\s*\nSECTION_ID:\s*([^\n]+)\s*\nEND_TOOL_CALL/i);
+    
+    if (toolCallMatch) {
+        const sectionId = toolCallMatch[1].trim();
+        // Get the text after the tool call
+        const textAfterTool = response.split('END_TOOL_CALL')[1]?.trim() || '';
+        
+        return {
+            toolCall: {
+                tool: 'navigate_to_section',
+                sectionId: sectionId
+            },
+            text: textAfterTool
+        };
+    }
+    
+    return { text: response };
+}
+
+function handleToolCall(toolCall) {
+    if (toolCall.tool === 'navigate_to_section') {
+        const section = window.documentParser.getSection(toolCall.sectionId);
+        
+        if (section) {
+            if (section.level === 1) {
+                navigateToSection(toolCall.sectionId);
             } else {
-                // Find parent section for subsection
-                const subsection = window.documentParser.getSection(result.sectionId);
-                if (subsection && subsection.parentId) {
-                    navigateToSection(subsection.parentId, result.sectionId);
-                }
+                // It's a subsection, navigate to parent with subsection
+                navigateToSection(section.parentId, toolCall.sectionId);
             }
             
-            addMessage(`I've navigated to "${result.title}". This section covers ${result.preview}`, 'assistant');
-            addArtifactToChat(result.title, result.type, result.sectionId);
+            // Add artifact reference
+            addArtifactToChat(section.title, section.level === 1 ? 'section' : 'subsection', toolCall.sectionId);
         } else {
-            addMessage("I couldn't find a section matching your request. Try being more specific or check the sidebar for available sections.", 'assistant');
+            addMessage("I couldn't find that section. Please check the section name and try again.", 'assistant');
         }
-    } else {
-        // General question - would integrate with LLM here
-        addMessage("I understand you're asking about the document. In a full implementation, I would use the document content to provide a detailed answer. For now, try asking me to navigate to specific sections!", 'assistant');
     }
 }
 
