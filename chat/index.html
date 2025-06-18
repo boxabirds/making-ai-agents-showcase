@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Making AI Agents: Tech Writer Agent Comparisons</title>
     
     <!-- REUSE: Phase 1's exact CSS -->
@@ -70,6 +70,7 @@
             flex-shrink: 0;
             background: var(--color-surface);
             border-top: 1px solid var(--color-border);
+            padding-bottom: env(safe-area-inset-bottom, 0);
         }
         
         .message {
@@ -172,7 +173,7 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
-                height: 90vh;
+                height: 85vh;
                 background: var(--color-surface);
                 transform: translateY(100%);
                 transition: transform 0.3s ease;
@@ -248,9 +249,11 @@
             body:has(.document-viewer.open) .chat-panel input-group {
                 position: fixed;
                 bottom: 0;
+                bottom: env(safe-area-inset-bottom, 0);
                 left: 0;
                 right: 0;
                 z-index: 210;
+                padding-bottom: env(safe-area-inset-bottom, 0);
             }
             
         }
