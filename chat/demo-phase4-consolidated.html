@@ -308,10 +308,10 @@
             init() {
                 this.mainInput = document.getElementById('mainInput');
                 this.setupEventListeners();
-                this.loadDocument().catch(err => {
+                this.loadDocument().catch(async (err) => {
                     this.addMessage('System', `Error loading document: ${err.message}`, true);
                     // Fallback to sample content
-                    this.loadSampleDocument();
+                    await this.loadSampleDocument();
                 });
             },
             
@@ -338,7 +338,7 @@
                     const markdown = await response.text();
                     
                     // Parse the document
-                    this.sections = documentParser.parseMarkdown(markdown);
+                    this.sections = await documentParser.parseMarkdown(markdown);
                     
                     // Populate sidebar
                     this.populateSidebar();
@@ -353,7 +353,7 @@
                 } catch (error) {
                     this.addMessage('System', `Error loading report.md: ${error.message}`, true);
                     // Fallback to sample content
-                    this.loadSampleDocument();
+                    await this.loadSampleDocument();
                 }
             },
             
@@ -390,10 +390,10 @@
                     items[index]?.classList.toggle('active', s.id === sectionId);
                 });
                 
-                // Update quick actions
+                // Update quick actions with generated labels
                 this.mainInput.quickActions = section.subsections.map(sub => ({
                     id: sub.id,
-                    text: sub.title
+                    text: sub.label || sub.title
                 }));
                 
                 // Scroll to section
@@ -470,7 +470,7 @@
         window.app = app;
         
         // Add fallback method for when report.md isn't available
-        app.loadSampleDocument = function() {
+        app.loadSampleDocument = async function() {
             const fallbackMarkdown = `# Tech Writer Agent Demo [Fallback]
 
 Couldn't load report.md - using sample content.
@@ -483,7 +483,7 @@ This is a demonstration of the document parser.
 
 Quick actions will be generated from these H2 headings.`;
             
-            this.sections = documentParser.parseMarkdown(fallbackMarkdown);
+            this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
             this.populateSidebar();
             this.renderDocument();
             if (this.sections.length > 0) {

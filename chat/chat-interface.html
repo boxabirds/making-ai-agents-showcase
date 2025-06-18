@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Document - AI Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>Document Navigator</h3>
+                <button class="close-btn" id="closeSidebar">✕</button>
+            </div>
+            <nav class="sidebar-nav" id="sectionsList">
+                <!-- Sections will be rendered here -->
+            </nav>
+        </aside>
+
+        <!-- Main Chat Container -->
+        <main class="chat-main">
+            <div class="chat-container">
+                <!-- Header -->
+                <header class="chat-header">
+                    <button class="hamburger" id="hamburgerBtn">☰</button>
+                    <h2 id="documentTitle">Chat with Document</h2>
+                </header>
+
+                <!-- Messages Area -->
+                <div class="messages-container" id="messagesContainer">
+                    <div class="welcome-message">
+                        <h3>Welcome! 👋</h3>
+                        <p>I'm your AI assistant. I can help you understand and navigate through documents.</p>
+                        <p>You can:</p>
+                        <ul>
+                            <li>Ask questions about the document content</li>
+                            <li>Request to navigate to specific sections</li>
+                            <li>Use the quick action buttons below</li>
+                            <li>Click sections in the sidebar</li>
+                        </ul>
+                        <p>To load a document, add <code>?doc=url-to-your-markdown</code> to the URL, or a sample document will be loaded.</p>
+                    </div>
+                </div>
+
+                <!-- Input Area with Quick Actions -->
+                <div class="input-area">
+                    <div class="quick-actions" id="quickActions">
+                        <!-- Quick action buttons will be rendered here with AI-generated labels -->
+                    </div>
+                    <div class="input-container">
+                        <input 
+                            type="text" 
+                            class="chat-input" 
+                            id="chatInput" 
+                            placeholder="Ask about the document..."
+                            autocomplete="off"
+                        >
+                        <button class="send-button" id="sendButton">
+                            <svg viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Typing Indicator -->
+                <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Document Detail Panel -->
+        <aside class="detail-panel" id="detailPanel">
+            <div class="panel-header">
+                <h3 id="panelTitle">Document Content</h3>
+                <button class="close-btn" id="closePanelBtn">✕</button>
+            </div>
+            <div class="panel-content" id="panelContent">
+                <!-- Document content will be displayed here -->
+            </div>
+        </aside>
+    </div>
+
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <!-- Separator -->
+    <div class="separator-vertical" id="separatorVertical"></div>
+    
+    <!-- Hidden tray inputs (for compatibility) -->
+    <input type="hidden" id="trayChatInput">
+    <button id="traySendButton" style="display:none"></button>
+
+    <!-- Load dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Load modules -->
+    <script type="module">
+        // Import the document parser
+        import { documentParser } from './src/components/document-parser.js';
+        
+        // Make it available globally for script.js
+        window.documentParser = documentParser;
+    </script>
+    
+    <!-- Load main application -->
+    <script src="script.js"></script>
+</body>
+</html>
