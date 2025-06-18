@@ -163,9 +163,10 @@ export class DocumentParser extends BaseComponent {
         }
       });
       
-      console.log('Quick action labels generated successfully');
+      console.log('✅ Quick action labels generated successfully');
     } catch (error) {
-      console.error('Failed to generate quick action labels:', error);
+      console.error('❌ Failed to generate quick action labels:', error);
+      console.warn('⚠️ Quick actions will use full titles instead of AI-generated labels');
       // Labels will fall back to titles
     }
   }

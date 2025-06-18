@@ -36,7 +36,7 @@ Guidelines:
   - "What is X?" → "X Overview" or just "X"
   - "Getting Started with X" → "Getting Started" or "X Setup"
 
-Return ONLY a JSON array of strings. No other text, no markdown, no explanations.
+Return ONLY a JSON array of strings. No escape sequences, backticks or narratives
 The output array MUST have the same length as the input array.
 
 Input: {headings}
@@ -132,8 +132,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load sample document or from URL parameter
     loadDocument();
     
-    // Focus on chat input
-    elements.chatInput.focus();
+    // Focus on chat input if it exists
+    if (elements.chatInput) {
+        elements.chatInput.focus();
+    }
 });
 
 function initializeElements() {
@@ -350,42 +352,49 @@ function updateQuickActions(sectionId) {
 }
 
 function setupEventListeners() {
+    // Add event listeners only if elements exist
+    const addListener = (element, event, handler) => {
+        if (element) {
+            element.addEventListener(event, handler);
+        }
+    };
+    
     // Mobile menu toggles
-    elements.hamburgerBtn.addEventListener('click', () => {
-        elements.sidebar.classList.add('active');
-        elements.mobileOverlay.classList.add('active');
+    addListener(elements.hamburgerBtn, 'click', () => {
+        if (elements.sidebar) elements.sidebar.classList.add('active');
+        if (elements.mobileOverlay) elements.mobileOverlay.classList.add('active');
     });
     
-    elements.closeSidebar.addEventListener('click', closeSidebar);
-    elements.mobileOverlay.addEventListener('click', () => {
+    addListener(elements.closeSidebar, 'click', closeSidebar);
+    addListener(elements.mobileOverlay, 'click', () => {
         // Close sidebar if it's open
-        if (elements.sidebar.classList.contains('active')) {
+        if (elements.sidebar && elements.sidebar.classList.contains('active')) {
             closeSidebar();
         }
         // Close detail panel if it's open
-        if (elements.detailPanel.classList.contains('active')) {
+        if (elements.detailPanel && elements.detailPanel.classList.contains('active')) {
             hideDetailPanel();
         }
     });
     
     // Panel controls
-    elements.closePanelBtn.addEventListener('click', handleClosePanelClick);
+    addListener(elements.closePanelBtn, 'click', handleClosePanelClick);
     
     // Chat input
-    elements.chatInput.addEventListener('keypress', handleChatInput);
-    elements.sendButton.addEventListener('click', sendMessage);
+    addListener(elements.chatInput, 'keypress', handleChatInput);
+    addListener(elements.sendButton, 'click', sendMessage);
     
-    // Tray chat input
-    elements.trayChatInput.addEventListener('keypress', handleChatInput);
-    elements.traySendButton.addEventListener('click', sendMessage);
+    // Tray chat input (these might not exist in test page)
+    addListener(elements.trayChatInput, 'keypress', handleChatInput);
+    addListener(elements.traySendButton, 'click', sendMessage);
     
     // Sync chat inputs
-    elements.chatInput.addEventListener('input', (e) => {
-        elements.trayChatInput.value = e.target.value;
+    addListener(elements.chatInput, 'input', (e) => {
+        if (elements.trayChatInput) elements.trayChatInput.value = e.target.value;
     });
     
-    elements.trayChatInput.addEventListener('input', (e) => {
-        elements.chatInput.value = e.target.value;
+    addListener(elements.trayChatInput, 'input', (e) => {
+        if (elements.chatInput) elements.chatInput.value = e.target.value;
     });
     
     // Escape key handling
@@ -406,12 +415,12 @@ function setupEventListeners() {
     });
     
     // Panel content scroll detection for spacebar navigation
-    elements.panelContent.addEventListener('scroll', () => {
+    addListener(elements.panelContent, 'scroll', () => {
         checkScrollEnd();
     });
     
     // Spacebar and arrow key navigation when panel content has focus
-    elements.panelContent.addEventListener('keydown', (e) => {
+    addListener(elements.panelContent, 'keydown', (e) => {
         if (e.key === ' ' || e.key === 'Spacebar') {
             handleSpacebarNavigation(e);
         } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -430,16 +439,16 @@ function handleChatInput(e) {
 }
 
 async function sendMessage() {
-    const message = elements.chatInput.value.trim();
+    const message = elements.chatInput ? elements.chatInput.value.trim() : '';
     if (!message || state.isProcessing) return;
     
     state.isProcessing = true;
-    elements.sendButton.disabled = true;
-    elements.traySendButton.disabled = true;
+    if (elements.sendButton) elements.sendButton.disabled = true;
+    if (elements.traySendButton) elements.traySendButton.disabled = true;
     
     // Clear inputs
-    elements.chatInput.value = '';
-    elements.trayChatInput.value = '';
+    if (elements.chatInput) elements.chatInput.value = '';
+    if (elements.trayChatInput) elements.trayChatInput.value = '';
     
     // Add user message
     addMessage(message, 'user');
@@ -519,9 +528,9 @@ async function sendMessage() {
         console.error('Chat error:', error);
     } finally {
         state.isProcessing = false;
-        elements.sendButton.disabled = false;
-        elements.traySendButton.disabled = false;
-        elements.chatInput.focus();
+        if (elements.sendButton) elements.sendButton.disabled = false;
+        if (elements.traySendButton) elements.traySendButton.disabled = false;
+        if (elements.chatInput) elements.chatInput.focus();
     }
 }
 
@@ -770,7 +779,14 @@ window.generateQuickActionLabels = async function generateQuickActionLabels(head
         }
         
         // Extract the response text
-        const content = data.candidates[0].content.parts[0].text.trim();
+        let content = data.candidates[0].content.parts[0].text.trim();
+        
+        // Remove markdown code blocks if present
+        if (content.startsWith('```json')) {
+            content = content.replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '');
+        } else if (content.startsWith('```')) {
+            content = content.replace(/^```\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
         
         // Parse JSON response
         const labels = JSON.parse(content);
@@ -780,17 +796,22 @@ window.generateQuickActionLabels = async function generateQuickActionLabels(head
             throw new Error('Label count mismatch');
         }
         
-        console.log('Generated labels:', labels);
+        console.log('✅ Successfully generated labels using AI:', labels);
         return labels;
     } catch (error) {
-        console.error('Failed to generate labels:', error);
+        console.error('❌ Failed to generate labels with AI:', error);
+        console.warn('⚠️ USING FALLBACK: Simple word extraction (inferior to AI-generated labels)');
+        
         // Fallback: generate simple labels
-        return headings.map(heading => {
+        const fallbackLabels = headings.map(heading => {
             const words = heading.split(' ').filter(w => 
                 w.length > 2 && !['the', 'and', 'for', 'with', 'from'].includes(w.toLowerCase())
             );
             return words.slice(0, 2).join(' ') || heading.slice(0, 20);
         });
+        
+        console.log('📝 Fallback labels:', fallbackLabels);
+        return fallbackLabels;
     }
 }
 
