@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Remove Chat Functions</title>
+    
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: #f7f8fa;
+        }
+        
+        .chat-panel {
+            width: 400px;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .messages-area {
+            height: 300px;
+            overflow-y: auto;
+            background: #f7f8fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 0.25rem;
+        }
+    </style>
+    
+    <script src="input-group-component.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script>
+        const CONFIG = {
+            WORKER_URL: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+            MODEL: 'gemini-2.0-flash',
+            MAX_TOKENS: 1024,
+            TEMPERATURE: 0.0
+        };
+
+        window.generateQuickActionLabels = async function generateQuickActionLabels(headings) {
+            return headings.map(h => h.slice(0, 10)); // Simple fallback
+        }
+    </script>
+</head>
+<body>
+    <h1>🔍 Debug Remove Chat Functions</h1>
+    
+    <div class="chat-panel">
+        <div class="messages-area" id="messagesArea">
+            <div class="message">
+                <strong>Test:</strong> Does removing chat functions fix it?
+            </div>
+        </div>
+        
+        <input-group id="mainInput"></input-group>
+    </div>
+    
+    <script type="module">
+        import { documentParser } from './src/components/document-parser.js';
+        import { state } from './src/state-manager.js';
+        
+        const app = {
+            sections: [],
+            currentSection: null,
+            mainInput: null,
+            
+            init() {
+                console.log('🎯 Testing without chat functions...');
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    return;
+                }
+                
+                this.setupEventListeners();
+                this.loadDocument().catch(async (err) => {
+                    console.error('Document load failed:', err);
+                    this.addMessage('System', `Error loading document: ${err.message}`, true);
+                    await this.loadSampleDocument();
+                });
+            },
+            
+            setupEventListeners() {
+                console.log('📡 Setting up listeners...');
+                
+                // Quick action clicks
+                this.mainInput.addEventListener('action-click', (e) => {
+                    console.log('Action click:', e.detail.actionId);
+                    this.navigateToSubsection(e.detail.actionId);
+                });
+                
+                this.mainInput.addEventListener('message-submit', (e) => {
+                    console.log('✅ Message received:', e.detail.message);
+                    this.addMessage('You', e.detail.message);
+                    // REMOVE: handleUserMessage call
+                    this.addMessage('Assistant', 'Simple echo: ' + e.detail.message);
+                });
+            },
+            
+            async loadDocument() {
+                console.log('📄 loadDocument starting...');
+                try {
+                    const response = await fetch('report.md');
+                    if (!response.ok) {
+                        throw new Error('Failed to load report.md');
+                    }
+                    const markdown = await response.text();
+                    
+                    this.sections = await documentParser.parseMarkdown(markdown);
+                    
+                    // Call selectSection like in the failing demo
+                    if (this.sections.length > 0) {
+                        this.selectSection(this.sections[0].id);
+                    }
+                    
+                    console.log('📄 Document loaded successfully');
+                    
+                } catch (error) {
+                    console.error('❌ loadDocument error:', error);
+                    throw error;
+                }
+            },
+            
+            // KEEP: selectSection function
+            selectSection(sectionId) {
+                console.log('🎯 selectSection called with:', sectionId);
+                const section = this.sections.find(s => s.id === sectionId);
+                if (!section) return;
+                
+                this.currentSection = sectionId;
+                
+                // Update quick actions with generated labels
+                this.mainInput.quickActions = section.subsections.map(sub => ({
+                    id: sub.id,
+                    text: sub.label || sub.title
+                }));
+                
+                // Generate AI labels for quick actions if not already done
+                if (section.subsections.length > 0 && !section.subsections[0].label && window.generateQuickActionLabels) {
+                    this.generateLabelsForSection(section);
+                }
+                
+                state.set({ currentSection: sectionId });
+            },
+            
+            // KEEP: generateLabelsForSection function
+            async generateLabelsForSection(section) {
+                console.log('🏷️ generateLabelsForSection called for:', section.title);
+                if (!section.subsections || section.subsections.length === 0) return;
+                
+                const headings = section.subsections.map(sub => sub.title);
+                
+                try {
+                    const labels = await window.generateQuickActionLabels(headings);
+                    
+                    section.subsections.forEach((sub, index) => {
+                        if (labels[index]) {
+                            sub.label = labels[index];
+                        }
+                    });
+                    
+                    if (this.currentSection === section.id) {
+                        this.mainInput.quickActions = section.subsections.map(sub => ({
+                            id: sub.id,
+                            text: sub.label || sub.title
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Failed to generate labels for section:', section.title, error);
+                }
+            },
+            
+            // KEEP: navigation functions
+            navigateToSubsection(subsectionId) {
+                console.log('🔗 navigateToSubsection called with:', subsectionId);
+            },
+            
+            // REMOVE: All chat functions (handleUserMessage, buildDocumentContext, buildChatPrompt, callGeminiChat)
+            
+            async loadSampleDocument() {
+                console.log('📄 loadSampleDocument starting...');
+                
+                const fallbackMarkdown = `# Test Document
+## Section 1
+Content here.
+## Section 2
+More content.`;
+                
+                try {
+                    this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
+                    if (this.sections.length > 0) {
+                        this.selectSection(this.sections[0].id);
+                    }
+                } catch (error) {
+                    console.error('❌ loadSampleDocument error:', error);
+                }
+            },
+            
+            addMessage(sender, text, isSystem = false) {
+                const messagesArea = document.getElementById('messagesArea');
+                const message = document.createElement('div');
+                message.className = 'message' + (isSystem ? ' system' : '');
+                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+                messagesArea.appendChild(message);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+        };
+        
+        window.app = app;
+        
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message, e.filename, e.lineno);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+        });
+        
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit prevented');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh detected!');
+        });
+        
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ Component ready');
+            app.init();
+        });
+    </script>
+</body>
+</html>

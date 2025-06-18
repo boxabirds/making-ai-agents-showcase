@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Document Loading</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            padding: 2rem;
+            background: #f7f8fa;
+        }
+        .status {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            background: white;
+        }
+        .error { background: #fee; border-color: #fcc; }
+        .success { background: #efe; border-color: #cfc; }
+        .warning { background: #ffc; border-color: #ffb; }
+        .messages {
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            border: 1px solid #e2e8f0;
+        }
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: #f7f8fa;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Document Loading Issue</h1>
+    
+    <div id="initStatus" class="status warning">
+        <strong>Initialization:</strong> Starting...
+    </div>
+    
+    <div id="componentStatus" class="status warning">
+        <strong>Component:</strong> Not tested...
+    </div>
+    
+    <div class="messages" id="messagesArea">
+        <div class="message">
+            <strong>Assistant:</strong> Testing document loading impact on chat...
+        </div>
+    </div>
+    
+    <input-group id="mainInput"></input-group>
+
+    <script src="input-group-component.js"></script>
+    
+    <script type="module">
+        import { documentParser } from './src/components/document-parser.js';
+        import { state } from './src/state-manager.js';
+        
+        function updateStatus(id, message, type = 'success') {
+            const el = document.getElementById(id);
+            el.innerHTML = `<strong>${id.replace('Status', '')}:</strong> ${message}`;
+            el.className = `status ${type}`;
+        }
+        
+        // EXACT SAME APP STRUCTURE AS DEMO
+        const app = {
+            sections: [],
+            currentSection: null,
+            mainInput: null,
+            
+            init() {
+                console.log('App init starting...');
+                updateStatus('initStatus', 'App init starting...', 'warning');
+                
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput element:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('CRITICAL: mainInput element not found!');
+                    updateStatus('initStatus', 'CRITICAL: mainInput element not found!', 'error');
+                    return;
+                }
+                
+                updateStatus('initStatus', 'mainInput found, setting up listeners...', 'warning');
+                this.setupEventListeners();
+                
+                updateStatus('initStatus', 'Starting document load...', 'warning');
+                
+                // THIS IS THE SUSPECTED PROBLEM LINE
+                this.loadDocument().catch(async (err) => {
+                    console.error('❌ Document load failed:', err);
+                    updateStatus('initStatus', `Document load failed: ${err.message}`, 'error');
+                    this.addMessage('System', `Error loading document: ${err.message}`, true);
+                    // Fallback to sample content
+                    await this.loadSampleDocument();
+                });
+            },
+            
+            setupEventListeners() {
+                console.log('Setting up event listeners, mainInput:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    updateStatus('componentStatus', 'mainInput not found in setupEventListeners!', 'error');
+                    return;
+                }
+                
+                try {
+                    // Message submissions
+                    this.mainInput.addEventListener('message-submit', (e) => {
+                        console.log('✅ Message submit event received:', e.detail.message);
+                        updateStatus('componentStatus', `✅ Chat working! Got: "${e.detail.message}"`, 'success');
+                        this.addMessage('You', e.detail.message);
+                        this.handleUserMessage(e.detail.message);
+                    });
+                    
+                    updateStatus('componentStatus', '✅ Event listeners attached - try typing!', 'success');
+                    console.log('✅ Event listeners attached successfully');
+                    
+                } catch (error) {
+                    console.error('❌ Error setting up event listeners:', error);
+                    updateStatus('componentStatus', `❌ Error setting up listeners: ${error.message}`, 'error');
+                }
+            },
+            
+            async loadDocument() {
+                console.log('🔄 loadDocument starting...');
+                updateStatus('initStatus', 'Fetching report.md...', 'warning');
+                
+                try {
+                    // Fetch the actual report.md file
+                    const response = await fetch('report.md');
+                    if (!response.ok) {
+                        throw new Error('Failed to load report.md');
+                    }
+                    const markdown = await response.text();
+                    
+                    updateStatus('initStatus', 'Parsing markdown...', 'warning');
+                    
+                    // Parse the document - THIS MIGHT BE THE PROBLEM
+                    this.sections = await documentParser.parseMarkdown(markdown);
+                    
+                    updateStatus('initStatus', `✅ Document loaded! Found ${this.sections.length} sections`, 'success');
+                    
+                } catch (error) {
+                    console.error('❌ loadDocument error:', error);
+                    updateStatus('initStatus', `❌ loadDocument error: ${error.message}`, 'error');
+                    throw error; // Re-throw to trigger catch handler
+                }
+            },
+            
+            async loadSampleDocument() {
+                console.log('🔄 loadSampleDocument starting...');
+                updateStatus('initStatus', 'Loading sample document...', 'warning');
+                
+                const fallbackMarkdown = `# Test Document
+## Section 1
+Content here.
+## Section 2
+More content.`;
+                
+                try {
+                    this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
+                    updateStatus('initStatus', '✅ Sample document loaded', 'success');
+                } catch (error) {
+                    console.error('❌ loadSampleDocument error:', error);
+                    updateStatus('initStatus', `❌ Sample document error: ${error.message}`, 'error');
+                }
+            },
+            
+            handleUserMessage(message) {
+                console.log('🚀 handleUserMessage called with:', message);
+                setTimeout(() => {
+                    this.addMessage('Assistant', `Echo: "${message}"`);
+                }, 100);
+            },
+            
+            addMessage(sender, text, isSystem = false) {
+                const messagesArea = document.getElementById('messagesArea');
+                const message = document.createElement('div');
+                message.className = 'message' + (isSystem ? ' system' : '');
+                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+                messagesArea.appendChild(message);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+        };
+        
+        // Make app available globally
+        window.app = app;
+        
+        // Global error handlers
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message, e.filename, e.lineno);
+            updateStatus('initStatus', `💥 JavaScript error: ${e.message}`, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+            updateStatus('initStatus', `💥 Promise rejection: ${e.reason}`, 'error');
+        });
+        
+        // Global form prevention
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit intercepted, preventing default');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        // Page refresh detection
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh is about to happen!');
+        });
+        
+        // Initialize
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ input-group component is ready');
+            updateStatus('componentStatus', 'Component ready, initializing app...', 'warning');
+            app.init();
+        });
+    </script>
+</body>
+</html>

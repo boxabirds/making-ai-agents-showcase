@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Imports</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            padding: 2rem;
+            background: #f7f8fa;
+        }
+        .status {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            background: white;
+        }
+        .error { background: #fee; border-color: #fcc; }
+        .success { background: #efe; border-color: #cfc; }
+        .warning { background: #ffc; border-color: #ffb; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Import Issues</h1>
+    
+    <div id="status1" class="status warning">
+        <strong>Step 1:</strong> Checking if import files exist...
+    </div>
+    
+    <div id="status2" class="status warning">
+        <strong>Step 2:</strong> Testing imports...
+    </div>
+    
+    <div id="status3" class="status warning">
+        <strong>Step 3:</strong> Testing component with imports...
+    </div>
+    
+    <input-group id="testInput"></input-group>
+
+    <script src="input-group-component.js"></script>
+    
+    <script type="module">
+        function updateStatus(id, message, type = 'success') {
+            const el = document.getElementById(id);
+            el.innerHTML = `<strong>Step ${id.slice(-1)}:</strong> ${message}`;
+            el.className = `status ${type}`;
+        }
+        
+        // Step 1: Check if files exist
+        try {
+            const checks = [
+                fetch('./src/components/document-parser.js'),
+                fetch('./src/state-manager.js')
+            ];
+            
+            Promise.allSettled(checks).then(results => {
+                const [parserResult, stateResult] = results;
+                
+                let message = '';
+                if (parserResult.status === 'fulfilled' && parserResult.value.ok) {
+                    message += '✅ document-parser.js exists ';
+                } else {
+                    message += '❌ document-parser.js missing ';
+                }
+                
+                if (stateResult.status === 'fulfilled' && stateResult.value.ok) {
+                    message += '✅ state-manager.js exists';
+                } else {
+                    message += '❌ state-manager.js missing';
+                }
+                
+                const hasErrors = message.includes('❌');
+                updateStatus('status1', message, hasErrors ? 'error' : 'success');
+                
+                if (!hasErrors) {
+                    testImports();
+                } else {
+                    updateStatus('status2', 'Skipped - files missing', 'error');
+                    updateStatus('status3', 'Skipped - files missing', 'error');
+                }
+            });
+        } catch (error) {
+            updateStatus('status1', `Error checking files: ${error.message}`, 'error');
+        }
+        
+        // Step 2: Test actual imports
+        async function testImports() {
+            try {
+                console.log('🔄 Attempting to import modules...');
+                
+                const { documentParser } = await import('./src/components/document-parser.js');
+                const { state } = await import('./src/state-manager.js');
+                
+                console.log('✅ Imports successful:', { documentParser, state });
+                updateStatus('status2', '✅ Imports successful', 'success');
+                
+                testComponentWithImports(documentParser, state);
+                
+            } catch (error) {
+                console.error('❌ Import failed:', error);
+                updateStatus('status2', `❌ Import failed: ${error.message}`, 'error');
+                updateStatus('status3', 'Skipped - import failed', 'error');
+            }
+        }
+        
+        // Step 3: Test component with imports loaded
+        function testComponentWithImports(documentParser, state) {
+            try {
+                customElements.whenDefined('input-group').then(() => {
+                    const testInput = document.getElementById('testInput');
+                    
+                    testInput.addEventListener('message-submit', (e) => {
+                        console.log('✅ Component works with imports loaded:', e.detail.message);
+                        updateStatus('status3', `✅ Component works! Message: "${e.detail.message}"`, 'success');
+                    });
+                    
+                    console.log('✅ Event listener attached');
+                    updateStatus('status3', '✅ Component ready - try typing a message', 'success');
+                });
+            } catch (error) {
+                console.error('❌ Component setup failed:', error);
+                updateStatus('status3', `❌ Component setup failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Global error handling
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message, e.filename, e.lineno);
+            updateStatus('status2', `💥 JavaScript error: ${e.message}`, 'error');
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+            updateStatus('status2', `💥 Promise rejection: ${e.reason}`, 'error');
+        });
+    </script>
+</body>
+</html>

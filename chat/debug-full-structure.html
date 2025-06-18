@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Full Structure</title>
+    
+    <!-- EXACT SAME CSS AS DEMO -->
+    <style>
+        /* Global design tokens only */
+        :root {
+            --color-bg: #f7f8fa;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text: #1e293b;
+            --color-primary: #3b82f6;
+            --color-primary-dark: #2563eb;
+            
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --chat-width: 400px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Simple layout grid */
+        .app-layout {
+            display: grid;
+            height: 100vh;
+            grid-template-columns: var(--sidebar-width) var(--chat-width) 1fr;
+        }
+        
+        /* Basic containers */
+        .sidebar {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .chat-panel {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--color-bg);
+            border-radius: 0.5rem;
+        }
+        
+        .document-viewer {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+    </style>
+    
+    <!-- EXACT SAME SCRIPTS AS DEMO -->
+    <script src="input-group-component.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- EXACT SAME CONFIG AS DEMO -->
+    <script>
+        const CONFIG = {
+            WORKER_URL: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+            MODEL: 'gemini-2.0-flash',
+            MAX_TOKENS: 1024,
+            TEMPERATURE: 0.0
+        };
+        
+        window.generateQuickActionLabels = async function generateQuickActionLabels(headings) {
+            console.log('generateQuickActionLabels called with:', headings);
+            return headings.map(h => h.slice(0, 10)); // Simple fallback
+        }
+    </script>
+</head>
+<body>
+    <!-- EXACT SAME STRUCTURE AS DEMO -->
+    <div class="app-layout">
+        <!-- Mobile header -->
+        <header class="mobile-header">
+            <button onclick="app.toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer;">☰</button>
+            <h1 style="margin: 0 auto; font-size: 1.25rem;">Document Chat</h1>
+        </header>
+        
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <h2>Documentation</h2>
+            <div id="sidebar-sections">
+                <!-- Populated dynamically -->
+            </div>
+        </aside>
+        
+        <!-- Chat panel -->
+        <section class="chat-panel">
+            <div class="messages-area" id="messagesArea">
+                <div class="message">
+                    <strong>Assistant:</strong> Welcome! Test the form submission issue.
+                </div>
+            </div>
+            
+            <!-- REUSE the working input group component -->
+            <input-group id="mainInput"></input-group>
+        </section>
+        
+        <!-- Document viewer -->
+        <section class="document-viewer" id="documentViewer">
+            <div id="documentContent">
+                <h1>Debug Document Content</h1>
+                <p>Testing if the full layout breaks form submission...</p>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Mobile overlay -->
+    <div class="overlay" id="overlay" onclick="app.closeAll()"></div>
+    
+    <script type="module">
+        import { documentParser } from './src/components/document-parser.js';
+        import { state } from './src/state-manager.js';
+        
+        // EXACT SAME APP STRUCTURE AS DEMO
+        const app = {
+            sections: [],
+            currentSection: null,
+            mainInput: null,
+            
+            init() {
+                console.log('🎯 App init starting...');
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput element:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('CRITICAL: mainInput element not found!');
+                    return;
+                }
+                
+                this.setupEventListeners();
+                this.loadDocument().catch(async (err) => {
+                    console.error('Document load failed:', err);
+                    this.addMessage('System', `Error loading document: ${err.message}`, true);
+                    await this.loadSampleDocument();
+                });
+            },
+            
+            setupEventListeners() {
+                console.log('📡 Setting up event listeners, mainInput:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    return;
+                }
+                
+                // Quick action clicks
+                this.mainInput.addEventListener('action-click', (e) => {
+                    console.log('Action click:', e.detail.actionId);
+                    this.navigateToSubsection(e.detail.actionId);
+                });
+                
+                // Message submissions
+                this.mainInput.addEventListener('message-submit', (e) => {
+                    console.log('✅ Message submit event received:', e.detail.message);
+                    this.addMessage('You', e.detail.message);
+                    this.handleUserMessage(e.detail.message);
+                });
+                
+                console.log('📡 Event listeners attached successfully');
+            },
+            
+            async loadDocument() {
+                console.log('📄 loadDocument starting...');
+                try {
+                    const response = await fetch('report.md');
+                    if (!response.ok) {
+                        throw new Error('Failed to load report.md');
+                    }
+                    const markdown = await response.text();
+                    
+                    this.sections = await documentParser.parseMarkdown(markdown);
+                    this.populateSidebar();
+                    this.renderDocument();
+                    
+                    if (this.sections.length > 0) {
+                        this.selectSection(this.sections[0].id);
+                    }
+                    
+                    console.log('📄 Document loaded successfully');
+                } catch (error) {
+                    console.error('❌ loadDocument error:', error);
+                    throw error;
+                }
+            },
+            
+            populateSidebar() {
+                const container = document.getElementById('sidebar-sections');
+                container.innerHTML = '';
+                
+                this.sections.forEach(section => {
+                    const div = document.createElement('div');
+                    div.className = 'sidebar-item';
+                    div.innerHTML = `${section.title}`;
+                    div.onclick = () => this.selectSection(section.id);
+                    container.appendChild(div);
+                });
+            },
+            
+            renderDocument() {
+                const content = document.getElementById('documentContent');
+                content.innerHTML = documentParser.renderFullHTML();
+            },
+            
+            selectSection(sectionId) {
+                const section = this.sections.find(s => s.id === sectionId);
+                if (!section) return;
+                
+                this.currentSection = section.id;
+                
+                // Update quick actions with generated labels
+                this.mainInput.quickActions = section.subsections.map(sub => ({
+                    id: sub.id,
+                    text: sub.label || sub.title
+                }));
+                
+                // Generate AI labels for quick actions if not already done
+                if (section.subsections.length > 0 && !section.subsections[0].label && window.generateQuickActionLabels) {
+                    this.generateLabelsForSection(section);
+                }
+                
+                state.set({ currentSection: sectionId });
+            },
+            
+            navigateToSubsection(subsectionId) {
+                console.log('Navigating to subsection:', subsectionId);
+            },
+            
+            async generateLabelsForSection(section) {
+                if (!section.subsections || section.subsections.length === 0) return;
+                
+                const headings = section.subsections.map(sub => sub.title);
+                
+                try {
+                    const labels = await window.generateQuickActionLabels(headings);
+                    
+                    section.subsections.forEach((sub, index) => {
+                        if (labels[index]) {
+                            sub.label = labels[index];
+                        }
+                    });
+                    
+                    if (this.currentSection === section.id) {
+                        this.mainInput.quickActions = section.subsections.map(sub => ({
+                            id: sub.id,
+                            text: sub.label || sub.title
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Failed to generate labels for section:', section.title, error);
+                }
+            },
+            
+            async handleUserMessage(message) {
+                console.log('🚀 handleUserMessage called with:', message);
+                setTimeout(() => {
+                    this.addMessage('Assistant', `You said: "${message}"`);
+                }, 100);
+            },
+            
+            addMessage(sender, text, isSystem = false) {
+                const messagesArea = document.getElementById('messagesArea');
+                const message = document.createElement('div');
+                message.className = 'message' + (isSystem ? ' system' : '');
+                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+                messagesArea.appendChild(message);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            },
+            
+            async loadSampleDocument() {
+                console.log('📄 loadSampleDocument starting...');
+                
+                const fallbackMarkdown = `# Tech Writer Agent Demo [Fallback]
+
+## Sample Section
+This is a demonstration.
+
+## Another Section  
+Quick actions will be generated.`;
+                
+                try {
+                    this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
+                    this.populateSidebar();
+                    this.renderDocument();
+                    if (this.sections.length > 0) {
+                        this.selectSection(this.sections[0].id);
+                    }
+                } catch (error) {
+                    console.error('❌ loadSampleDocument error:', error);
+                }
+            },
+            
+            // Mobile functions (from demo)
+            toggleSidebar() {
+                console.log('toggleSidebar called');
+            },
+            
+            closeAll() {
+                console.log('closeAll called');
+            }
+        };
+        
+        // Make app methods available globally for onclick handlers
+        window.app = app;
+        
+        // SAME ERROR HANDLERS AS DEMO
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message, e.filename, e.lineno);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+        });
+        
+        // SAME FORM PREVENTION AS DEMO
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit intercepted, preventing default');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        // SAME PAGE REFRESH DETECTION AS DEMO
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh is about to happen!');
+        });
+        
+        // SAME INITIALIZATION AS DEMO
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ input-group component is ready');
+            app.init();
+        });
+    </script>
+</body>
+</html>

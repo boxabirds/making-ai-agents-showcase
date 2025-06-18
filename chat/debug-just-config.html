@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Just CONFIG</title>
+    
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: #f7f8fa;
+        }
+        
+        .chat-panel {
+            width: 400px;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .messages-area {
+            height: 300px;
+            overflow-y: auto;
+            background: #f7f8fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 0.25rem;
+        }
+    </style>
+    
+    <script src="input-group-component.js"></script>
+    
+    <!-- TEST: Add only CONFIG script -->
+    <script>
+        const CONFIG = {
+            WORKER_URL: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+            MODEL: 'gemini-2.0-flash',
+            MAX_TOKENS: 1024,
+            TEMPERATURE: 0.0
+        };
+        
+        window.generateQuickActionLabels = async function generateQuickActionLabels(headings) {
+            if (!headings || headings.length === 0) return [];
+            
+            const prompt = `Generate short labels for: ${JSON.stringify(headings)}`;
+            
+            try {
+                const response = await fetch(CONFIG.WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: CONFIG.MODEL,
+                        contents: [
+                            { role: "user", parts: [{ text: prompt }] }
+                        ],
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 256
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'API error');
+                }
+                
+                let content = data.candidates[0].content.parts[0].text.trim();
+                
+                if (content.startsWith('```json')) {
+                    content = content.replace(/^```json\\s*\\n?/, '').replace(/\\n?```\\s*$/, '');
+                } else if (content.startsWith('```')) {
+                    content = content.replace(/^```\\s*\\n?/, '').replace(/\\n?```\\s*$/, '');
+                }
+                
+                const labels = JSON.parse(content);
+                
+                if (labels.length !== headings.length) {
+                    throw new Error('Label count mismatch');
+                }
+                
+                console.log('✅ Successfully generated labels using AI:', labels);
+                return labels;
+            } catch (error) {
+                console.error('❌ Failed to generate labels with AI:', error);
+                console.warn('⚠️ USING FALLBACK: Simple word extraction');
+                
+                const fallbackLabels = headings.map(heading => {
+                    const words = heading.split(' ').filter(w => 
+                        w.length > 2 && !['the', 'and', 'for', 'with', 'from'].includes(w.toLowerCase())
+                    );
+                    return words.slice(0, 2).join(' ') || heading.slice(0, 20);
+                });
+                
+                console.log('📝 Fallback labels:', fallbackLabels);
+                return fallbackLabels;
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>🔍 Debug Just CONFIG Script</h1>
+    
+    <div class="chat-panel">
+        <div class="messages-area" id="messagesArea">
+            <div class="message">
+                <strong>Test:</strong> Does CONFIG script break form submission?
+            </div>
+        </div>
+        
+        <input-group id="mainInput"></input-group>
+    </div>
+    
+    <script>
+        const app = {
+            mainInput: null,
+            
+            init() {
+                console.log('🎯 Testing CONFIG script impact...');
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    return;
+                }
+                
+                this.setupEventListeners();
+            },
+            
+            setupEventListeners() {
+                console.log('📡 Setting up listeners...');
+                
+                this.mainInput.addEventListener('message-submit', (e) => {
+                    console.log('✅ Message received:', e.detail.message);
+                    this.addMessage('You', e.detail.message);
+                });
+            },
+            
+            addMessage(sender, text) {
+                const messagesArea = document.getElementById('messagesArea');
+                const message = document.createElement('div');
+                message.className = 'message';
+                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+                messagesArea.appendChild(message);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+        };
+        
+        window.app = app;
+        
+        // Global form prevention
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit prevented');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        // Page refresh detection
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh detected!');
+        });
+        
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ Component ready');
+            app.init();
+        });
+    </script>
+</body>
+</html>

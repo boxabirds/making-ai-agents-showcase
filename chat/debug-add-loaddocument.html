@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Add loadDocument</title>
+    
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: #f7f8fa;
+        }
+        
+        .chat-panel {
+            width: 400px;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .messages-area {
+            height: 300px;
+            overflow-y: auto;
+            background: #f7f8fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 0.25rem;
+        }
+    </style>
+    
+    <script src="input-group-component.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script>
+        const CONFIG = {
+            WORKER_URL: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+            MODEL: 'gemini-2.0-flash',
+            MAX_TOKENS: 1024,
+            TEMPERATURE: 0.0
+        };
+        
+        window.generateQuickActionLabels = async function generateQuickActionLabels(headings) {
+            return headings.map(h => h.slice(0, 10));
+        }
+    </script>
+</head>
+<body>
+    <h1>🔍 Debug Add loadDocument Function</h1>
+    
+    <div class="chat-panel">
+        <div class="messages-area" id="messagesArea">
+            <div class="message">
+                <strong>Test:</strong> Does adding loadDocument() break it?
+            </div>
+        </div>
+        
+        <input-group id="mainInput"></input-group>
+    </div>
+    
+    <script type="module">
+        import { documentParser } from './src/components/document-parser.js';
+        import { state } from './src/state-manager.js';
+        
+        const app = {
+            sections: [],
+            currentSection: null,
+            mainInput: null,
+            
+            init() {
+                console.log('🎯 Testing with loadDocument function...');
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    return;
+                }
+                
+                this.setupEventListeners();
+                
+                // ADD: The loadDocument call that was in the failing demo
+                this.loadDocument().catch(async (err) => {
+                    console.error('Document load failed:', err);
+                    this.addMessage('System', `Error loading document: ${err.message}`, true);
+                    await this.loadSampleDocument();
+                });
+            },
+            
+            setupEventListeners() {
+                console.log('📡 Setting up listeners...');
+                
+                this.mainInput.addEventListener('message-submit', (e) => {
+                    console.log('✅ Message received:', e.detail.message);
+                    this.addMessage('You', e.detail.message);
+                });
+            },
+            
+            // ADD: The loadDocument function from the failing demo
+            async loadDocument() {
+                console.log('📄 loadDocument starting...');
+                try {
+                    const response = await fetch('report.md');
+                    if (!response.ok) {
+                        throw new Error('Failed to load report.md');
+                    }
+                    const markdown = await response.text();
+                    
+                    console.log('📄 Parsing markdown...');
+                    this.sections = await documentParser.parseMarkdown(markdown);
+                    
+                    console.log('📄 Document loaded successfully, sections:', this.sections.length);
+                    
+                } catch (error) {
+                    console.error('❌ loadDocument error:', error);
+                    throw error;
+                }
+            },
+            
+            // ADD: The loadSampleDocument function
+            async loadSampleDocument() {
+                console.log('📄 loadSampleDocument starting...');
+                
+                const fallbackMarkdown = `# Test Document
+## Section 1
+Content here.
+## Section 2
+More content.`;
+                
+                try {
+                    this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
+                    console.log('📄 Sample document loaded');
+                } catch (error) {
+                    console.error('❌ loadSampleDocument error:', error);
+                }
+            },
+            
+            addMessage(sender, text, isSystem = false) {
+                const messagesArea = document.getElementById('messagesArea');
+                const message = document.createElement('div');
+                message.className = 'message' + (isSystem ? ' system' : '');
+                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+                messagesArea.appendChild(message);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+        };
+        
+        window.app = app;
+        
+        // Global error handlers
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message, e.filename, e.lineno);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+        });
+        
+        // Global form prevention
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit prevented');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        // Page refresh detection
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh detected!');
+        });
+        
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ Component ready');
+            app.init();
+        });
+    </script>
+</body>
+</html>

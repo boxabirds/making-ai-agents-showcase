@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 6 - Full Chat Integration Demo</title>
+    
+    <!-- REUSE: Phase 1's exact CSS -->
+    <style>
+        /* Global design tokens only */
+        :root {
+            --color-bg: #f7f8fa;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text: #1e293b;
+            --color-primary: #3b82f6;
+            --color-primary-dark: #2563eb;
+            
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --chat-width: 400px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Simple layout grid */
+        .app-layout {
+            display: grid;
+            height: 100vh;
+            grid-template-columns: var(--sidebar-width) var(--chat-width) 1fr;
+        }
+        
+        /* Basic containers */
+        .sidebar {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .chat-panel {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--color-bg);
+            border-radius: 0.5rem;
+        }
+        
+        .document-viewer {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        /* Mobile layout - EXACTLY from Phase 1 */
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: var(--header-height) 1fr;
+            }
+            
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                padding: 1rem;
+                background: var(--color-surface);
+                border-bottom: 1px solid var(--color-border);
+            }
+            
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 100;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .chat-panel {
+                grid-row: 2;
+                height: calc(100vh - var(--header-height));
+            }
+            
+            .document-viewer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 75vh;
+                background: var(--color-surface);
+                transform: translateY(100%);
+                transition: transform 0.3s ease;
+                border-radius: 1rem 1rem 0 0;
+                box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 90;
+            }
+            
+            .document-viewer.open {
+                transform: translateY(0);
+            }
+            
+            /* When document viewer is open, move the input group to bottom of screen */
+            body:has(.document-viewer.open) .chat-panel input-group {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 95;
+            }
+            
+            .overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+                z-index: 85;
+            }
+            
+            .overlay.active {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+        
+        /* Desktop-only */
+        @media (min-width: 769px) {
+            .mobile-header {
+                display: none;
+            }
+            
+            .overlay {
+                display: none;
+            }
+        }
+        
+        /* Sidebar improvements */
+        .sidebar h2 {
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+        
+        .sidebar-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: var(--color-bg);
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .sidebar-item:hover {
+            background: #e2e8f0;
+        }
+        
+        .sidebar-item.active {
+            background: var(--color-primary);
+            color: white;
+        }
+        
+        .sidebar-item .badge {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            padding: 0.125rem 0.5rem;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 9999px;
+        }
+        
+        .sidebar-item.active .badge {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Document improvements */
+        .document-viewer h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--color-border);
+        }
+        
+        .document-viewer h2 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--color-primary);
+        }
+        
+        .document-viewer p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        
+        .document-viewer code {
+            background: var(--color-bg);
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.875em;
+        }
+        
+        .document-viewer pre {
+            background: var(--color-bg);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+        
+        /* Message improvements */
+        .message strong {
+            color: var(--color-primary);
+        }
+        
+        .message.system {
+            background: #f0f9ff;
+            border-left: 3px solid var(--color-primary);
+        }
+    </style>
+    
+    <!-- Load the WORKING component from Phase 1 -->
+    <script src="input-group-component.js"></script>
+    
+    <!-- Load marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Load AI configuration and label generation -->
+    <script>
+        // Configuration
+        const CONFIG = {
+            WORKER_URL: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+            MODEL: 'gemini-2.0-flash',
+            MAX_TOKENS: 1024,
+            TEMPERATURE: 0.0
+        };
+
+        // Quick Action Label Generation Prompt (from DSPy training)
+        const QUICK_ACTION_PROMPT = `Generate short 1-3 word labels for section headings used as quick action buttons.
+
+Examples:
+Input: ["Tech Writer Agent in 7 different frameworks", "But first, how many agent maker frameworks are there?", "Why did you pick the tech writer agent for evaluation?"]
+Output: ["Overview", "Agent Landscape", "Tech Writer Choice"]
+
+Input: ["What did I learn?", "What did I standardise on?", "How did I rank them?"]
+Output: ["Insights", "Shared Code", "Leaderboard"]
+
+Guidelines:
+- Keep labels concise (1-3 words maximum)
+- Use title case for labels
+- Return ONLY a JSON array of strings.
+
+Input: {headings}
+Output:`;
+
+        // Generate quick action labels for an array of headings
+        window.generateQuickActionLabels = async function generateQuickActionLabels(headings) {
+            if (!headings || headings.length === 0) return [];
+            
+            const prompt = QUICK_ACTION_PROMPT.replace('{headings}', JSON.stringify(headings));
+            
+            try {
+                const response = await fetch(CONFIG.WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: CONFIG.MODEL,
+                        contents: [
+                            { role: "user", parts: [{ text: prompt }] }
+                        ],
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 256
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'API error');
+                }
+                
+                let content = data.candidates[0].content.parts[0].text.trim();
+                
+                if (content.startsWith('```json')) {
+                    content = content.replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '');
+                } else if (content.startsWith('```')) {
+                    content = content.replace(/^```\s*\n?/, '').replace(/\n?```\s*$/, '');
+                }
+                
+                const labels = JSON.parse(content);
+                
+                if (labels.length !== headings.length) {
+                    throw new Error('Label count mismatch');
+                }
+                
+                console.log('✅ Successfully generated labels using AI:', labels);
+                return labels;
+            } catch (error) {
+                console.error('❌ Failed to generate labels with AI:', error);
+                console.warn('⚠️ USING FALLBACK: Simple word extraction');
+                
+                const fallbackLabels = headings.map(heading => {
+                    const words = heading.split(' ').filter(w => 
+                        w.length > 2 && !['the', 'and', 'for', 'with', 'from'].includes(w.toLowerCase())
+                    );
+                    return words.slice(0, 2).join(' ') || heading.slice(0, 20);
+                });
+                
+                console.log('📝 Fallback labels:', fallbackLabels);
+                return fallbackLabels;
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile header -->
+        <header class="mobile-header">
+            <button onclick="app.toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer;">☰</button>
+            <h1 style="margin: 0 auto; font-size: 1.25rem;">Document Chat</h1>
+        </header>
+        
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <h2>Documentation</h2>
+            <div id="sidebar-sections">
+                <!-- Populated dynamically -->
+            </div>
+        </aside>
+        
+        <!-- Chat panel -->
+        <section class="chat-panel">
+            <div class="messages-area" id="messagesArea">
+                <div class="message">
+                    <strong>Assistant:</strong> Welcome! I'm here to help you navigate the documentation. Select a section from the sidebar or use the quick actions below.
+                </div>
+            </div>
+            
+            <!-- REUSE the working input group component -->
+            <input-group id="mainInput"></input-group>
+        </section>
+        
+        <!-- Document viewer -->
+        <section class="document-viewer" id="documentViewer">
+            <div id="documentContent">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+    </div>
+    
+    <!-- Mobile overlay -->
+    <div class="overlay" id="overlay" onclick="app.closeAll()"></div>
+    
+    <script type="module">
+        import { documentParser } from './src/components/document-parser.js';
+        import { state } from './src/state-manager.js';
+        
+        // Application state and methods
+        const app = {
+            sections: [],
+            currentSection: null,
+            mainInput: null,
+            
+            init() {
+                console.log('App init starting...');
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput element:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('CRITICAL: mainInput element not found!');
+                    return;
+                }
+                
+                this.setupEventListeners();
+                this.loadDocument().catch(async (err) => {
+                    this.addMessage('System', `Error loading document: ${err.message}`, true);
+                    await this.loadSampleDocument();
+                });
+            },
+            
+            setupEventListeners() {
+                console.log('Setting up event listeners, mainInput:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    return;
+                }
+                
+                // Quick action clicks
+                this.mainInput.addEventListener('action-click', (e) => {
+                    console.log('Action click:', e.detail.actionId);
+                    this.navigateToSubsection(e.detail.actionId);
+                });
+                
+                // Message submissions
+                this.mainInput.addEventListener('message-submit', (e) => {
+                    console.log('✅ Message submit event received:', e.detail.message);
+                    this.addMessage('You', e.detail.message);
+                    this.handleUserMessage(e.detail.message);
+                });
+            },
+            
+            async loadDocument() {
+                try {
+                    const response = await fetch('report.md');
+                    if (!response.ok) {
+                        throw new Error('Failed to load report.md');
+                    }
+                    const markdown = await response.text();
+                    
+                    this.sections = await documentParser.parseMarkdown(markdown);
+                    this.populateSidebar();
+                    this.renderDocument();
+                    
+                    if (this.sections.length > 0) {
+                        this.selectSection(this.sections[0].id);
+                    }
+                } catch (error) {
+                    this.addMessage('System', `Error loading report.md: ${error.message}`, true);
+                    await this.loadSampleDocument();
+                }
+            },
+            
+            populateSidebar() {
+                const container = document.getElementById('sidebar-sections');
+                container.innerHTML = '';
+                
+                this.sections.forEach(section => {
+                    const div = document.createElement('div');
+                    div.className = 'sidebar-item';
+                    div.innerHTML = `
+                        ${section.title}
+                        ${section.bracketedPhrase ? `<span class="badge">${section.bracketedPhrase}</span>` : ''}
+                    `;
+                    div.onclick = () => this.selectSection(section.id);
+                    container.appendChild(div);
+                });
+            },
+            
+            renderDocument() {
+                const content = document.getElementById('documentContent');
+                content.innerHTML = documentParser.renderFullHTML();
+            },
+            
+            selectSection(sectionId) {
+                const section = this.sections.find(s => s.id === sectionId);
+                if (!section) return;
+                
+                this.currentSection = sectionId;
+                
+                // Update sidebar active state
+                const items = document.querySelectorAll('.sidebar-item');
+                this.sections.forEach((s, index) => {
+                    items[index]?.classList.toggle('active', s.id === sectionId);
+                });
+                
+                // Update quick actions with generated labels - using FIXED component
+                console.log('🔄 Setting quick actions for:', section.title);
+                this.mainInput.quickActions = section.subsections.map(sub => ({
+                    id: sub.id,
+                    text: sub.label || sub.title
+                }));
+                console.log('✅ Quick actions set successfully');
+                
+                // Generate AI labels for quick actions if not already done
+                if (section.subsections.length > 0 && !section.subsections[0].label && window.generateQuickActionLabels) {
+                    this.generateLabelsForSection(section);
+                }
+                
+                this.scrollToElement(sectionId);
+                state.set({ currentSection: sectionId });
+            },
+            
+            navigateToSubsection(subsectionId) {
+                this.scrollToElement(subsectionId);
+                
+                if (window.innerWidth <= 768) {
+                    document.getElementById('documentViewer').classList.add('open');
+                    document.getElementById('overlay').classList.add('active');
+                }
+            },
+            
+            scrollToElement(elementId) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    element.style.background = '#e0f2fe';
+                    element.style.transition = 'background 0.3s ease';
+                    setTimeout(() => {
+                        element.style.background = '';
+                    }, 1000);
+                }
+            },
+            
+            async handleUserMessage(message) {
+                console.log('🚀 handleUserMessage called with:', message);
+                
+                this.showTyping();
+                
+                try {
+                    const context = this.buildDocumentContext();
+                    const prompt = this.buildChatPrompt(message, context);
+                    const response = await this.callGeminiChat(prompt);
+                    
+                    this.hideTyping();
+                    this.addMessage('Assistant', response);
+                    
+                } catch (error) {
+                    console.error('❌ Chat error:', error);
+                    this.hideTyping();
+                    this.addMessage('Assistant', `I apologize, but I encountered an error: ${error.message}`);
+                }
+            },
+            
+            buildDocumentContext() {
+                if (!this.sections || this.sections.length === 0) {
+                    return "No document loaded.";
+                }
+                
+                let context = "Document sections:\\n";
+                this.sections.forEach(section => {
+                    context += `- ${section.title}`;
+                    if (section.subsections.length > 0) {
+                        context += ` (${section.subsections.map(sub => sub.title).join(', ')})`;
+                    }
+                    context += "\\n";
+                });
+                
+                if (this.currentSection) {
+                    const section = this.sections.find(s => s.id === this.currentSection);
+                    if (section) {
+                        context += `\\nCurrently viewing: ${section.title}`;
+                    }
+                }
+                
+                return context;
+            },
+            
+            buildChatPrompt(userMessage, documentContext) {
+                return `You are a helpful AI assistant for navigating and understanding technical documentation.
+
+${documentContext}
+
+User question: ${userMessage}
+
+Provide a helpful response based on the document structure shown above. If the user is asking about a specific section, you can reference it by name.`;
+            },
+            
+            async callGeminiChat(prompt) {
+                const response = await fetch(CONFIG.WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: CONFIG.MODEL,
+                        contents: [
+                            { role: "user", parts: [{ text: prompt }] }
+                        ],
+                        generationConfig: {
+                            temperature: 0.7,
+                            maxOutputTokens: 512
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'API error');
+                }
+                
+                return data.candidates[0].content.parts[0].text.trim();
+            },
+            
+            showTyping() {
+                const messagesArea = document.getElementById('messagesArea');
+                const typing = document.createElement('div');
+                typing.className = 'message typing-indicator';
+                typing.id = 'typing-message';
+                typing.innerHTML = '<strong>Assistant:</strong> <span class="dots">...</span>';
+                messagesArea.appendChild(typing);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            },
+            
+            hideTyping() {
+                const typing = document.getElementById('typing-message');
+                if (typing) {
+                    typing.remove();
+                }
+            },
+            
+            // Generate AI labels for a section's subsections
+            async generateLabelsForSection(section) {
+                if (!section.subsections || section.subsections.length === 0) return;
+                
+                const headings = section.subsections.map(sub => sub.title);
+                
+                try {
+                    const labels = await window.generateQuickActionLabels(headings);
+                    
+                    section.subsections.forEach((sub, index) => {
+                        if (labels[index]) {
+                            sub.label = labels[index];
+                        }
+                    });
+                    
+                    if (this.currentSection === section.id) {
+                        console.log('🔄 Updating quick actions with AI labels...');
+                        this.mainInput.quickActions = section.subsections.map(sub => ({
+                            id: sub.id,
+                            text: sub.label || sub.title
+                        }));
+                        console.log('✅ Quick actions updated with AI labels');
+                } catch (error) {
+                    console.error('Failed to generate labels for section:', section.title, error);
+                }
+            },
+            
+            addMessage(sender, text, isSystem = false) {
+                const messagesArea = document.getElementById('messagesArea');
+                const message = document.createElement('div');
+                message.className = 'message' + (isSystem ? ' system' : '');
+                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+                messagesArea.appendChild(message);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            },
+            
+            // Mobile functions
+            toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('overlay');
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            },
+            
+            closeAll() {
+                document.getElementById('sidebar').classList.remove('open');
+                document.getElementById('documentViewer').classList.remove('open');
+                document.getElementById('overlay').classList.remove('active');
+            },
+            
+            async loadSampleDocument() {
+                const fallbackMarkdown = `# Tech Writer Agent Demo [Fallback]
+
+Couldn't load report.md - using sample content.
+
+## Sample Section
+
+This is a demonstration of the document parser.
+
+## Another Section
+
+Quick actions will be generated from these H2 headings.`;
+                
+                this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
+                this.populateSidebar();
+                this.renderDocument();
+                if (this.sections.length > 0) {
+                    this.selectSection(this.sections[0].id);
+                }
+            }
+        };
+        
+        // Make app methods available globally for onclick handlers
+        window.app = app;
+        
+        // Global error handlers
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message, e.filename, e.lineno);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+        });
+        
+        // Global form prevention
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit prevented');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        // Page refresh detection
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh detected!');
+        });
+        
+        // Initialize when ready
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ input-group component is ready');
+            app.init();
+        });
+    </script>
+</body>
+</html>

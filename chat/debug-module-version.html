@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Module Version</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            padding: 2rem;
+            background: #f7f8fa;
+        }
+        .messages {
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            border: 1px solid #e2e8f0;
+        }
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: #f7f8fa;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Module Version (Same Structure as Demo)</h1>
+    
+    <div class="messages" id="messagesArea">
+        <div class="message">
+            <strong>Assistant:</strong> Welcome! Test the chat below.
+        </div>
+    </div>
+    
+    <!-- SAME STRUCTURE AS DEMO -->
+    <input-group id="mainInput"></input-group>
+
+    <!-- Load the component -->
+    <script src="input-group-component.js"></script>
+    
+    <!-- SAME MODULE STRUCTURE AS DEMO -->
+    <script type="module">
+        // Simulate the failing imports (but don't actually import)
+        // import { documentParser } from './src/components/document-parser.js';
+        // import { state } from './src/state-manager.js';
+        
+        console.log('🎯 Module script starting...');
+        
+        // SAME APP STRUCTURE AS DEMO
+        const app = {
+            mainInput: null,
+            
+            init() {
+                console.log('App init starting...');
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput element:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('CRITICAL: mainInput element not found!');
+                    return;
+                }
+                
+                this.setupEventListeners();
+            },
+            
+            setupEventListeners() {
+                console.log('Setting up event listeners, mainInput:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    return;
+                }
+                
+                // Message submissions - SAME AS DEMO
+                this.mainInput.addEventListener('message-submit', (e) => {
+                    console.log('✅ Message submit event received:', e.detail.message);
+                    this.addMessage('You', e.detail.message);
+                    this.handleUserMessage(e.detail.message);
+                });
+            },
+            
+            handleUserMessage(message) {
+                console.log('🚀 handleUserMessage called with:', message);
+                
+                // Simple test response
+                setTimeout(() => {
+                    this.addMessage('Assistant', `You said: "${message}"`);
+                }, 100);
+            },
+            
+            addMessage(sender, text) {
+                const messagesArea = document.getElementById('messagesArea');
+                const message = document.createElement('div');
+                message.className = 'message';
+                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+                messagesArea.appendChild(message);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+        };
+        
+        // Make app available globally
+        window.app = app;
+        
+        // Global error handlers - SAME AS DEMO
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+        });
+        
+        // Global form prevention - SAME AS DEMO
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit intercepted, preventing default');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        // Page refresh detection - SAME AS DEMO
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh is about to happen!');
+        });
+        
+        // SAME INITIALIZATION AS DEMO
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ input-group component is ready');
+            app.init();
+            
+            setTimeout(() => {
+                console.log('🔍 Debug info after init:');
+                console.log('- app.mainInput:', app.mainInput);
+                console.log('- mainInput element exists:', !!document.getElementById('mainInput'));
+            }, 100);
+        });
+    </script>
+</body>
+</html>

@@ -33,7 +33,7 @@ class InputGroupComponent extends HTMLElement {
   // Public API
   set quickActions(actions) {
     this._quickActions = actions || [];
-    this.render();
+    this.updateQuickActions();
   }
 
   get quickActions() {
@@ -48,8 +48,7 @@ class InputGroupComponent extends HTMLElement {
 
   set disabled(value) {
     this._disabled = value;
-    this.render();
-    this.attachEventListeners();
+    this.updateDisabledState();
   }
 
   get disabled() {
@@ -319,6 +318,83 @@ class InputGroupComponent extends HTMLElement {
   clear() {
     const input = this.shadowRoot.querySelector('.chat-input');
     if (input) input.value = '';
+  }
+
+  // Update only the quick actions section without re-rendering the entire component
+  updateQuickActions() {
+    if (!this.shadowRoot) return;
+    
+    const quickActionsContainer = this.shadowRoot.querySelector('.quick-actions');
+    if (!quickActionsContainer) return;
+    
+    // Update display style
+    const hasActions = this._quickActions.length > 0;
+    quickActionsContainer.style.display = hasActions ? 'flex' : 'none';
+    
+    // Update content
+    quickActionsContainer.innerHTML = this._quickActions.map(action => `
+      <button 
+        class="action-btn" 
+        data-action="${action.id}"
+        title="${action.fullTitle || action.text}"
+        ${this._disabled ? 'disabled' : ''}
+      >
+        ${action.text}
+      </button>
+    `).join('');
+    
+    // Update chat input container border
+    const chatInputContainer = this.shadowRoot.querySelector('.chat-input-container');
+    if (chatInputContainer) {
+      if (hasActions) {
+        chatInputContainer.style.borderTop = '1px solid var(--color-border, #e2e8f0)';
+      } else {
+        chatInputContainer.style.borderTop = '';
+      }
+    }
+  }
+  
+  // Update disabled state without re-rendering
+  updateDisabledState() {
+    if (!this.shadowRoot) return;
+    
+    // Update quick action buttons
+    const actionButtons = this.shadowRoot.querySelectorAll('.action-btn');
+    actionButtons.forEach(btn => {
+      if (this._disabled) {
+        btn.setAttribute('disabled', '');
+      } else {
+        btn.removeAttribute('disabled');
+      }
+    });
+    
+    // Update chat input
+    const chatInput = this.shadowRoot.querySelector('.chat-input');
+    if (chatInput) {
+      if (this._disabled) {
+        chatInput.setAttribute('disabled', '');
+        chatInput.style.background = 'var(--color-bg, #f7f8fa)';
+        chatInput.style.cursor = 'not-allowed';
+      } else {
+        chatInput.removeAttribute('disabled');
+        chatInput.style.background = 'var(--color-surface, #ffffff)';
+        chatInput.style.cursor = '';
+      }
+    }
+    
+    // Update send button
+    const sendButton = this.shadowRoot.querySelector('.send-btn');
+    if (sendButton) {
+      if (this._disabled) {
+        sendButton.setAttribute('disabled', '');
+        sendButton.style.background = '#cbd5e1';
+        sendButton.style.cursor = 'not-allowed';
+      } else {
+        sendButton.removeAttribute('disabled');
+        sendButton.style.background = 'var(--color-primary, #3b82f6)';
+        sendButton.style.cursor = 'pointer';
+      }
+    }
   }
 }
 

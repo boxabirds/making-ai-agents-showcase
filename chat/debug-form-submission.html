@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Form Submission</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            padding: 2rem;
+            background: #f7f8fa;
+        }
+        .debug-section {
+            background: white;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+        .messages {
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f7f8fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Form Submission Issue</h1>
+    
+    <div class="debug-section">
+        <h2>Step 1: Test Basic Form</h2>
+        <form id="basicForm">
+            <input type="text" placeholder="Type and press Enter" id="basicInput">
+            <button type="submit">Submit</button>
+        </form>
+        <p>Status: <span id="basicStatus">Not tested</span></p>
+    </div>
+    
+    <div class="debug-section">
+        <h2>Step 2: Test Custom Component</h2>
+        <input-group id="testComponent"></input-group>
+        <p>Status: <span id="componentStatus">Not tested</span></p>
+    </div>
+    
+    <div class="debug-section">
+        <h2>Debug Messages</h2>
+        <div class="messages" id="debugMessages"></div>
+        <button onclick="clearMessages()">Clear Messages</button>
+    </div>
+
+    <!-- Load the component -->
+    <script src="input-group-component.js"></script>
+    
+    <script>
+        let messageCount = 0;
+        
+        function log(message, type = 'info') {
+            messageCount++;
+            const messagesDiv = document.getElementById('debugMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `<strong>${messageCount}. [${type.toUpperCase()}]</strong> ${message}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            console.log(`${messageCount}. [${type.toUpperCase()}] ${message}`);
+        }
+        
+        function clearMessages() {
+            document.getElementById('debugMessages').innerHTML = '';
+            messageCount = 0;
+        }
+        
+        // Global form submission prevention
+        document.addEventListener('submit', (e) => {
+            log(`🛑 GLOBAL: Form submit event captured from ${e.target.tagName}`, 'warn');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        // Page refresh detection
+        window.addEventListener('beforeunload', (e) => {
+            log('🚨 CRITICAL: Page is about to refresh!', 'error');
+        });
+        
+        // Test basic form
+        document.getElementById('basicForm').addEventListener('submit', (e) => {
+            log('✅ Basic form submit handler called', 'success');
+            e.preventDefault();
+            document.getElementById('basicStatus').textContent = 'Working - prevented default';
+            const input = document.getElementById('basicInput');
+            log(`Basic form input value: "${input.value}"`, 'info');
+            input.value = '';
+        });
+        
+        // Test custom component
+        customElements.whenDefined('input-group').then(() => {
+            log('✅ input-group component is defined', 'success');
+            
+            const component = document.getElementById('testComponent');
+            
+            component.addEventListener('message-submit', (e) => {
+                log(`✅ Custom component message-submit event: "${e.detail.message}"`, 'success');
+                document.getElementById('componentStatus').textContent = 'Working - event received';
+            });
+            
+            // Log any errors from the component
+            component.addEventListener('error', (e) => {
+                log(`❌ Component error: ${e.detail}`, 'error');
+            });
+            
+            log('Event listeners attached to custom component', 'info');
+        });
+        
+        // Additional diagnostics
+        log('🎯 Debug script loaded', 'info');
+        log(`User agent: ${navigator.userAgent}`, 'info');
+        
+        setTimeout(() => {
+            log(`Custom elements defined: ${!!window.customElements}`, 'info');
+            log(`input-group elements found: ${document.querySelectorAll('input-group').length}`, 'info');
+        }, 100);
+    </script>
+</body>
+</html>

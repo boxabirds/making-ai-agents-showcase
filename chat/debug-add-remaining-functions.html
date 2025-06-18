@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Add Remaining Functions</title>
+    
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: #f7f8fa;
+        }
+        
+        .chat-panel {
+            width: 400px;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .messages-area {
+            height: 300px;
+            overflow-y: auto;
+            background: #f7f8fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 0.25rem;
+        }
+    </style>
+    
+    <script src="input-group-component.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <script>
+        const CONFIG = {
+            WORKER_URL: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+            MODEL: 'gemini-2.0-flash',
+            MAX_TOKENS: 1024,
+            TEMPERATURE: 0.0
+        };
+
+        const QUICK_ACTION_PROMPT = `Generate short 1-3 word labels for section headings used as quick action buttons.
+
+Examples:
+Input: ["Tech Writer Agent in 7 different frameworks", "But first, how many agent maker frameworks are there?", "Why did you pick the tech writer agent for evaluation?"]
+Output: ["Overview", "Agent Landscape", "Tech Writer Choice"]
+
+Guidelines:
+- Keep labels concise (1-3 words maximum)
+- Use title case for labels
+- Return ONLY a JSON array of strings.
+
+Input: {headings}
+Output:`;
+
+        window.generateQuickActionLabels = async function generateQuickActionLabels(headings) {
+            if (!headings || headings.length === 0) return [];
+            
+            const prompt = QUICK_ACTION_PROMPT.replace('{headings}', JSON.stringify(headings));
+            
+            try {
+                const response = await fetch(CONFIG.WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: CONFIG.MODEL,
+                        contents: [
+                            { role: "user", parts: [{ text: prompt }] }
+                        ],
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 256
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'API error');
+                }
+                
+                let content = data.candidates[0].content.parts[0].text.trim();
+                
+                if (content.startsWith('```json')) {
+                    content = content.replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '');
+                } else if (content.startsWith('```')) {
+                    content = content.replace(/^```\s*\n?/, '').replace(/\n?```\s*$/, '');
+                }
+                
+                const labels = JSON.parse(content);
+                
+                if (labels.length !== headings.length) {
+                    throw new Error('Label count mismatch');
+                }
+                
+                console.log('✅ Successfully generated labels using AI:', labels);
+                return labels;
+            } catch (error) {
+                console.error('❌ Failed to generate labels with AI:', error);
+                console.warn('⚠️ USING FALLBACK: Simple word extraction');
+                
+                const fallbackLabels = headings.map(heading => {
+                    const words = heading.split(' ').filter(w => 
+                        w.length > 2 && !['the', 'and', 'for', 'with', 'from'].includes(w.toLowerCase())
+                    );
+                    return words.slice(0, 2).join(' ') || heading.slice(0, 20);
+                });
+                
+                console.log('📝 Fallback labels:', fallbackLabels);
+                return fallbackLabels;
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>🔍 Debug Add Remaining Functions</h1>
+    
+    <div class="chat-panel">
+        <div class="messages-area" id="messagesArea">
+            <div class="message">
+                <strong>Test:</strong> Does adding ALL functions break it?
+            </div>
+        </div>
+        
+        <input-group id="mainInput"></input-group>
+    </div>
+    
+    <script type="module">
+        import { documentParser } from './src/components/document-parser.js';
+        import { state } from './src/state-manager.js';
+        
+        const app = {
+            sections: [],
+            currentSection: null,
+            mainInput: null,
+            
+            init() {
+                console.log('🎯 Testing with ALL functions...');
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    return;
+                }
+                
+                this.setupEventListeners();
+                this.loadDocument().catch(async (err) => {
+                    console.error('Document load failed:', err);
+                    this.addMessage('System', `Error loading document: ${err.message}`, true);
+                    await this.loadSampleDocument();
+                });
+            },
+            
+            setupEventListeners() {
+                console.log('📡 Setting up listeners...');
+                
+                // Quick action clicks
+                this.mainInput.addEventListener('action-click', (e) => {
+                    console.log('Action click:', e.detail.actionId);
+                    this.navigateToSubsection(e.detail.actionId);
+                });
+                
+                this.mainInput.addEventListener('message-submit', (e) => {
+                    console.log('✅ Message received:', e.detail.message);
+                    this.addMessage('You', e.detail.message);
+                    this.handleUserMessage(e.detail.message);
+                });
+            },
+            
+            async loadDocument() {
+                console.log('📄 loadDocument starting...');
+                try {
+                    const response = await fetch('report.md');
+                    if (!response.ok) {
+                        throw new Error('Failed to load report.md');
+                    }
+                    const markdown = await response.text();
+                    
+                    this.sections = await documentParser.parseMarkdown(markdown);
+                    
+                    // Call selectSection like in the failing demo
+                    if (this.sections.length > 0) {
+                        this.selectSection(this.sections[0].id);
+                    }
+                    
+                    console.log('📄 Document loaded successfully');
+                    
+                } catch (error) {
+                    console.error('❌ loadDocument error:', error);
+                    throw error;
+                }
+            },
+            
+            // ADD: selectSection function from failing demo
+            selectSection(sectionId) {
+                console.log('🎯 selectSection called with:', sectionId);
+                const section = this.sections.find(s => s.id === sectionId);
+                if (!section) return;
+                
+                this.currentSection = sectionId;
+                
+                // Update quick actions with generated labels
+                this.mainInput.quickActions = section.subsections.map(sub => ({
+                    id: sub.id,
+                    text: sub.label || sub.title
+                }));
+                
+                // Generate AI labels for quick actions if not already done
+                if (section.subsections.length > 0 && !section.subsections[0].label && window.generateQuickActionLabels) {
+                    this.generateLabelsForSection(section);
+                }
+                
+                state.set({ currentSection: sectionId });
+            },
+            
+            // ADD: generateLabelsForSection function from failing demo
+            async generateLabelsForSection(section) {
+                console.log('🏷️ generateLabelsForSection called for:', section.title);
+                if (!section.subsections || section.subsections.length === 0) return;
+                
+                const headings = section.subsections.map(sub => sub.title);
+                
+                try {
+                    const labels = await window.generateQuickActionLabels(headings);
+                    
+                    section.subsections.forEach((sub, index) => {
+                        if (labels[index]) {
+                            sub.label = labels[index];
+                        }
+                    });
+                    
+                    if (this.currentSection === section.id) {
+                        this.mainInput.quickActions = section.subsections.map(sub => ({
+                            id: sub.id,
+                            text: sub.label || sub.title
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Failed to generate labels for section:', section.title, error);
+                }
+            },
+            
+            // ADD: navigation functions
+            navigateToSubsection(subsectionId) {
+                console.log('🔗 navigateToSubsection called with:', subsectionId);
+            },
+            
+            // ADD: chat function from failing demo
+            async handleUserMessage(message) {
+                console.log('🚀 handleUserMessage called with:', message);
+                
+                try {
+                    const context = this.buildDocumentContext();
+                    const prompt = this.buildChatPrompt(message, context);
+                    const response = await this.callGeminiChat(prompt);
+                    
+                    this.addMessage('Assistant', response);
+                    
+                } catch (error) {
+                    console.error('❌ Chat error:', error);
+                    this.addMessage('Assistant', `Error: ${error.message}`);
+                }
+            },
+            
+            // ADD: chat helper functions
+            buildDocumentContext() {
+                if (!this.sections || this.sections.length === 0) {
+                    return "No document loaded.";
+                }
+                
+                let context = "Document sections:\\n";
+                this.sections.forEach(section => {
+                    context += `- ${section.title}`;
+                    if (section.subsections.length > 0) {
+                        context += ` (${section.subsections.map(sub => sub.title).join(', ')})`;
+                    }
+                    context += "\\n";
+                });
+                
+                if (this.currentSection) {
+                    const section = this.sections.find(s => s.id === this.currentSection);
+                    if (section) {
+                        context += `\\nCurrently viewing: ${section.title}`;
+                    }
+                }
+                
+                return context;
+            },
+            
+            buildChatPrompt(userMessage, documentContext) {
+                return `You are a helpful AI assistant.
+
+${documentContext}
+
+User question: ${userMessage}
+
+Provide a helpful response.`;
+            },
+            
+            async callGeminiChat(prompt) {
+                const response = await fetch(CONFIG.WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: CONFIG.MODEL,
+                        contents: [
+                            { role: "user", parts: [{ text: prompt }] }
+                        ],
+                        generationConfig: {
+                            temperature: 0.7,
+                            maxOutputTokens: 512
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'API error');
+                }
+                
+                return data.candidates[0].content.parts[0].text.trim();
+            },
+            
+            async loadSampleDocument() {
+                console.log('📄 loadSampleDocument starting...');
+                
+                const fallbackMarkdown = `# Test Document
+## Section 1
+Content here.
+## Section 2
+More content.`;
+                
+                try {
+                    this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
+                    if (this.sections.length > 0) {
+                        this.selectSection(this.sections[0].id);
+                    }
+                } catch (error) {
+                    console.error('❌ loadSampleDocument error:', error);
+                }
+            },
+            
+            addMessage(sender, text, isSystem = false) {
+                const messagesArea = document.getElementById('messagesArea');
+                const message = document.createElement('div');
+                message.className = 'message' + (isSystem ? ' system' : '');
+                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+                messagesArea.appendChild(message);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+        };
+        
+        window.app = app;
+        
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message, e.filename, e.lineno);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+        });
+        
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit prevented');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh detected!');
+        });
+        
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ Component ready');
+            app.init();
+        });
+    </script>
+</body>
+</html>
