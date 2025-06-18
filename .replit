@@ -2,6 +2,7 @@ modules = ["web"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["vim"]
 
 [workflows]
 runButton = "Serve Build"
@@ -18,3 +19,4 @@ args = "cd chat && python3 serve-build.py"
 [deployment]
 deploymentTarget = "static"
 publicDir = "chat/build"
+build = ["sh", "-c", "cd chat && ./build.sh"]
