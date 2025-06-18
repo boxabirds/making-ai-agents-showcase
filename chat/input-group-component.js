@@ -21,7 +21,7 @@ class InputGroupComponent extends HTMLElement {
     
     // Internal state
     this._quickActions = [];
-    this._placeholder = 'Ask about the document...';
+    this._placeholder = 'Ask about tech agents...';
     this._disabled = false;
   }
 

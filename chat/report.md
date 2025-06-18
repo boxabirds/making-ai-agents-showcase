@@ -975,7 +975,7 @@ The only reason this wasn't one of the lightest was its specific way to define t
 
 Again, as for Langgraph, I don't understand python scoping rules enough to understand why this additional wrapper was required when other frameworks don't need it, but it translates to slightly higher friction and cognitive load as you have to understand what a RunContext is and why it's required. 
 
-### Pydantic-AI Tech Writer Agent Code
+## Pydantic-AI Tech Writer Agent Code
 ```python
 from pathlib import Path
 import sys

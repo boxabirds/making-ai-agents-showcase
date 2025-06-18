@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phase 6 - FINAL WORKING Version</title>
+    <title>Making AI Agents: Tech Writer Agent Comparisons</title>
     
     <!-- REUSE: Phase 1's exact CSS -->
     <style>
@@ -82,6 +82,54 @@
         .document-viewer {
             padding: 2rem;
             overflow-y: auto;
+            position: relative;
+        }
+        
+        /* Zoom button */
+        .zoom-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        
+        .zoom-button:hover {
+            background: var(--color-bg);
+            transform: scale(1.05);
+        }
+        
+        .zoom-button svg {
+            width: 20px;
+            height: 20px;
+            color: var(--color-text);
+        }
+        
+        /* Full screen document viewer */
+        .document-viewer.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 100vh;
+            z-index: 1000;
+            border-radius: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .zoom-button {
+                display: none;
+            }
         }
         
         /* Mobile layout - EXACTLY from Phase 1 */
@@ -124,13 +172,13 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
-                height: 75vh;
+                height: 90vh;
                 background: var(--color-surface);
                 transform: translateY(100%);
                 transition: transform 0.3s ease;
                 border-radius: 1rem 1rem 0 0;
                 box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
-                z-index: 90;
+                z-index: 200;
             }
             
             .document-viewer.open {
@@ -149,16 +197,17 @@
             .overlay {
                 position: fixed;
                 inset: 0;
-                background: rgba(0, 0, 0, 0.5);
+                background: rgba(0, 0, 0, 0);
                 opacity: 0;
                 pointer-events: none;
                 transition: opacity 0.3s ease;
-                z-index: 85;
+                z-index: 190;
             }
             
             .overlay.active {
                 opacity: 1;
                 pointer-events: auto;
+                background: rgba(0, 0, 0, 0);
             }
         }
         
@@ -213,39 +262,176 @@
             background: rgba(255, 255, 255, 0.2);
         }
         
-        /* Document improvements */
+        /* Modern Document Styling */
+        .document-viewer {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: #1a202c;
+            line-height: 1.7;
+        }
+        
         .document-viewer h1 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 2rem 0 1.5rem;
             padding-bottom: 1rem;
-            border-bottom: 2px solid var(--color-border);
+            border-bottom: 3px solid #e2e8f0;
+            color: #1a202c;
+            letter-spacing: -0.025em;
+        }
+        
+        .document-viewer h1:first-child {
+            margin-top: 0;
         }
         
         .document-viewer h2 {
+            font-size: 1.875rem;
+            font-weight: 600;
+            margin: 2.5rem 0 1rem;
+            color: #2d3748;
+            letter-spacing: -0.02em;
+        }
+        
+        .document-viewer h3 {
             font-size: 1.5rem;
-            margin: 2rem 0 1rem;
-            color: var(--color-primary);
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: #2d3748;
+        }
+        
+        .document-viewer h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.5rem;
+            color: #4a5568;
         }
         
         .document-viewer p {
-            margin-bottom: 1rem;
-            line-height: 1.6;
+            margin-bottom: 1.25rem;
+            line-height: 1.75;
+            color: #4a5568;
+        }
+        
+        .document-viewer a {
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid transparent;
+        }
+        
+        .document-viewer a:hover {
+            color: var(--color-primary-dark);
+            border-bottom-color: var(--color-primary);
+        }
+        
+        .document-viewer ul, .document-viewer ol {
+            margin: 0 0 1.5rem 0;
+            padding-left: 2rem;
+            color: #4a5568;
+        }
+        
+        .document-viewer li {
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+        
+        .document-viewer li::marker {
+            color: #718096;
+        }
+        
+        .document-viewer blockquote {
+            border-left: 4px solid var(--color-primary);
+            padding-left: 1.5rem;
+            margin: 1.5rem 0;
+            font-style: italic;
+            color: #718096;
+            background: #f7fafc;
+            padding: 1rem 1.5rem;
+            border-radius: 0 0.5rem 0.5rem 0;
         }
         
         .document-viewer code {
-            background: var(--color-bg);
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
             padding: 0.125rem 0.375rem;
-            border-radius: 0.25rem;
-            font-family: monospace;
+            border-radius: 0.375rem;
+            font-family: 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
             font-size: 0.875em;
+            color: #e53e3e;
+            font-weight: 500;
         }
         
         .document-viewer pre {
-            background: var(--color-bg);
-            padding: 1rem;
-            border-radius: 0.5rem;
+            background: #1a202c;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
             overflow-x: auto;
-            margin-bottom: 1rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            position: relative;
+        }
+        
+        .document-viewer pre code {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: #e2e8f0;
+            font-size: 0.875rem;
+            line-height: 1.7;
+            font-weight: 400;
+        }
+        
+        /* Syntax highlighting overrides for dark code blocks */
+        .document-viewer pre code.hljs {
+            background: transparent;
+            color: #e2e8f0;
+        }
+        
+        .document-viewer table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+        
+        .document-viewer th {
+            background: #f7fafc;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #2d3748;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .document-viewer td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .document-viewer tr:hover {
+            background: #f7fafc;
+        }
+        
+        .document-viewer hr {
+            border: none;
+            border-top: 2px solid #e2e8f0;
+            margin: 2rem 0;
+        }
+        
+        .document-viewer strong {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .document-viewer em {
+            font-style: italic;
+            color: #4a5568;
+        }
+        
+        /* Add some nice transitions for interactive elements */
+        .document-viewer * {
+            transition: background-color 0.2s ease;
         }
         
         /* Message improvements */
@@ -422,10 +608,12 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <!-- Highlight.js for code syntax highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/bash.min.js"></script>
     
     <!-- Load AI configuration and label generation -->
     <script>
@@ -731,6 +919,11 @@ Output:`;
         
         <!-- Document viewer -->
         <section class="document-viewer" id="documentViewer">
+            <button class="zoom-button" id="zoomButton" onclick="app.toggleFullscreen()" title="Toggle fullscreen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+            </button>
             <div id="documentContent">
                 <!-- Populated dynamically -->
             </div>
@@ -987,12 +1180,6 @@ Output:`;
                             
                             // Close sidebar after selection
                             document.getElementById('sidebar').classList.remove('open');
-                            document.getElementById('overlay').classList.remove('active');
-                            
-                            // Re-add overlay for document viewer
-                            setTimeout(() => {
-                                document.getElementById('overlay').classList.add('active');
-                            }, 10);
                         }
                     };
                     container.appendChild(div);
@@ -1144,7 +1331,6 @@ Output:`;
                 
                 if (window.innerWidth <= 768) {
                     document.getElementById('documentViewer').classList.add('open');
-                    document.getElementById('overlay').classList.add('active');
                 }
             },
             
@@ -1221,6 +1407,11 @@ Output:`;
                             { role: 'user', content: message },
                             { role: 'assistant', content: response.text }
                         );
+                        
+                        // On mobile, close tray when response doesn't navigate
+                        if (window.innerWidth <= 768) {
+                            this.closeTray();
+                        }
                     }
                 } catch (error) {
                     console.error('❌ Chat error:', error);
@@ -1504,14 +1695,64 @@ Quick actions will be generated from these H2 headings.`;
             toggleSidebar() {
                 const sidebar = document.getElementById('sidebar');
                 const overlay = document.getElementById('overlay');
-                sidebar.classList.toggle('open');
-                overlay.classList.toggle('active');
+                const isOpen = sidebar.classList.contains('open');
+                
+                if (isOpen) {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('active');
+                } else {
+                    sidebar.classList.add('open');
+                    overlay.classList.add('active');
+                }
             },
             
             closeAll() {
                 document.getElementById('sidebar').classList.remove('open');
                 document.getElementById('documentViewer').classList.remove('open');
                 document.getElementById('overlay').classList.remove('active');
+                
+                // Focus back on chat input when closing via overlay
+                setTimeout(() => {
+                    if (this.mainInput && this.mainInput.focus) {
+                        this.mainInput.focus();
+                    }
+                }, 300);
+            },
+            
+            closeTray() {
+                const viewer = document.getElementById('documentViewer');
+                if (viewer.classList.contains('open')) {
+                    viewer.classList.remove('open');
+                    document.getElementById('overlay').classList.remove('active');
+                    // Focus back on chat input
+                    setTimeout(() => {
+                        if (this.mainInput && this.mainInput.focus) {
+                            this.mainInput.focus();
+                        }
+                    }, 300);
+                }
+            },
+            
+            toggleFullscreen() {
+                const viewer = document.getElementById('documentViewer');
+                const button = document.getElementById('zoomButton');
+                const isFullscreen = viewer.classList.contains('fullscreen');
+                
+                if (isFullscreen) {
+                    viewer.classList.remove('fullscreen');
+                    button.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                        </svg>
+                    `;
+                } else {
+                    viewer.classList.add('fullscreen');
+                    button.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                        </svg>
+                    `;
+                }
             }
         };
         
