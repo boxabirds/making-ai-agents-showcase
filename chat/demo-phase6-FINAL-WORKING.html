@@ -784,6 +784,30 @@ Output:`;
                 // Quick action clicks
                 this.mainInput.addEventListener('action-click', (e) => {
                     console.log('🔘 Quick action clicked:', e.detail.actionId);
+                    
+                    // Find the subsection details
+                    let subsectionTitle = null;
+                    let parentSection = null;
+                    
+                    for (const section of this.sections) {
+                        const subsection = section.subsections.find(sub => sub.id === e.detail.actionId);
+                        if (subsection) {
+                            subsectionTitle = subsection.title;
+                            parentSection = section;
+                            break;
+                        }
+                    }
+                    
+                    // Add artifact to chat for quick action navigation
+                    if (subsectionTitle && parentSection) {
+                        this.addArtifactToChat(
+                            `${parentSection.title} > ${subsectionTitle}`,
+                            'subsection',
+                            e.detail.actionId
+                        );
+                    }
+                    
+                    // Navigate to the subsection
                     this.navigateToSubsection(e.detail.actionId);
                 });
                 
