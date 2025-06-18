@@ -148,7 +148,7 @@ class InputGroupComponent extends HTMLElement {
           padding: 0.625rem 1.25rem;
           border: 1px solid var(--color-border, #e2e8f0);
           border-radius: 9999px;
-          font-size: 1rem;
+          font-size: 1rem; /* This is 16px, which is safe */
           font-family: inherit;
           color: var(--color-text, #1e293b);
           background: var(--color-surface, #ffffff);
@@ -213,7 +213,8 @@ class InputGroupComponent extends HTMLElement {
           }
           
           .chat-input {
-            font-size: 0.9375rem;
+            /* THE ONLY CHANGE IS HERE: Changed from 0.9375rem to 1rem */
+            font-size: 1rem; 
             padding: 0.5rem 1rem;
           }
         }
