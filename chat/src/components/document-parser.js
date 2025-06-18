@@ -31,80 +31,94 @@ export class DocumentParser extends BaseComponent {
     this.state.rawMarkdown = markdownContent;
     this.state.sections = [];
     
-    const lines = markdownContent.split('\n');
+    // Use marked.js lexer to properly parse markdown tokens
+    if (typeof marked === 'undefined') {
+      console.error('marked.js not loaded');
+      return this.state.sections;
+    }
+    
+    const tokens = marked.lexer(markdownContent);
     let currentSection = null;
     let currentSubsection = null;
     let contentBuffer = [];
+    let contentTokens = [];
     
-    lines.forEach((line, index) => {
-      const h1Match = line.match(/^#\s+(.+)$/);
-      const h2Match = line.match(/^##\s+(.+)$/);
+    // Process tokens to build sections
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
       
-      if (h1Match) {
-        // Save previous section if exists
-        if (currentSection) {
-          if (currentSubsection) {
-            currentSubsection.content = contentBuffer.join('\n').trim();
-            currentSubsection = null;
-          } else {
-            currentSection.content = contentBuffer.join('\n').trim();
+      if (token.type === 'heading') {
+        if (token.depth === 1) {
+          // Save previous section if exists
+          if (currentSection) {
+            if (currentSubsection) {
+              currentSubsection.content = marked.parser(contentTokens);
+              currentSubsection = null;
+            } else {
+              currentSection.content = marked.parser(contentTokens);
+            }
+            this.state.sections.push(currentSection);
           }
-          this.state.sections.push(currentSection);
-        }
-        
-        // Parse title for bracketed phrase
-        const titleInfo = this.parseTitleWithBrackets(h1Match[1]);
-        
-        // Start new section
-        currentSection = {
-          id: this.slugify(titleInfo.displayTitle),
-          title: titleInfo.displayTitle,
-          fullTitle: h1Match[1],
-          bracketedPhrase: titleInfo.bracketedPhrase,
-          level: 1,
-          content: '',
-          subsections: [],
-          startLine: index
-        };
-        contentBuffer = [line];
-      } else if (h2Match && currentSection) {
-        // Save previous subsection if exists
-        if (currentSubsection) {
-          currentSubsection.content = contentBuffer.join('\n').trim();
+          
+          // Parse title for bracketed phrase
+          const titleInfo = this.parseTitleWithBrackets(token.text);
+          
+          // Start new section
+          currentSection = {
+            id: this.slugify(titleInfo.displayTitle),
+            title: titleInfo.displayTitle,
+            fullTitle: token.text,
+            bracketedPhrase: titleInfo.bracketedPhrase,
+            level: 1,
+            content: '',
+            subsections: [],
+            startLine: i
+          };
+          contentTokens = [];
+          
+        } else if (token.depth === 2 && currentSection) {
+          // Save previous subsection if exists
+          if (currentSubsection) {
+            currentSubsection.content = marked.parser(contentTokens);
+          } else {
+            // Save section content before first subsection
+            currentSection.content = marked.parser(contentTokens);
+          }
+          
+          // Parse subsection title
+          const titleInfo = this.parseTitleWithBrackets(token.text);
+          
+          // Create new subsection
+          currentSubsection = {
+            id: this.slugify(titleInfo.displayTitle),
+            title: titleInfo.displayTitle,
+            fullTitle: token.text,
+            bracketedPhrase: titleInfo.bracketedPhrase,
+            text: titleInfo.displayTitle, // For quick actions
+            level: 2,
+            content: '',
+            parentId: currentSection.id,
+            startLine: i
+          };
+          
+          currentSection.subsections.push(currentSubsection);
+          contentTokens = [];
         } else {
-          // Save section content before first subsection
-          currentSection.content = contentBuffer.join('\n').trim();
+          // For other heading levels, treat as content
+          contentTokens.push(token);
         }
-        
-        // Parse subsection title
-        const titleInfo = this.parseTitleWithBrackets(h2Match[1]);
-        
-        // Create new subsection
-        currentSubsection = {
-          id: this.slugify(titleInfo.displayTitle),
-          title: titleInfo.displayTitle,
-          fullTitle: h2Match[1],
-          bracketedPhrase: titleInfo.bracketedPhrase,
-          text: titleInfo.displayTitle, // For quick actions
-          level: 2,
-          content: '',
-          parentId: currentSection.id,
-          startLine: index
-        };
-        
-        currentSection.subsections.push(currentSubsection);
-        contentBuffer = [line];
       } else {
-        contentBuffer.push(line);
+        // All other tokens are content
+        contentTokens.push(token);
       }
-    });
+    }
     
     // Save final section
     if (currentSection) {
       if (currentSubsection) {
-        currentSubsection.content = contentBuffer.join('\n').trim();
+        currentSubsection.content = marked.parser(contentTokens);
       } else {
-        currentSection.content = contentBuffer.join('\n').trim();
+        currentSection.content = marked.parser(contentTokens);
       }
       this.state.sections.push(currentSection);
     }
@@ -229,15 +243,15 @@ export class DocumentParser extends BaseComponent {
     const section = this.getSection(sectionId);
     if (!section) return '';
     
-    // Include subsections if it's a main section
-    let markdown = section.content;
+    // Content is already HTML from the parser
+    let html = section.content;
     if (section.level === 1 && section.subsections.length > 0) {
       section.subsections.forEach(sub => {
-        markdown += '\n\n' + sub.content;
+        html += '\n' + sub.content;
       });
     }
     
-    return this.renderMarkdown(markdown);
+    return html;
   }
   
   /**

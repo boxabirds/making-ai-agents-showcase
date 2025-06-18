@@ -421,6 +421,12 @@
     <!-- Load marked.js for markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/javascript.min.js"></script>
+    
     <!-- Load AI configuration and label generation -->
     <script>
         // Configuration
@@ -995,6 +1001,29 @@ Output:`;
             
             renderDocument() {
                 const content = document.getElementById('documentContent');
+                
+                // Configure marked.js for proper code highlighting
+                if (typeof marked !== 'undefined') {
+                    marked.setOptions({
+                        breaks: true,
+                        gfm: true,
+                        highlight: function(code, lang) {
+                            // If no language specified, try to auto-detect
+                            if (!lang) lang = 'plaintext';
+                            
+                            // Use highlight.js if available
+                            if (typeof hljs !== 'undefined') {
+                                try {
+                                    return hljs.highlight(code, { language: lang }).value;
+                                } catch (e) {
+                                    return hljs.highlightAuto(code).value;
+                                }
+                            }
+                            return code;
+                        }
+                    });
+                }
+                
                 content.innerHTML = documentParser.renderFullHTML();
                 
                 // Make all links in document open in new tab
@@ -1002,6 +1031,15 @@ Output:`;
                     link.setAttribute('target', '_blank');
                     link.setAttribute('rel', 'noopener noreferrer');
                 });
+                
+                // Apply highlight.js to any code blocks that weren't highlighted
+                if (typeof hljs !== 'undefined') {
+                    content.querySelectorAll('pre code').forEach((block) => {
+                        if (!block.classList.contains('hljs')) {
+                            hljs.highlightElement(block);
+                        }
+                    });
+                }
             },
             
             selectSection(sectionId) {
