@@ -996,6 +996,12 @@ Output:`;
             renderDocument() {
                 const content = document.getElementById('documentContent');
                 content.innerHTML = documentParser.renderFullHTML();
+                
+                // Make all links in document open in new tab
+                content.querySelectorAll('a').forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
             },
             
             selectSection(sectionId) {
@@ -1399,7 +1405,16 @@ Remember:
                 
                 if (sender === 'assistant') {
                     // Parse markdown in assistant messages
-                    contentDiv.innerHTML = marked.parse(content);
+                    let html = marked.parse(content);
+                    
+                    // Make all links open in new tab
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    tempDiv.querySelectorAll('a').forEach(link => {
+                        link.setAttribute('target', '_blank');
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    });
+                    contentDiv.innerHTML = tempDiv.innerHTML;
                 } else {
                     contentDiv.textContent = content;
                 }
