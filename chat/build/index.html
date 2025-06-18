@@ -1,0 +1,3115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Making AI Agents: Tech Writer Agent Comparisons</title>
+    
+    <!-- REUSE: Phase 1's exact CSS -->
+    <style>
+        /* Global design tokens only */
+        :root {
+            --color-bg: #f7f8fa;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text: #1e293b;
+            --color-primary: #3b82f6;
+            --color-primary-dark: #2563eb;
+            
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --chat-width: 400px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Simple layout grid */
+        .app-layout {
+            display: grid;
+            height: 100vh;
+            grid-template-columns: var(--sidebar-width) var(--chat-width) 1fr;
+        }
+        
+        /* Basic containers */
+        .sidebar {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .chat-panel {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            min-height: 0; /* Critical for flex scrolling */
+        }
+        
+        /* Input stays at bottom - NOT absolute positioning */
+        .chat-panel input-group {
+            flex-shrink: 0;
+            background: var(--color-surface);
+            border-top: 1px solid var(--color-border);
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--color-bg);
+            border-radius: 0.5rem;
+        }
+        
+        .document-viewer {
+            padding: 2rem;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        /* Zoom button */
+        .zoom-button {
+            position: absolute;
+            top: 4.5rem;
+            right: 1rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        
+        .zoom-button:hover {
+            background: var(--color-bg);
+            transform: scale(1.05);
+        }
+        
+        .zoom-button svg {
+            width: 20px;
+            height: 20px;
+            color: var(--color-text);
+        }
+        
+        /* Full screen document viewer */
+        .document-viewer.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 100vh;
+            z-index: 1000;
+            border-radius: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .zoom-button {
+                display: none;
+            }
+        }
+        
+        /* Mobile layout - EXACTLY from Phase 1 */
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: var(--header-height) 1fr;
+            }
+            
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                padding: 1rem;
+                background: var(--color-surface);
+                border-bottom: 1px solid var(--color-border);
+            }
+            
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 100;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .chat-panel {
+                grid-row: 2;
+                height: calc(100vh - var(--header-height));
+            }
+            
+            .document-viewer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 90vh;
+                background: var(--color-surface);
+                transform: translateY(100%);
+                transition: transform 0.3s ease;
+                border-radius: 1rem 1rem 0 0;
+                box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 200;
+            }
+            
+            .tray-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1rem;
+                border-bottom: 1px solid var(--color-border);
+            }
+            
+            .tray-title {
+                font-size: 1.125rem;
+                font-weight: 600;
+                color: var(--color-text);
+            }
+            
+            .tray-close {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s ease;
+            }
+            
+            .tray-close:hover {
+                background: var(--color-bg);
+            }
+            
+            .tray-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 199;
+                display: none;
+            }
+            
+            body:has(.document-viewer.open) .tray-backdrop {
+                display: block;
+            }
+            
+            .sidebar-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 99;
+                display: none;
+            }
+            
+            body:has(.sidebar.open) .sidebar-backdrop {
+                display: block;
+            }
+            
+            .document-viewer.open {
+                transform: translateY(0);
+            }
+            
+            /* When document viewer is open, move the input group to bottom of screen */
+            body:has(.document-viewer.open) .chat-panel input-group {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 210;
+            }
+            
+        }
+        
+        /* Desktop-only */
+        @media (min-width: 769px) {
+            .mobile-header {
+                display: none;
+            }
+            
+            .tray-header {
+                display: none;
+            }
+            
+            .tray-backdrop {
+                display: none !important;
+            }
+        }
+        
+        /* Sidebar improvements */
+        .sidebar h2 {
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+        
+        .sidebar-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: var(--color-bg);
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .sidebar-item:hover {
+            background: #e2e8f0;
+        }
+        
+        .sidebar-item.active {
+            background: var(--color-primary);
+            color: white;
+        }
+        
+        .sidebar-item .badge {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            padding: 0.125rem 0.5rem;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 9999px;
+        }
+        
+        .sidebar-item.active .badge {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Modern Document Styling */
+        .document-viewer {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: #1a202c;
+            line-height: 1.7;
+        }
+        
+        .document-viewer h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 2rem 0 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid #e2e8f0;
+            color: #1a202c;
+            letter-spacing: -0.025em;
+        }
+        
+        .document-viewer h1:first-child {
+            margin-top: 0;
+        }
+        
+        .document-viewer h2 {
+            font-size: 1.875rem;
+            font-weight: 600;
+            margin: 2.5rem 0 1rem;
+            color: #2d3748;
+            letter-spacing: -0.02em;
+        }
+        
+        .document-viewer h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: #2d3748;
+        }
+        
+        .document-viewer h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.5rem;
+            color: #4a5568;
+        }
+        
+        .document-viewer p {
+            margin-bottom: 1.25rem;
+            line-height: 1.75;
+            color: #4a5568;
+        }
+        
+        .document-viewer a {
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid transparent;
+        }
+        
+        .document-viewer a:hover {
+            color: var(--color-primary-dark);
+            border-bottom-color: var(--color-primary);
+        }
+        
+        .document-viewer ul, .document-viewer ol {
+            margin: 0 0 1.5rem 0;
+            padding-left: 2rem;
+            color: #4a5568;
+        }
+        
+        .document-viewer li {
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+        
+        .document-viewer li::marker {
+            color: #718096;
+        }
+        
+        .document-viewer blockquote {
+            border-left: 4px solid var(--color-primary);
+            padding-left: 1.5rem;
+            margin: 1.5rem 0;
+            font-style: italic;
+            color: #718096;
+            background: #f7fafc;
+            padding: 1rem 1.5rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        
+        .document-viewer code {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.375rem;
+            font-family: 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+            font-size: 0.875em;
+            color: #e53e3e;
+            font-weight: 500;
+        }
+        
+        .document-viewer pre {
+            background: #1a202c;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            position: relative;
+        }
+        
+        .document-viewer pre code {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: #e2e8f0;
+            font-size: 0.875rem;
+            line-height: 1.7;
+            font-weight: 400;
+        }
+        
+        /* Syntax highlighting overrides for dark code blocks */
+        .document-viewer pre code.hljs {
+            background: transparent;
+            color: #e2e8f0;
+        }
+        
+        .document-viewer table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+        
+        .document-viewer th {
+            background: #f7fafc;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #2d3748;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .document-viewer td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .document-viewer tr:hover {
+            background: #f7fafc;
+        }
+        
+        .document-viewer hr {
+            border: none;
+            border-top: 2px solid #e2e8f0;
+            margin: 2rem 0;
+        }
+        
+        .document-viewer strong {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .document-viewer em {
+            font-style: italic;
+            color: #4a5568;
+        }
+        
+        /* Add some nice transitions for interactive elements */
+        .document-viewer * {
+            transition: background-color 0.2s ease;
+        }
+        
+        /* Message improvements */
+        .message {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+        
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        
+        .message .avatar {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .message.user .avatar {
+            background: var(--color-primary);
+            color: white;
+        }
+        
+        .message.assistant .avatar {
+            background: var(--color-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+        
+        .message-content {
+            flex: 1;
+            background: var(--color-surface);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--color-border);
+        }
+        
+        .message.user .message-content {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+        
+        .message.system {
+            background: #f0f9ff;
+            border-left: 3px solid var(--color-primary);
+        }
+        
+        /* Typing indicator */
+        .typing-indicator {
+            display: none;
+            padding: 1rem;
+        }
+        
+        .typing-indicator.active {
+            display: block;
+        }
+        
+        .typing-bubble {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+        
+        .typing-bubble .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--color-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .typing-dots {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.25rem;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--color-text);
+            opacity: 0.4;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+        
+        /* Artifact Reference (clickable section links) */
+        .artifact-reference {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            cursor: pointer !important;
+            transition: all 0.2s ease;
+            max-width: fit-content;
+            margin: 0.5rem 0;
+            user-select: none;
+        }
+
+        .artifact-reference:hover {
+            background: #e0f2fe;
+            border-color: var(--color-primary);
+            transform: translateX(2px);
+        }
+
+        .artifact-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .artifact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+
+        .artifact-title {
+            font-weight: 500;
+            color: var(--color-text);
+            font-size: 0.875rem;
+        }
+
+        .artifact-type {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+    </style>
+    
+    <!-- Load the FIXED component with updateQuickActions() -->
+    
+    <!-- Load marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/bash.min.js"></script>
+
+    <!-- Inlined JavaScript modules -->
+    <script>
+// Inlined JavaScript modules
+
+// === base-component.js ===
+/**
+ * Base Component Class
+ * Foundation for all UI components with common functionality
+ */
+
+class BaseComponent {
+  constructor(element, options = {}) {
+    this.element = typeof element === 'string' ? $(element) : element;
+    this.options = options;
+    this.state = {};
+    this.subscriptions = [];
+    this.eventCleanups = [];
+    
+    if (!this.element) {
+      throw new Error(`Element not found: ${element}`);
+    }
+    
+    this.initialize();
+  }
+  
+  // Override in subclasses
+  initialize() {
+    this.render();
+    this.attachEvents();
+    this.subscribeToState();
+  }
+  
+  // Override in subclasses
+  render() {
+    console.warn(`${this.constructor.name} should implement render()`);
+  }
+  
+  // Override in subclasses
+  attachEvents() {
+    // Subclasses attach their event listeners here
+  }
+  
+  // Override in subclasses
+  subscribeToState() {
+    // Subclasses subscribe to state changes here
+  }
+  
+  // Helper to subscribe to state with automatic cleanup
+  watchState(key, callback) {
+    const unsubscribe = state.subscribe(key, callback.bind(this));
+    this.subscriptions.push(unsubscribe);
+    return unsubscribe;
+  }
+  
+  // Helper to add event listener with automatic cleanup
+  on(selector, event, handler) {
+    if (typeof selector === 'string') {
+      // Delegated event
+      const cleanup = delegate(this.element, selector, event, handler.bind(this));
+      this.eventCleanups.push(cleanup);
+    } else {
+      // Direct event
+      handler = event;
+      event = selector;
+      const boundHandler = handler.bind(this);
+      this.element.addEventListener(event, boundHandler);
+      this.eventCleanups.push(() => {
+        this.element.removeEventListener(event, boundHandler);
+      });
+    }
+  }
+  
+  // Query within component
+  $(selector) {
+    return $(selector, this.element);
+  }
+  
+  $$(selector) {
+    return $$(selector, this.element);
+  }
+  
+  // Update local state and re-render
+  setState(updates) {
+    const oldState = { ...this.state };
+    this.state = { ...this.state, ...updates };
+    this.onStateChange(updates, oldState);
+  }
+  
+  // Called when local state changes
+  onStateChange(updates, oldState) {
+    this.render();
+  }
+  
+  // Show/hide component
+  show() {
+    classes.remove(this.element, 'hidden');
+    this.element.style.display = '';
+  }
+  
+  hide() {
+    classes.add(this.element, 'hidden');
+    this.element.style.display = 'none';
+  }
+  
+  // Enable/disable component
+  enable() {
+    classes.remove(this.element, 'disabled');
+    this.element.removeAttribute('aria-disabled');
+  }
+  
+  disable() {
+    classes.add(this.element, 'disabled');
+    this.element.setAttribute('aria-disabled', 'true');
+  }
+  
+  // Cleanup when component is destroyed
+  destroy() {
+    // Unsubscribe from state
+    this.subscriptions.forEach(unsubscribe => unsubscribe());
+    this.subscriptions = [];
+    
+    // Remove event listeners
+    this.eventCleanups.forEach(cleanup => cleanup());
+    this.eventCleanups = [];
+    
+    // Clear element
+    this.element.innerHTML = '';
+  }
+  
+  // Alias for destroy to match subclass expectations
+  cleanup() {
+    this.destroy();
+  }
+}
+
+// CSS class name generator with BEM convention
+function bem(block, element, modifier) {
+  let className = block;
+  
+  if (element) {
+    className += `__${element}`;
+  }
+  
+  if (modifier) {
+    if (typeof modifier === 'string') {
+      className += `--${modifier}`;
+    } else if (typeof modifier === 'object') {
+      Object.entries(modifier).forEach(([key, value]) => {
+        if (value) {
+          className += ` ${block}${element ? `__${element}` : ''}--${key}`;
+        }
+      });
+    }
+  }
+  
+  return className;
+}
+
+// === state-manager.js ===
+/**
+ * State Manager
+ * Central state management with event-based updates
+ * Simple pub/sub pattern for reactive updates
+ */
+class StateManager {
+  constructor() {
+    this.state = {
+      // Document state
+      currentSection: null,
+      currentSubsection: null,
+      documentContent: null,
+      sections: [],
+      
+      // Chat state
+      messages: [],
+      conversationHistory: [],
+      isProcessing: false,
+      
+      // UI state
+      sidebarOpen: false,
+      documentViewerOpen: false,
+      isMobile: window.innerWidth <= 768,
+      
+      // Config
+      apiEndpoint: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+      model: 'gemini-2.0-flash',
+      maxTokens: 1024,
+      temperature: 0.0
+    };
+    
+    this.listeners = new Map();
+    this.debug = true;
+  }
+  
+  // Get current state or specific path
+  get(path) {
+    if (!path) return { ...this.state };
+    
+    const keys = path.split('.');
+    let value = this.state;
+    
+    for (const key of keys) {
+      value = value[key];
+      if (value === undefined) return undefined;
+    }
+    
+    return value;
+  }
+  
+  // Update state and notify listeners
+  set(updates) {
+    const oldState = { ...this.state };
+    this.state = { ...this.state, ...updates };
+    
+    if (this.debug) {
+      console.log('State updated:', updates);
+    }
+    
+    // Notify all listeners
+    this.notify(updates, oldState);
+  }
+  
+  // Subscribe to state changes
+  subscribe(key, callback) {
+    if (!this.listeners.has(key)) {
+      this.listeners.set(key, new Set());
+    }
+    
+    this.listeners.get(key).add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      const listeners = this.listeners.get(key);
+      if (listeners) {
+        listeners.delete(callback);
+        if (listeners.size === 0) {
+          this.listeners.delete(key);
+        }
+      }
+    };
+  }
+  
+  // Notify listeners of changes
+  notify(updates, oldState) {
+    // Notify global listeners
+    const globalListeners = this.listeners.get('*');
+    if (globalListeners) {
+      globalListeners.forEach(callback => {
+        callback(this.state, updates, oldState);
+      });
+    }
+    
+    // Notify specific listeners
+    Object.keys(updates).forEach(key => {
+      const listeners = this.listeners.get(key);
+      if (listeners) {
+        listeners.forEach(callback => {
+          callback(updates[key], key, oldState[key]);
+        });
+      }
+    });
+  }
+  
+  // Helper methods for common state updates
+  addMessage(message) {
+    this.set({
+      messages: [...this.state.messages, message]
+    });
+  }
+  
+  updateConversationHistory(entries) {
+    this.set({
+      conversationHistory: [...this.state.conversationHistory, ...entries]
+    });
+  }
+  
+  setProcessing(isProcessing) {
+    this.set({ isProcessing });
+  }
+  
+  navigateToSection(sectionId, subsectionId = null) {
+    this.set({
+      currentSection: sectionId,
+      currentSubsection: subsectionId
+    });
+  }
+  
+  toggleSidebar() {
+    this.set({ sidebarOpen: !this.state.sidebarOpen });
+  }
+  
+  toggleDocumentViewer() {
+    this.set({ documentViewerOpen: !this.state.documentViewerOpen });
+  }
+  
+  updateMobileState() {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile !== this.state.isMobile) {
+      this.set({ isMobile });
+    }
+  }
+}
+
+// Export singleton instance
+const state = new StateManager();
+
+// === dom-helpers.js ===
+/**
+ * DOM Helper Utilities
+ * Common DOM manipulation and event handling utilities
+ */
+
+// Create element with classes and attributes
+function createElement(tag, options = {}) {
+  const element = document.createElement(tag);
+  
+  if (options.className) {
+    element.className = options.className;
+  }
+  
+  if (options.attributes) {
+    Object.entries(options.attributes).forEach(([key, value]) => {
+      element.setAttribute(key, value);
+    });
+  }
+  
+  if (options.innerHTML) {
+    element.innerHTML = options.innerHTML;
+  }
+  
+  if (options.textContent) {
+    element.textContent = options.textContent;
+  }
+  
+  return element;
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Add event listener with automatic cleanup
+function addEventHandler(element, event, handler, options) {
+  element.addEventListener(event, handler, options);
+  
+  // Return cleanup function
+  return () => {
+    element.removeEventListener(event, handler, options);
+  };
+}
+
+// Delegate event handling for dynamic content
+function delegate(container, selector, event, handler) {
+  const delegatedHandler = (e) => {
+    const target = e.target.closest(selector);
+    if (target && container.contains(target)) {
+      handler.call(target, e);
+    }
+  };
+  
+  return addEventHandler(container, event, delegatedHandler);
+}
+
+// Debounce function for performance
+function debounce(func, wait) {
+  let timeout;
+  
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Smooth scroll to element
+function scrollToElement(element, options = {}) {
+  const defaults = {
+    behavior: 'smooth',
+    block: 'start',
+    inline: 'nearest'
+  };
+  
+  element.scrollIntoView({ ...defaults, ...options });
+}
+
+// Check if element is in viewport
+function isInViewport(element) {
+  const rect = element.getBoundingClientRect();
+  return (
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+  );
+}
+
+// Class manipulation helpers
+const classes = {
+  add: (element, ...classNames) => {
+    element.classList.add(...classNames);
+  },
+  
+  remove: (element, ...classNames) => {
+    element.classList.remove(...classNames);
+  },
+  
+  toggle: (element, className, force) => {
+    return element.classList.toggle(className, force);
+  },
+  
+  has: (element, className) => {
+    return element.classList.contains(className);
+  }
+};
+
+// Query selector shortcuts
+const $ = (selector, context = document) => context.querySelector(selector);
+const $$ = (selector, context = document) => [...context.querySelectorAll(selector)];
+
+// Template literal tag for safe HTML
+function html(strings, ...values) {
+  return strings.reduce((result, string, i) => {
+    const value = values[i - 1];
+    if (value === undefined) return result + string;
+    
+    // Escape if not marked as safe
+    const escaped = value.__safe ? value : escapeHtml(String(value));
+    return result + escaped + string;
+  });
+}
+
+// Mark HTML as safe (use with caution)
+function safeHtml(htmlString) {
+  return { __safe: true, toString: () => htmlString };
+}
+
+// === document-parser.js ===
+/**
+ * Document Parser Component
+ * Handles markdown parsing, structure extraction, and document navigation
+ */
+
+class DocumentParser extends BaseComponent {
+  initialize() {
+    this.state = {
+      sections: [],
+      rawMarkdown: '',
+      renderedHTML: ''
+    };
+    
+    // Initialize without rendering since this is a non-visual component
+    this.subscribeToState();
+  }
+  
+  render() {
+    // This is a non-visual component, no DOM rendering needed
+  }
+  
+  /**
+   * Parse markdown content and extract structure
+   * Handles H1 sections with H2 subsections
+   * Supports bracketed phrases in titles
+   */
+  async parseMarkdown(markdownContent) {
+    this.state.rawMarkdown = markdownContent;
+    this.state.sections = [];
+    
+    // Use marked.js lexer to properly parse markdown tokens
+    if (typeof marked === 'undefined') {
+      console.error('marked.js not loaded');
+      return this.state.sections;
+    }
+    
+    const tokens = marked.lexer(markdownContent);
+    let currentSection = null;
+    let currentSubsection = null;
+    let contentBuffer = [];
+    let contentTokens = [];
+    
+    // Process tokens to build sections
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      
+      if (token.type === 'heading') {
+        if (token.depth === 1) {
+          // Save previous section if exists
+          if (currentSection) {
+            if (currentSubsection) {
+              currentSubsection.content = marked.parser(contentTokens);
+              currentSubsection = null;
+            } else {
+              currentSection.content = marked.parser(contentTokens);
+            }
+            this.state.sections.push(currentSection);
+          }
+          
+          // Parse title for bracketed phrase
+          const titleInfo = this.parseTitleWithBrackets(token.text);
+          
+          // Start new section
+          currentSection = {
+            id: this.slugify(titleInfo.displayTitle),
+            title: titleInfo.displayTitle,
+            fullTitle: token.text,
+            bracketedPhrase: titleInfo.bracketedPhrase,
+            level: 1,
+            content: '',
+            subsections: [],
+            startLine: i
+          };
+          contentTokens = [];
+          
+        } else if (token.depth === 2 && currentSection) {
+          // Save previous subsection if exists
+          if (currentSubsection) {
+            currentSubsection.content = marked.parser(contentTokens);
+          } else {
+            // Save section content before first subsection
+            currentSection.content = marked.parser(contentTokens);
+          }
+          
+          // Parse subsection title
+          const titleInfo = this.parseTitleWithBrackets(token.text);
+          
+          // Create new subsection
+          currentSubsection = {
+            id: this.slugify(titleInfo.displayTitle),
+            title: titleInfo.displayTitle,
+            fullTitle: token.text,
+            bracketedPhrase: titleInfo.bracketedPhrase,
+            text: titleInfo.displayTitle, // For quick actions
+            level: 2,
+            content: '',
+            parentId: currentSection.id,
+            startLine: i
+          };
+          
+          currentSection.subsections.push(currentSubsection);
+          contentTokens = [];
+        } else {
+          // For other heading levels, treat as content
+          contentTokens.push(token);
+        }
+      } else {
+        // All other tokens are content
+        contentTokens.push(token);
+      }
+    }
+    
+    // Save final section
+    if (currentSection) {
+      if (currentSubsection) {
+        currentSubsection.content = marked.parser(contentTokens);
+      } else {
+        currentSection.content = marked.parser(contentTokens);
+      }
+      this.state.sections.push(currentSection);
+    }
+    
+    // Generate quick action labels if the function is available
+    if (window.generateQuickActionLabels) {
+      await this.generateLabelsForSections();
+    }
+    
+    // Update global state
+    state.set({
+      sections: this.state.sections,
+      documentContent: markdownContent
+    });
+    
+    // Render full HTML
+    this.renderFullHTML();
+    
+    return this.state.sections;
+  }
+  
+  /**
+   * Generate quick action labels for all sections
+   */
+  async generateLabelsForSections() {
+    const allHeadings = [];
+    const headingMap = new Map(); // Map heading to section/subsection object
+    
+    // Collect all headings
+    this.state.sections.forEach(section => {
+      allHeadings.push(section.title);
+      headingMap.set(section.title, section);
+      
+      section.subsections.forEach(sub => {
+        allHeadings.push(sub.title);
+        headingMap.set(sub.title, sub);
+      });
+    });
+    
+    if (allHeadings.length === 0) return;
+    
+    try {
+      // Generate labels for all headings at once
+      const labels = await window.generateQuickActionLabels(allHeadings);
+      
+      // Apply labels to sections
+      labels.forEach((label, index) => {
+        const heading = allHeadings[index];
+        const sectionObj = headingMap.get(heading);
+        if (sectionObj) {
+          sectionObj.quickActionLabel = label;
+          // For subsections, also set the text property used by quick actions
+          if (sectionObj.level === 2) {
+            sectionObj.text = label;
+          }
+        }
+      });
+      
+      console.log('✅ Quick action labels generated successfully');
+    } catch (error) {
+      console.error('❌ Failed to generate quick action labels:', error);
+      console.warn('⚠️ Quick actions will use full titles instead of AI-generated labels');
+      // Labels will fall back to titles
+    }
+  }
+  
+  /**
+   * Parse title with bracketed phrases
+   * Example: "Introduction [Getting Started]" -> 
+   * { displayTitle: "Introduction", bracketedPhrase: "Getting Started" }
+   */
+  parseTitleWithBrackets(title) {
+    const match = title.match(/^(.+?)\s*\[(.+)\]\s*$/);
+    
+    if (match) {
+      return {
+        displayTitle: match[1].trim(),
+        bracketedPhrase: match[2].trim()
+      };
+    }
+    
+    return {
+      displayTitle: title.trim(),
+      bracketedPhrase: null
+    };
+  }
+  
+  /**
+   * Convert title to URL-friendly slug
+   */
+  slugify(text) {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-')     // Replace spaces with hyphens
+      .replace(/-+/g, '-')      // Replace multiple hyphens with single
+      .trim();
+  }
+  
+  /**
+   * Get section by ID
+   */
+  getSection(sectionId) {
+    for (const section of this.state.sections) {
+      if (section.id === sectionId) {
+        return section;
+      }
+      
+      // Check subsections
+      const subsection = section.subsections.find(sub => sub.id === sectionId);
+      if (subsection) {
+        return subsection;
+      }
+    }
+    return null;
+  }
+  
+  /**
+   * Get HTML for a specific section
+   */
+  getSectionHTML(sectionId) {
+    const section = this.getSection(sectionId);
+    if (!section) return '';
+    
+    // Content is already HTML from the parser
+    let html = section.content;
+    if (section.level === 1 && section.subsections.length > 0) {
+      section.subsections.forEach(sub => {
+        html += '\n' + sub.content;
+      });
+    }
+    
+    return html;
+  }
+  
+  /**
+   * Get quick actions for current section (subsections)
+   */
+  getQuickActions(sectionId) {
+    const section = this.getSection(sectionId);
+    if (!section || section.level !== 1) return [];
+    
+    return section.subsections.map(sub => ({
+      id: sub.id,
+      text: sub.quickActionLabel || sub.title,  // Use generated label or fallback to title
+      fullTitle: `${section.title} > ${sub.title}`
+    }));
+  }
+  
+  /**
+   * Get main sections only (H1)
+   */
+  getMainSections() {
+    return this.state.sections;
+  }
+  
+  /**
+   * Render markdown to HTML using marked.js
+   */
+  renderMarkdown(markdown) {
+    if (typeof marked === 'undefined') {
+      console.warn('marked.js not loaded');
+      return escapeHtml(markdown);
+    }
+    
+    try {
+      // Configure marked options
+      marked.setOptions({
+        breaks: true,
+        gfm: true,
+        headerIds: true,
+        mangle: false
+      });
+      
+      // Render markdown
+      let html = marked.parse(markdown);
+      
+      // Add IDs to headers for navigation
+      html = html.replace(/<h(\d)>(.*?)<\/h\d>/g, (match, level, content) => {
+        const id = this.slugify(content.replace(/<[^>]*>/g, ''));
+        return `<h${level} id="${id}">${content}</h${level}>`;
+      });
+      
+      return html;
+    } catch (error) {
+      console.error('Markdown parsing error:', error);
+      return escapeHtml(markdown);
+    }
+  }
+  
+  /**
+   * Render full document HTML
+   */
+  renderFullHTML() {
+    this.state.renderedHTML = this.renderMarkdown(this.state.rawMarkdown);
+    return this.state.renderedHTML;
+  }
+  
+  /**
+   * Find section by search query
+   */
+  searchSections(query) {
+    const lowerQuery = query.toLowerCase();
+    const results = [];
+    
+    this.state.sections.forEach(section => {
+      // Check section title
+      if (section.title.toLowerCase().includes(lowerQuery)) {
+        results.push({
+          type: 'section',
+          item: section,
+          score: section.title.toLowerCase().startsWith(lowerQuery) ? 2 : 1
+        });
+      }
+      
+      // Check subsections
+      section.subsections.forEach(sub => {
+        if (sub.title.toLowerCase().includes(lowerQuery)) {
+          results.push({
+            type: 'subsection',
+            item: sub,
+            parent: section,
+            score: sub.title.toLowerCase().startsWith(lowerQuery) ? 2 : 1
+          });
+        }
+      });
+    });
+    
+    // Sort by score
+    return results.sort((a, b) => b.score - a.score);
+  }
+  
+  /**
+   * Get table of contents
+   */
+  getTableOfContents() {
+    const toc = [];
+    
+    this.state.sections.forEach(section => {
+      toc.push({
+        id: section.id,
+        title: section.title,
+        level: 1,
+        children: section.subsections.map(sub => ({
+          id: sub.id,
+          title: sub.title,
+          level: 2
+        }))
+      });
+    });
+    
+    return toc;
+  }
+  
+  /**
+   * Get navigation context (prev/next sections)
+   */
+  getNavigationContext(currentSectionId) {
+    const sections = this.state.sections;
+    const currentIndex = sections.findIndex(s => s.id === currentSectionId);
+    
+    if (currentIndex === -1) {
+      // Check if it's a subsection
+      for (let i = 0; i < sections.length; i++) {
+        const subIndex = sections[i].subsections.findIndex(sub => sub.id === currentSectionId);
+        if (subIndex !== -1) {
+          return {
+            current: sections[i].subsections[subIndex],
+            parent: sections[i],
+            prev: subIndex > 0 ? sections[i].subsections[subIndex - 1] : sections[i],
+            next: subIndex < sections[i].subsections.length - 1 
+              ? sections[i].subsections[subIndex + 1]
+              : (i < sections.length - 1 ? sections[i + 1] : null)
+          };
+        }
+      }
+      return null;
+    }
+    
+    return {
+      current: sections[currentIndex],
+      parent: null,
+      prev: currentIndex > 0 ? sections[currentIndex - 1] : null,
+      next: currentIndex < sections.length - 1 ? sections[currentIndex + 1] : null
+    };
+  }
+}
+
+// Export singleton instance
+const documentParser = new DocumentParser(document.createElement('div'));
+
+// Initialize document parser globally
+window.documentParser = new DocumentParser();
+    </script>
+
+    <!-- Inlined input-group component -->
+    <script>
+/**
+ * Input Group Component
+ * 
+ * Combines quick actions and chat input into a single cohesive component.
+ * They always move and behave together.
+ * 
+ * Usage:
+ *   <input-group></input-group>
+ * 
+ * API:
+ *   - Property: quickActions (array)
+ *   - Property: placeholder (string)
+ *   - Property: disabled (boolean)
+ *   - Event: message-submit (detail: {message})
+ *   - Event: action-click (detail: {actionId})
+ */
+class InputGroupComponent extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    
+    // Internal state
+    this._quickActions = [];
+    this._placeholder = 'Ask about tech agents...';
+    this._disabled = false;
+  }
+
+  connectedCallback() {
+    this.render();
+    this.attachEventListeners();
+  }
+
+  // Public API
+  set quickActions(actions) {
+    this._quickActions = actions || [];
+    this.updateQuickActions();
+  }
+
+  get quickActions() {
+    return this._quickActions;
+  }
+
+  set placeholder(value) {
+    this._placeholder = value;
+    const input = this.shadowRoot.querySelector('.chat-input');
+    if (input) input.placeholder = value;
+  }
+
+  set disabled(value) {
+    this._disabled = value;
+    this.updateDisabledState();
+  }
+
+  get disabled() {
+    return this._disabled;
+  }
+
+  get value() {
+    const input = this.shadowRoot.querySelector('.chat-input');
+    return input ? input.value : '';
+  }
+
+  set value(val) {
+    const input = this.shadowRoot.querySelector('.chat-input');
+    if (input) input.value = val;
+  }
+
+  render() {
+    const hasActions = this._quickActions.length > 0;
+    
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host {
+          display: block;
+          background: var(--color-surface, #ffffff);
+          border-top: 1px solid var(--color-border, #e2e8f0);
+        }
+        
+        /* Quick actions section */
+        .quick-actions {
+          display: ${hasActions ? 'flex' : 'none'};
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          flex-wrap: wrap;
+          max-height: 80px;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+        }
+        
+        .quick-actions::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        
+        .quick-actions::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .quick-actions::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        
+        .action-btn {
+          flex: 0 1 auto;
+          padding: 0.375rem 1rem;
+          background: var(--color-surface, #ffffff);
+          border: 1px solid var(--color-border, #e2e8f0);
+          border-radius: 9999px;
+          font-size: 0.875rem;
+          font-family: inherit;
+          color: var(--color-text, #1e293b);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+        
+        .action-btn:hover:not(:disabled) {
+          background: var(--color-bg, #f7f8fa);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .action-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+        
+        .action-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        
+        /* Chat input section */
+        .chat-input-container {
+          padding: 1rem;
+          ${hasActions ? 'border-top: 1px solid var(--color-border, #e2e8f0);' : ''}
+        }
+        
+        .input-wrapper {
+          display: flex;
+          gap: 0.5rem;
+          align-items: center;
+        }
+        
+        .chat-input {
+          flex: 1;
+          padding: 0.625rem 1.25rem;
+          border: 1px solid var(--color-border, #e2e8f0);
+          border-radius: 9999px;
+          font-size: 1rem;
+          font-family: inherit;
+          color: var(--color-text, #1e293b);
+          background: var(--color-surface, #ffffff);
+          outline: none;
+          transition: all 0.2s ease;
+        }
+        
+        .chat-input:focus {
+          border-color: var(--color-primary, #3b82f6);
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .chat-input:disabled {
+          background: var(--color-bg, #f7f8fa);
+          cursor: not-allowed;
+        }
+        
+        .send-btn {
+          flex-shrink: 0;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: var(--color-primary, #3b82f6);
+          color: white;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          font-size: 1.25rem;
+        }
+        
+        .send-btn:hover:not(:disabled) {
+          background: var(--color-primary-dark, #2563eb);
+          transform: scale(1.05);
+        }
+        
+        .send-btn:active:not(:disabled) {
+          transform: scale(0.95);
+        }
+        
+        .send-btn:disabled {
+          background: #cbd5e1;
+          cursor: not-allowed;
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+          .quick-actions {
+            padding: 0.375rem 0.75rem;
+            max-height: 60px;
+          }
+          
+          .action-btn {
+            font-size: 0.8125rem;
+            padding: 0.3125rem 0.875rem;
+          }
+          
+          .chat-input-container {
+            padding: 0.75rem;
+          }
+          
+          .chat-input {
+            font-size: 0.9375rem;
+            padding: 0.5rem 1rem;
+          }
+        }
+        
+        /* Focus trap indicator */
+        :host(:focus-within) {
+          box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+        }
+      </style>
+      
+      <div class="quick-actions" role="group" aria-label="Quick actions">
+        ${this._quickActions.map(action => `
+          <button 
+            class="action-btn" 
+            data-action="${action.id}"
+            title="${action.fullTitle || action.text}"
+            ${this._disabled ? 'disabled' : ''}
+          >
+            ${action.text}
+          </button>
+        `).join('')}
+      </div>
+      
+      <div class="chat-input-container">
+        <form class="input-wrapper">
+          <input 
+            type="text" 
+            class="chat-input" 
+            placeholder="${this._placeholder}"
+            ${this._disabled ? 'disabled' : ''}
+            aria-label="Chat input"
+          >
+          <button 
+            type="submit" 
+            class="send-btn"
+            ${this._disabled ? 'disabled' : ''}
+            aria-label="Send message"
+          >
+            →
+          </button>
+        </form>
+      </div>
+    `;
+  }
+
+  attachEventListeners() {
+    // Quick action clicks
+    this.shadowRoot.addEventListener('click', (e) => {
+      const actionBtn = e.target.closest('.action-btn');
+      if (actionBtn && !this._disabled) {
+        const actionId = actionBtn.dataset.action;
+        const action = this._quickActions.find(a => a.id === actionId);
+        
+        this.dispatchEvent(new CustomEvent('action-click', {
+          detail: { actionId, action },
+          bubbles: true,
+          composed: true
+        }));
+      }
+    });
+
+    // Form submission
+    const form = this.shadowRoot.querySelector('form');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.handleSubmit();
+    });
+
+    // Enter key handling
+    const input = this.shadowRoot.querySelector('.chat-input');
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.handleSubmit();
+      }
+    });
+  }
+
+  handleSubmit() {
+    const input = this.shadowRoot.querySelector('.chat-input');
+    const message = input.value.trim();
+    
+    if (message && !this._disabled) {
+      this.dispatchEvent(new CustomEvent('message-submit', {
+        detail: { message },
+        bubbles: true,
+        composed: true
+      }));
+      
+      // Clear input after successful submit
+      input.value = '';
+    }
+  }
+
+
+  // Public methods
+  focus() {
+    const input = this.shadowRoot.querySelector('.chat-input');
+    if (input) input.focus();
+  }
+
+  clear() {
+    const input = this.shadowRoot.querySelector('.chat-input');
+    if (input) input.value = '';
+  }
+
+  // Update only the quick actions section without re-rendering the entire component
+  updateQuickActions() {
+    if (!this.shadowRoot) return;
+    
+    const quickActionsContainer = this.shadowRoot.querySelector('.quick-actions');
+    if (!quickActionsContainer) return;
+    
+    // Update display style
+    const hasActions = this._quickActions.length > 0;
+    quickActionsContainer.style.display = hasActions ? 'flex' : 'none';
+    
+    // Update content
+    quickActionsContainer.innerHTML = this._quickActions.map(action => `
+      <button 
+        class="action-btn" 
+        data-action="${action.id}"
+        title="${action.fullTitle || action.text}"
+        ${this._disabled ? 'disabled' : ''}
+      >
+        ${action.text}
+      </button>
+    `).join('');
+    
+    // Update chat input container border
+    const chatInputContainer = this.shadowRoot.querySelector('.chat-input-container');
+    if (chatInputContainer) {
+      if (hasActions) {
+        chatInputContainer.style.borderTop = '1px solid var(--color-border, #e2e8f0)';
+      } else {
+        chatInputContainer.style.borderTop = '';
+      }
+    }
+  }
+  
+  // Update disabled state without re-rendering
+  updateDisabledState() {
+    if (!this.shadowRoot) return;
+    
+    // Update quick action buttons
+    const actionButtons = this.shadowRoot.querySelectorAll('.action-btn');
+    actionButtons.forEach(btn => {
+      if (this._disabled) {
+        btn.setAttribute('disabled', '');
+      } else {
+        btn.removeAttribute('disabled');
+      }
+    });
+    
+    // Update chat input
+    const chatInput = this.shadowRoot.querySelector('.chat-input');
+    if (chatInput) {
+      if (this._disabled) {
+        chatInput.setAttribute('disabled', '');
+        chatInput.style.background = 'var(--color-bg, #f7f8fa)';
+        chatInput.style.cursor = 'not-allowed';
+      } else {
+        chatInput.removeAttribute('disabled');
+        chatInput.style.background = 'var(--color-surface, #ffffff)';
+        chatInput.style.cursor = '';
+      }
+    }
+    
+    // Update send button
+    const sendButton = this.shadowRoot.querySelector('.send-btn');
+    if (sendButton) {
+      if (this._disabled) {
+        sendButton.setAttribute('disabled', '');
+        sendButton.style.background = '#cbd5e1';
+        sendButton.style.cursor = 'not-allowed';
+      } else {
+        sendButton.removeAttribute('disabled');
+        sendButton.style.background = 'var(--color-primary, #3b82f6)';
+        sendButton.style.cursor = 'pointer';
+      }
+    }
+  }
+}
+
+// Register the component
+customElements.define('input-group', InputGroupComponent);
+
+// Example usage:
+/*
+const inputGroup = document.querySelector('input-group');
+
+// Set quick actions
+inputGroup.quickActions = [
+  { id: 'start', text: 'Getting Started' },
+  { id: 'api', text: 'API Reference' }
+];
+
+// Listen for events
+inputGroup.addEventListener('message-submit', (e) => {
+  console.log('Message:', e.detail.message);
+});
+
+inputGroup.addEventListener('action-click', (e) => {
+  console.log('Action:', e.detail.actionId);
+});
+
+// Control state
+inputGroup.disabled = false;
+inputGroup.placeholder = 'Type your question...';
+*/    </script>
+    
+    <!-- Load AI configuration and label generation -->
+    <script>
+        // Configuration
+        const CONFIG = {
+            WORKER_URL: 'https://tech-writer-ai-proxy.julian-harris.workers.dev',
+            MODEL: 'gemini-2.0-flash',
+            MAX_TOKENS: 1024,
+            TEMPERATURE: 0.0
+        };
+
+        // Tone profile for tech writer assistant
+        const TONE_PROFILE = `TONE OF VOICE PROFILE
+
+Skeptical Optimism (Core Dimension):
+Description: A foundational tone that approaches claims with healthy skepticism but maintains an underlying optimism about the potential of Vibe Coding and AI agents. It questions hype while looking for genuine value and practical applications.
+Application: Critically evaluate tools and success stories, acknowledge limitations and potential pitfalls, but ultimately highlight the empowering aspects and future possibilities in a positive light.
+
+Upbeat & Engaging:
+Description: The overall energy should be positive, enthusiastic, and engaging, drawing the reader in rather than presenting information dryly.
+Application: Use active voice, varied sentence structure, and a generally positive framing, even when discussing complex or challenging topics.
+
+Truthful & Accurate (Evidence-Based):
+Description: All information, especially claims and technical descriptions, must be grounded in verifiable facts and evidence. Avoid making unsubstantiated statements.
+Application: Prioritize accuracy in describing tools, technologies, and case studies. Clearly distinguish between established facts, reported claims (with sources), and speculative future trends.
+
+Slightly Sarcastic / Witty Humor:
+Description: Incorporate occasional, subtle sarcasm or witty observations to add personality and make the content more relatable and entertaining.
+Application: Use sparingly in appropriate contexts, perhaps when commenting on industry hype, common misconceptions, or the quirks of technology.
+
+Clear & Accessible (Non-Technical Focus):
+Description: While knowledgeable, the language must remain accessible to non-technical people with business ideas.
+Application: Break down complex concepts into simpler terms. Use analogies or relatable examples.
+
+Conversational & Relatable:
+Description: Avoid overly academic or formal language. The tone should feel more like an engaging conversation with a knowledgeable guide.
+Application: Use contractions where appropriate. Address the reader directly.`;
+
+        // Build tool definitions for navigation
+        function buildToolDefinitions(sections) {
+            if (!sections || sections.length === 0) {
+                return [];
+            }
+            
+            // Build structured hierarchy
+            const sectionStructure = sections.map(s => ({
+                name: s.title,
+                subsections: s.subsections.map(sub => sub.title)
+            }));
+            
+            // Generate clear description
+            const sectionDescriptions = sectionStructure.map(s => {
+                if (s.subsections.length > 0) {
+                    return `${s.name} (subsections: ${s.subsections.join(', ')})`;
+                }
+                return s.name;
+            }).join('; ');
+            
+            const sectionNames = sectionStructure.map(s => s.name);
+            const allSubsections = sectionStructure.flatMap(s => s.subsections);
+            const uniqueSubsections = [...new Set(allSubsections)];
+            
+            return [{
+                function_declarations: [{
+                    name: "navigate_to_section",
+                    description: `When user asks about content related to these sections, navigate there instead of describing it. Available sections: ${sectionDescriptions}`,
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            section: {
+                                type: "string",
+                                description: "The main section name",
+                                enum: sectionNames
+                            },
+                            subsection: {
+                                type: "string",
+                                description: "The subsection name within the main section (optional)",
+                                enum: uniqueSubsections.length > 0 ? uniqueSubsections : undefined
+                            }
+                        },
+                        required: ["section"]
+                    }
+                }]
+            }];
+        }
+
+        // Parse assistant response for tool calls
+        function parseAssistantResponse(responseData) {
+            if (!responseData.candidates || !responseData.candidates[0] || !responseData.candidates[0].content) {
+                console.error('Invalid API response:', responseData);
+                throw new Error('API error');
+            }
+            
+            const content = responseData.candidates[0].content;
+            
+            // Check for function call
+            if (content.parts && content.parts[0] && content.parts[0].functionCall) {
+                const functionCall = content.parts[0].functionCall;
+                return {
+                    toolCall: {
+                        tool: functionCall.name,
+                        section: functionCall.args.section,
+                        subsection: functionCall.args.subsection
+                    },
+                    text: ""
+                };
+            }
+            
+            // Regular text response
+            if (content.parts && content.parts[0] && content.parts[0].text) {
+                return { text: content.parts[0].text };
+            }
+            
+            throw new Error('No valid content in response');
+        }
+
+        // Handle tool calls for navigation (FIXED to match working version)
+        function handleToolCall(toolCall, sections, app) {
+            console.log('Handling tool call:', toolCall);
+            
+            if (toolCall.tool === 'navigate_to_section') {
+                const { section: sectionName, subsection: subsectionName } = toolCall;
+                console.log(`Looking for section: "${sectionName}", subsection: "${subsectionName}"`);
+                
+                // Find matching section by name (case-insensitive)
+                const sectionObj = sections.find(
+                    s => s.title.toLowerCase() === sectionName.toLowerCase()
+                );
+                
+                if (!sectionObj) {
+                    console.error('Section not found:', sectionName);
+                    app.addMessage(`I couldn't find the section "${sectionName}". Please check the section name and try again.`, 'assistant');
+                    return;
+                }
+                
+                if (subsectionName) {
+                    // User wants to navigate to a subsection
+                    const subsectionObj = sectionObj.subsections.find(
+                        sub => sub.title.toLowerCase() === subsectionName.toLowerCase()
+                    );
+                    
+                    if (subsectionObj) {
+                        console.log('Navigating to subsection:', subsectionObj.id, 'in section:', sectionObj.id);
+                        app.scrollToElement(subsectionObj.id);
+                        app.addArtifactToChat(`Show ${sectionObj.title} > ${subsectionObj.title}`, 'subsection', subsectionObj.id);
+                        
+                        // Open document viewer on mobile
+                        if (window.innerWidth <= 768) {
+                            document.getElementById('documentViewer').classList.add('open');
+                        }
+                    } else {
+                        // Subsection not found, fallback to main section
+                        console.log('Subsection not found, falling back to main section');
+                        app.scrollToElement(sectionObj.id);
+                        app.addArtifactToChat(`Show ${sectionObj.title}`, 'section', sectionObj.id);
+                        app.addMessage(`I couldn't find the subsection "${subsectionName}" in ${sectionName}, so I'm showing the main section.`, 'assistant');
+                        
+                        // Open document viewer on mobile
+                        if (window.innerWidth <= 768) {
+                            document.getElementById('documentViewer').classList.add('open');
+                        }
+                    }
+                } else {
+                    // Navigate to main section only
+                    console.log('Navigating to main section:', sectionObj.id);
+                    app.scrollToElement(sectionObj.id);
+                    app.addArtifactToChat(`Show ${sectionObj.title}`, 'section', sectionObj.id);
+                    
+                    // Open document viewer on mobile
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('documentViewer').classList.add('open');
+                    }
+                }
+            }
+        }
+
+        // Quick Action Label Generation Prompt (from DSPy training)
+        const QUICK_ACTION_PROMPT = `Generate short 1-3 word labels for section headings used as quick action buttons.
+
+Examples:
+Input: ["Tech Writer Agent in 7 different frameworks", "But first, how many agent maker frameworks are there?", "Why did you pick the tech writer agent for evaluation?"]
+Output: ["Overview", "Agent Landscape", "Tech Writer Choice"]
+
+Input: ["What did I learn?", "What did I standardise on?", "How did I rank them?"]
+Output: ["Insights", "Shared Code", "Leaderboard"]
+
+Guidelines:
+- Keep labels concise (1-3 words maximum)
+- Use title case for labels
+- Return ONLY a JSON array of strings.
+
+Input: {headings}
+Output:`;
+
+        // Generate quick action labels for an array of headings
+        window.generateQuickActionLabels = async function generateQuickActionLabels(headings) {
+            if (!headings || headings.length === 0) return [];
+            
+            const prompt = QUICK_ACTION_PROMPT.replace('{headings}', JSON.stringify(headings));
+            
+            try {
+                const response = await fetch(CONFIG.WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: CONFIG.MODEL,
+                        contents: [
+                            { role: "user", parts: [{ text: prompt }] }
+                        ],
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 256
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'API error');
+                }
+                
+                let content = data.candidates[0].content.parts[0].text.trim();
+                
+                if (content.startsWith('```json')) {
+                    content = content.replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '');
+                } else if (content.startsWith('```')) {
+                    content = content.replace(/^```\s*\n?/, '').replace(/\n?```\s*$/, '');
+                }
+                
+                const labels = JSON.parse(content);
+                
+                if (labels.length !== headings.length) {
+                    throw new Error('Label count mismatch');
+                }
+                
+                console.log('✅ Successfully generated labels using AI:', labels);
+                return labels;
+            } catch (error) {
+                console.error('❌ Failed to generate labels with AI:', error);
+                console.warn('⚠️ USING FALLBACK: Simple word extraction');
+                
+                const fallbackLabels = headings.map(heading => {
+                    const words = heading.split(' ').filter(w => 
+                        w.length > 2 && !['the', 'and', 'for', 'with', 'from'].includes(w.toLowerCase())
+                    );
+                    return words.slice(0, 2).join(' ') || heading.slice(0, 20);
+                });
+                
+                console.log('📝 Fallback labels:', fallbackLabels);
+                return fallbackLabels;
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile header -->
+        <header class="mobile-header">
+            <button onclick="app.toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer; font-size: 2rem;">☰</button>
+            <h1 style="margin: 0 auto; font-size: 1.25rem;">Tech Writers Agents in Python</h1>
+        </header>
+        
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <h2>Python AI Agents</h2>
+            <div id="sidebar-sections">
+                <!-- Populated dynamically -->
+            </div>
+        </aside>
+        
+        <!-- Chat panel -->
+        <section class="chat-panel">
+            <div class="messages-area" id="messagesArea">
+                <div class="message assistant">
+                    <div class="avatar">AI</div>
+                    <div class="message-content">
+                        <a href="https://makingaiagents.substack.com" target="_blank" style="display: block; text-decoration: none; margin-bottom: 0.75rem;">
+                            <img src="assets/maia-banner-small.png" alt="Making AI Agents" style="width: 100%; height: auto; border-radius: 8px; cursor: pointer;">
+                        </a>
+                        Welcome to the Making AI Agents comparison report on tech writer agents.
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Typing indicator -->
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-bubble">
+                    <div class="avatar">AI</div>
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- FIXED input group component that uses updateQuickActions() -->
+            <input-group id="mainInput"></input-group>
+        </section>
+        
+        <!-- Document viewer -->
+        <section class="document-viewer" id="documentViewer">
+            <div class="tray-header">
+                <h3 class="tray-title">Documentation</h3>
+                <button class="tray-close" onclick="app.closeTray()" title="Close">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <button class="zoom-button" id="zoomButton" onclick="app.toggleFullscreen()" title="Toggle fullscreen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+            </button>
+            <div id="documentContent">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+    </div>
+    
+    <!-- Tray backdrop for click-to-close -->
+    <div class="tray-backdrop" id="trayBackdrop" onclick="app.closeTray()"></div>
+    
+    <!-- Sidebar backdrop for click-to-close -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="app.closeSidebar()"></div>
+    
+    <script type="module">
+        // Document parser is now available globally
+        
+        // Complete state management (from working script.js)
+        const state = {
+            currentSection: null,
+            currentSubsection: null,
+            chatHistory: [],
+            documentContent: null,
+            conversationHistory: [],
+            isProcessing: false
+        };
+
+        // Application state and methods
+        const app = {
+            sections: [],
+            currentSection: null,
+            mainInput: null,
+            
+            init() {
+                console.log('🎯 FINAL VERSION - App init starting...');
+                this.mainInput = document.getElementById('mainInput');
+                console.log('Found mainInput element:', this.mainInput);
+                
+                if (!this.mainInput) {
+                    console.error('CRITICAL: mainInput element not found!');
+                    return;
+                }
+                
+                // Verify the component has the fixed methods
+                if (typeof this.mainInput.updateQuickActions === 'function') {
+                    console.log('✅ Component has updateQuickActions method - GOOD!');
+                } else {
+                    console.error('❌ Component missing updateQuickActions method - OLD VERSION!');
+                }
+                
+                this.setupEventListeners();
+                this.setupKeyboardNavigation();
+                this.loadDocument().catch(async (err) => {
+                    console.error('Document load failed:', err);
+                    this.addMessage('Error: Could not load report.md. Please ensure the file exists in the same directory as index.html.', 'assistant');
+                });
+                
+                // Auto-focus chat input after load
+                setTimeout(() => {
+                    if (this.mainInput && this.mainInput.focus) {
+                        this.mainInput.focus();
+                    }
+                }, 500);
+            },
+            
+            setupKeyboardNavigation() {
+                const documentViewer = document.getElementById('documentContent');
+                
+                // Handle spacebar navigation
+                document.addEventListener('keydown', (e) => {
+                    // Skip if user is typing in input
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    
+                    if (e.code === 'Space') {
+                        this.handleSpacebarNavigation(e);
+                    }
+                });
+                
+                // Handle arrow key navigation  
+                documentViewer.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                        this.handleArrowNavigation(e);
+                    }
+                });
+            },
+
+            handleSpacebarNavigation(e) {
+                const panel = document.getElementById('documentContent');
+                const viewer = document.getElementById('documentViewer');
+                const isAtEnd = viewer.scrollHeight - viewer.scrollTop <= viewer.clientHeight + 10;
+                const isAtTop = viewer.scrollTop <= 10;
+                
+                if (e.shiftKey && isAtTop) {
+                    // Shift+spacebar at top: Move to previous section
+                    e.preventDefault();
+                    const currentIndex = this.sections.findIndex(s => s.id === state.currentSection);
+                    
+                    if (currentIndex > 0) {
+                        const prevSection = this.sections[currentIndex - 1];
+                        this.selectSection(prevSection.id);
+                        
+                        // Scroll to bottom of previous section
+                        setTimeout(() => {
+                            viewer.scrollTop = viewer.scrollHeight;
+                        }, 50);
+                    }
+                } else if (!e.shiftKey && isAtEnd) {
+                    // Spacebar at end: Move to next section
+                    e.preventDefault();
+                    const currentIndex = this.sections.findIndex(s => s.id === state.currentSection);
+                    
+                    if (currentIndex >= 0 && currentIndex < this.sections.length - 1) {
+                        const nextSection = this.sections[currentIndex + 1];
+                        this.selectSection(nextSection.id);
+                        
+                        // Scroll to top of new section
+                        setTimeout(() => {
+                            viewer.scrollTop = 0;
+                        }, 50);
+                    }
+                }
+            },
+
+            handleArrowNavigation(e) {
+                const viewer = document.getElementById('documentViewer');
+                const isAtEnd = viewer.scrollHeight - viewer.scrollTop <= viewer.clientHeight + 10;
+                const isAtTop = viewer.scrollTop <= 10;
+                
+                if (e.key === 'ArrowUp' && isAtTop) {
+                    // Up arrow at top: Move to previous section
+                    e.preventDefault();
+                    const currentIndex = this.sections.findIndex(s => s.id === state.currentSection);
+                    
+                    if (currentIndex > 0) {
+                        const prevSection = this.sections[currentIndex - 1];
+                        this.selectSection(prevSection.id);
+                        
+                        // Scroll to bottom of previous section
+                        setTimeout(() => {
+                            viewer.scrollTop = viewer.scrollHeight;
+                        }, 50);
+                    }
+                } else if (e.key === 'ArrowDown' && isAtEnd) {
+                    // Down arrow at end: Move to next section
+                    e.preventDefault();
+                    const currentIndex = this.sections.findIndex(s => s.id === state.currentSection);
+                    
+                    if (currentIndex >= 0 && currentIndex < this.sections.length - 1) {
+                        const nextSection = this.sections[currentIndex + 1];
+                        this.selectSection(nextSection.id);
+                        
+                        // Scroll to top of new section
+                        setTimeout(() => {
+                            viewer.scrollTop = 0;
+                        }, 50);
+                    }
+                }
+            },
+
+            setupEventListeners() {
+                console.log('📡 Setting up event listeners...');
+                
+                if (!this.mainInput) {
+                    console.error('mainInput not found!');
+                    return;
+                }
+                
+                // Quick action clicks
+                this.mainInput.addEventListener('action-click', (e) => {
+                    console.log('🔘 Quick action clicked:', e.detail.actionId);
+                    
+                    // Find the subsection details
+                    let subsectionTitle = null;
+                    let parentSection = null;
+                    
+                    for (const section of this.sections) {
+                        const subsection = section.subsections.find(sub => sub.id === e.detail.actionId);
+                        if (subsection) {
+                            subsectionTitle = subsection.title;
+                            parentSection = section;
+                            break;
+                        }
+                    }
+                    
+                    // Add artifact to chat for quick action navigation
+                    if (subsectionTitle && parentSection) {
+                        this.addArtifactToChat(
+                            `${parentSection.title} > ${subsectionTitle}`,
+                            'subsection',
+                            e.detail.actionId
+                        );
+                    }
+                    
+                    // Navigate to the subsection
+                    this.navigateToSubsection(e.detail.actionId);
+                });
+                
+                // Message submissions
+                this.mainInput.addEventListener('message-submit', (e) => {
+                    console.log('✅ Message submit event received:', e.detail.message);
+                    this.sendMessage(e.detail.message);
+                });
+            },
+            
+            async loadDocument() {
+                console.log('📄 loadDocument starting...');
+                try {
+                    const response = await fetch('report.md');
+                    if (!response.ok) {
+                        throw new Error('Failed to load report.md');
+                    }
+                    const markdown = await response.text();
+                    
+                    // Store document content for system prompt (CRITICAL!)
+                    state.documentContent = markdown;
+                    
+                    this.sections = await documentParser.parseMarkdown(markdown);
+                    this.populateSidebar();
+                    this.renderDocument();
+                    
+                    if (this.sections.length > 0) {
+                        this.selectSection(this.sections[0].id);
+                        
+                        // Open document viewer by default on mobile
+                        if (window.innerWidth <= 768) {
+                            setTimeout(() => {
+                                document.getElementById('documentViewer').classList.add('open');
+                            }, 100);
+                        }
+                    }
+                    
+                    console.log('📄 Document loaded successfully');
+                } catch (error) {
+                    console.error('❌ loadDocument error:', error);
+                    throw error;
+                }
+            },
+            
+            populateSidebar() {
+                const container = document.getElementById('sidebar-sections');
+                container.innerHTML = '';
+                
+                this.sections.forEach(section => {
+                    const div = document.createElement('div');
+                    div.className = 'sidebar-item';
+                    div.innerHTML = `
+                        ${section.title}
+                        ${section.bracketedPhrase ? `<span class="badge">${section.bracketedPhrase}</span>` : ''}
+                    `;
+                    div.onclick = () => {
+                        this.selectSection(section.id);
+                        
+                        // Open document viewer on mobile when selecting from sidebar
+                        if (window.innerWidth <= 768) {
+                            document.getElementById('documentViewer').classList.add('open');
+                            
+                            // Close sidebar after selection
+                            document.getElementById('sidebar').classList.remove('open');
+                        }
+                    };
+                    container.appendChild(div);
+                });
+            },
+            
+            renderDocument() {
+                const content = document.getElementById('documentContent');
+                
+                // Configure marked.js for proper code highlighting
+                if (typeof marked !== 'undefined') {
+                    marked.setOptions({
+                        breaks: true,
+                        gfm: true,
+                        highlight: function(code, lang) {
+                            // If no language specified, try to auto-detect
+                            if (!lang) lang = 'plaintext';
+                            
+                            // Use highlight.js if available
+                            if (typeof hljs !== 'undefined') {
+                                try {
+                                    return hljs.highlight(code, { language: lang }).value;
+                                } catch (e) {
+                                    return hljs.highlightAuto(code).value;
+                                }
+                            }
+                            return code;
+                        }
+                    });
+                }
+                
+                content.innerHTML = documentParser.renderFullHTML();
+                
+                // Make all links in document open in new tab
+                content.querySelectorAll('a').forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
+                
+                // Apply highlight.js to any code blocks that weren't highlighted
+                if (typeof hljs !== 'undefined') {
+                    content.querySelectorAll('pre code').forEach((block) => {
+                        if (!block.classList.contains('hljs')) {
+                            hljs.highlightElement(block);
+                        }
+                    });
+                }
+            },
+            
+            selectSection(sectionId) {
+                console.log('🎯 selectSection called with:', sectionId);
+                const section = this.sections.find(s => s.id === sectionId);
+                if (!section) return;
+                
+                this.currentSection = sectionId;
+                
+                // Update sidebar active state
+                const items = document.querySelectorAll('.sidebar-item');
+                this.sections.forEach((s, index) => {
+                    items[index]?.classList.toggle('active', s.id === sectionId);
+                });
+                
+                // Check if we need to generate labels first
+                const needsLabels = section.subsections.length > 0 && 
+                                   section.subsections.some(sub => !sub.label) && 
+                                   window.generateQuickActionLabels;
+                
+                if (needsLabels) {
+                    // Clear quick actions while generating labels to prevent flash
+                    this.mainInput.quickActions = [];
+                    
+                    // Generate labels first, then set quick actions
+                    this.generateLabelsForSection(section).then(() => {
+                        // Now set quick actions with generated labels
+                        this.mainInput.quickActions = section.subsections.map(sub => ({
+                            id: sub.id,
+                            text: sub.label || sub.title
+                        }));
+                    });
+                } else {
+                    // Labels already exist, set quick actions immediately
+                    this.mainInput.quickActions = section.subsections.map(sub => ({
+                        id: sub.id,
+                        text: sub.label || sub.title
+                    }));
+                }
+                
+                this.scrollToElement(sectionId);
+                state.currentSection = sectionId;
+            },
+            
+            // Generate AI labels for a section's subsections (with caching)
+            async generateLabelsForSection(section) {
+                if (!section.subsections || section.subsections.length === 0) return;
+                
+                // Check if labels are already cached
+                const allHaveLabels = section.subsections.every(sub => sub.label);
+                if (allHaveLabels) {
+                    console.log('✅ Using cached AI labels for section:', section.title);
+                    return;
+                }
+                
+                const headings = section.subsections.map(sub => sub.title);
+                
+                try {
+                    const labels = await window.generateQuickActionLabels(headings);
+                    
+                    section.subsections.forEach((sub, index) => {
+                        if (labels[index]) {
+                            sub.label = labels[index];
+                        }
+                    });
+                    
+                    // Quick actions are now updated in selectSection after labels are ready
+                    console.log('✅ AI labels generated successfully for section:', section.title);
+                } catch (error) {
+                    console.error('Failed to generate labels for section:', section.title, error);
+                }
+            },
+            
+            navigateToSection(sectionId, subsectionId) {
+                console.log('🔗 Navigating to section:', sectionId, 'subsection:', subsectionId);
+                
+                // Find and select the section
+                const section = this.sections.find(s => s.id === sectionId);
+                if (section) {
+                    this.selectSection(sectionId);
+                }
+                
+                // If subsection specified, scroll to it
+                if (subsectionId) {
+                    setTimeout(() => {
+                        this.scrollToElement(subsectionId);
+                    }, 100);
+                } else {
+                    this.scrollToElement(sectionId);
+                }
+                
+                // Open document viewer on mobile
+                if (window.innerWidth <= 768) {
+                    document.getElementById('documentViewer').classList.add('open');
+                }
+            },
+
+            navigateToSubsection(subsectionId) {
+                console.log('🔗 Navigating to subsection:', subsectionId);
+                this.scrollToElement(subsectionId);
+                
+                if (window.innerWidth <= 768) {
+                    document.getElementById('documentViewer').classList.add('open');
+                }
+            },
+            
+            scrollToElement(elementId) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    element.style.background = '#e0f2fe';
+                    element.style.transition = 'background 0.3s ease';
+                    setTimeout(() => {
+                        element.style.background = '';
+                    }, 1000);
+                }
+            },
+            
+            // Complete sendMessage function from working script.js
+            async sendMessage(message) {
+                if (!message || state.isProcessing) return;
+                
+                state.isProcessing = true;
+                
+                // Add user message
+                this.addMessage(message, 'user');
+                
+                // Show typing indicator
+                this.showTyping();
+                
+                // Process message with LLM
+                try {
+                    const response = await this.processUserMessage(message);
+                    this.hideTyping();
+                    
+                    // Check if response contains tool calls
+                    if (response.toolCall) {
+                        // Use FIXED handleToolCall that adds artifacts like working version
+                        handleToolCall(response.toolCall, this.sections, this);
+                        
+                        // Update conversation history with tool call
+                        state.conversationHistory.push(
+                            { role: 'user', content: message }
+                        );
+                        
+                        state.conversationHistory.push({
+                            role: 'assistant',
+                            content: '',
+                            parts: [{
+                                functionCall: {
+                                    name: response.toolCall.tool,
+                                    args: {
+                                        section: response.toolCall.section,
+                                        subsection: response.toolCall.subsection || ''
+                                    }
+                                }
+                            }]
+                        });
+                        
+                        // Add function response to history  
+                        state.conversationHistory.push({
+                            role: 'function',
+                            parts: [{
+                                functionResponse: {
+                                    name: response.toolCall.tool,
+                                    response: { result: "Navigation completed" }
+                                }
+                            }]
+                        });
+                        
+                    } else {
+                        this.addMessage(response.text, 'assistant');
+                        
+                        // Update conversation history
+                        state.conversationHistory.push(
+                            { role: 'user', content: message },
+                            { role: 'assistant', content: response.text }
+                        );
+                        
+                        // On mobile, close tray when response doesn't navigate
+                        if (window.innerWidth <= 768) {
+                            this.closeTray();
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Chat error:', error);
+                    this.hideTyping();
+                    
+                    // User-friendly error messages
+                    let errorMessage = "I apologize, there's a temporary problem with the chat service. Please try again in a moment.";
+                    
+                    if (error.message.includes('overloaded') || error.message.includes('503')) {
+                        errorMessage = "The AI service is currently experiencing high demand. Please try again in a few moments.";
+                    } else if (error.message.includes('429')) {
+                        errorMessage = "You're sending messages too quickly. Please wait a moment before trying again.";
+                    } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                        errorMessage = "There seems to be a network connectivity issue. Please check your connection and try again.";
+                    }
+                    
+                    this.addMessage(errorMessage, 'assistant');
+                }
+                
+                state.isProcessing = false;
+            },
+
+            // Process user message with complete tool handling
+            async processUserMessage(message) {
+                const contents = this.buildContents(message);
+                const tools = buildToolDefinitions(this.sections);
+                
+                const requestBody = {
+                    model: CONFIG.MODEL,
+                    contents: contents,
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 512
+                    }
+                };
+                
+                // Add tools if available
+                if (tools.length > 0) {
+                    requestBody.tools = tools;
+                }
+                
+                console.log('🔧 Making API call with tools:', tools.length > 0 ? 'enabled' : 'disabled');
+                
+                const response = await fetch(CONFIG.WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    // Check for specific error types
+                    if (data.error.code === 503 || data.error.status === 'UNAVAILABLE') {
+                        throw new Error('overloaded');
+                    } else if (data.error.code === 429) {
+                        throw new Error('429');
+                    }
+                    throw new Error(data.error.message || 'API error');
+                }
+                
+                // Parse response for tool calls or text
+                return parseAssistantResponse(data);
+            },
+
+            // Build contents with conversation history
+            buildContents(currentMessage) {
+                const contents = [];
+                
+                // Build system prompt
+                const systemPrompt = this.buildSystemPrompt();
+                
+                // Always include system prompt at the beginning
+                contents.push({
+                    role: "user",
+                    parts: [{ text: systemPrompt }]
+                });
+                contents.push({
+                    role: "model", 
+                    parts: [{ text: "I understand. I'm ready to help you navigate and understand this document. I can answer questions about its content and help you find specific sections." }]
+                });
+                
+                // Add conversation history
+                state.conversationHistory.forEach(msg => {
+                    if (msg.role === 'function') {
+                        // Function responses use the exact format from history
+                        contents.push({
+                            role: 'function',
+                            parts: msg.parts
+                        });
+                    } else if (msg.parts) {
+                        // Tool calls with parts array
+                        contents.push({
+                            role: msg.role === 'assistant' ? 'model' : msg.role,
+                            parts: msg.parts
+                        });
+                    } else {
+                        // Regular text messages
+                        contents.push({
+                            role: msg.role === 'user' ? 'user' : 'model',
+                            parts: [{ text: msg.content }]
+                        });
+                    }
+                });
+                
+                // Add current message
+                contents.push({
+                    role: "user",
+                    parts: [{ text: currentMessage }]
+                });
+                
+                return contents;
+            },
+
+            buildSystemPrompt() {
+                let prompt = `You are a helpful AI assistant that helps users navigate and understand the report.
+    You respond in a tone of voice profile as defined below. Your answers should be accurate, concise, and helpful.
+
+<report>
+${state.documentContent || 'No document loaded yet.'}
+</report>
+
+<available-sections>
+`;
+                
+                // Add available sections for navigation (from working script.js)
+                if (this.sections) {
+                    this.sections.forEach(section => {
+                        prompt += `- ${section.title} (id: ${section.id})`;
+                        if (section.subsections.length > 0) {
+                            prompt += '\n  Subsections:';
+                            section.subsections.forEach(sub => {
+                                prompt += `\n    - ${sub.title} (id: ${sub.id})`;
+                            });
+                        }
+                        prompt += '\n';
+                    });
+                }
+                
+                prompt += `</available-sections>
+
+<tone-profile>
+${TONE_PROFILE}
+</tone-profile>
+
+Remember: 
+- Base your answers on the document content provided above
+- Be helpful in navigating the document
+- Keep responses concise and relevant
+- When users ask about specific topics that are covered in the sections, jump to that section instead of responding with a message`;
+                
+                return prompt;
+            },
+            
+            buildDocumentContext() {
+                if (!this.sections || this.sections.length === 0) {
+                    return "No document loaded.";
+                }
+                
+                let context = "Document sections:\\n";
+                this.sections.forEach(section => {
+                    context += `- ${section.title}`;
+                    if (section.subsections.length > 0) {
+                        context += ` (${section.subsections.map(sub => sub.title).join(', ')})`;
+                    }
+                    context += "\\n";
+                });
+                
+                if (this.currentSection) {
+                    const section = this.sections.find(s => s.id === this.currentSection);
+                    if (section) {
+                        context += `\\nCurrently viewing: ${section.title}`;
+                    }
+                }
+                
+                return context;
+            },
+            
+            
+            showTyping() {
+                const indicator = document.getElementById('typingIndicator');
+                if (indicator) {
+                    indicator.classList.add('active');
+                    this.scrollToBottom();
+                }
+            },
+            
+            hideTyping() {
+                const indicator = document.getElementById('typingIndicator');
+                if (indicator) {
+                    indicator.classList.remove('active');
+                }
+            },
+
+            scrollToBottom() {
+                const messagesArea = document.getElementById('messagesArea');
+                if (messagesArea) {
+                    messagesArea.scrollTop = messagesArea.scrollHeight;
+                }
+            },
+
+            // Add clickable artifact reference (from working script.js)
+            addArtifactToChat(title, type, sectionId) {
+                const messagesArea = document.getElementById('messagesArea');
+                const artifactDiv = document.createElement('div');
+                artifactDiv.className = 'artifact-reference';
+                artifactDiv.innerHTML = `
+                    <div class="artifact-icon">${type === 'section' ? '📑' : '📄'}</div>
+                    <div class="artifact-info">
+                        <div class="artifact-title">${title}</div>
+                    </div>
+                `;
+                
+                artifactDiv.addEventListener('click', () => {
+                    if (type === 'section') {
+                        this.navigateToSection(sectionId);
+                    } else {
+                        // For subsections, find parent section
+                        const section = this.sections.find(s => 
+                            s.subsections.some(sub => sub.id === sectionId)
+                        );
+                        if (section) {
+                            this.navigateToSection(section.id, sectionId);
+                        }
+                    }
+                });
+                
+                messagesArea.appendChild(artifactDiv);
+                this.scrollToBottom();
+            },
+            
+            addMessage(content, sender) {
+                const messagesArea = document.getElementById('messagesArea');
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar';
+                avatar.textContent = sender === 'user' ? 'You' : 'AI';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                
+                if (sender === 'assistant') {
+                    // Parse markdown in assistant messages
+                    let html = marked.parse(content);
+                    
+                    // Make all links open in new tab
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    tempDiv.querySelectorAll('a').forEach(link => {
+                        link.setAttribute('target', '_blank');
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    });
+                    contentDiv.innerHTML = tempDiv.innerHTML;
+                } else {
+                    contentDiv.textContent = content;
+                }
+                
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(contentDiv);
+                
+                // Remove welcome message if exists
+                const welcomeMsg = messagesArea.querySelector('.message:first-child');
+                if (welcomeMsg && welcomeMsg.querySelector('.message-content')?.textContent.includes('Welcome!')) {
+                    welcomeMsg.remove();
+                }
+                
+                messagesArea.appendChild(messageDiv);
+                this.scrollToBottom();
+            },
+            
+            // Mobile functions
+            toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                sidebar.classList.toggle('open');
+            },
+            
+            closeSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                sidebar.classList.remove('open');
+                // Focus back on chat input
+                setTimeout(() => {
+                    if (this.mainInput && this.mainInput.focus) {
+                        this.mainInput.focus();
+                    }
+                }, 300);
+            },
+            
+            closeAll() {
+                document.getElementById('sidebar').classList.remove('open');
+                this.closeTray();
+            },
+            
+            closeTray() {
+                const viewer = document.getElementById('documentViewer');
+                if (viewer.classList.contains('open')) {
+                    viewer.classList.remove('open');
+                    // Focus back on chat input
+                    setTimeout(() => {
+                        if (this.mainInput && this.mainInput.focus) {
+                            this.mainInput.focus();
+                        }
+                    }, 300);
+                }
+            },
+            
+            toggleFullscreen() {
+                const viewer = document.getElementById('documentViewer');
+                const button = document.getElementById('zoomButton');
+                const isFullscreen = viewer.classList.contains('fullscreen');
+                
+                if (isFullscreen) {
+                    viewer.classList.remove('fullscreen');
+                    button.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                        </svg>
+                    `;
+                } else {
+                    viewer.classList.add('fullscreen');
+                    button.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                        </svg>
+                    `;
+                }
+            }
+        };
+        
+        // Make app methods available globally for onclick handlers
+        window.app = app;
+        
+        // Global error handlers
+        window.addEventListener('error', (e) => {
+            console.error('💥 Global error:', e.error, e.message, e.filename, e.lineno);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('💥 Unhandled promise rejection:', e.reason);
+        });
+        
+        // Global form prevention
+        document.addEventListener('submit', (e) => {
+            console.log('🛑 Form submit prevented');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        
+        // Page refresh detection
+        window.addEventListener('beforeunload', (e) => {
+            console.warn('🚨 Page refresh detected!');
+        });
+        
+        // Initialize when ready
+        customElements.whenDefined('input-group').then(() => {
+            console.log('✅ input-group component is ready');
+            app.init();
+        });
+    </script>
+</body>
