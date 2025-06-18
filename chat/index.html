@@ -88,7 +88,7 @@
         /* Zoom button */
         .zoom-button {
             position: absolute;
-            top: 1rem;
+            top: 4.5rem;
             right: 1rem;
             width: 40px;
             height: 40px;
@@ -181,6 +181,51 @@
                 z-index: 200;
             }
             
+            .tray-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1rem;
+                border-bottom: 1px solid var(--color-border);
+            }
+            
+            .tray-title {
+                font-size: 1.125rem;
+                font-weight: 600;
+                color: var(--color-text);
+            }
+            
+            .tray-close {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s ease;
+            }
+            
+            .tray-close:hover {
+                background: var(--color-bg);
+            }
+            
+            .tray-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 199;
+                display: none;
+            }
+            
+            body:has(.document-viewer.open) .tray-backdrop {
+                display: block;
+            }
+            
             .document-viewer.open {
                 transform: translateY(0);
             }
@@ -194,21 +239,6 @@
                 z-index: 95;
             }
             
-            .overlay {
-                position: fixed;
-                inset: 0;
-                background: rgba(0, 0, 0, 0);
-                opacity: 0;
-                pointer-events: none;
-                transition: opacity 0.3s ease;
-                z-index: 190;
-            }
-            
-            .overlay.active {
-                opacity: 1;
-                pointer-events: auto;
-                background: rgba(0, 0, 0, 0);
-            }
         }
         
         /* Desktop-only */
@@ -217,8 +247,12 @@
                 display: none;
             }
             
-            .overlay {
+            .tray-header {
                 display: none;
+            }
+            
+            .tray-backdrop {
+                display: none !important;
             }
         }
         
@@ -762,7 +796,6 @@ Application: Use contractions where appropriate. Address the reader directly.`;
                         // Open document viewer on mobile
                         if (window.innerWidth <= 768) {
                             document.getElementById('documentViewer').classList.add('open');
-                            document.getElementById('overlay').classList.add('active');
                         }
                     } else {
                         // Subsection not found, fallback to main section
@@ -774,7 +807,6 @@ Application: Use contractions where appropriate. Address the reader directly.`;
                         // Open document viewer on mobile
                         if (window.innerWidth <= 768) {
                             document.getElementById('documentViewer').classList.add('open');
-                            document.getElementById('overlay').classList.add('active');
                         }
                     }
                 } else {
@@ -919,6 +951,14 @@ Output:`;
         
         <!-- Document viewer -->
         <section class="document-viewer" id="documentViewer">
+            <div class="tray-header">
+                <h3 class="tray-title">Documentation</h3>
+                <button class="tray-close" onclick="app.closeTray()" title="Close">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
             <button class="zoom-button" id="zoomButton" onclick="app.toggleFullscreen()" title="Toggle fullscreen">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
@@ -930,8 +970,8 @@ Output:`;
         </section>
     </div>
     
-    <!-- Mobile overlay -->
-    <div class="overlay" id="overlay" onclick="app.closeAll()"></div>
+    <!-- Tray backdrop for click-to-close -->
+    <div class="tray-backdrop" id="trayBackdrop" onclick="app.closeTray()"></div>
     
     <script type="module">
         import { documentParser } from './src/components/document-parser.js';
@@ -1147,7 +1187,6 @@ Output:`;
                         if (window.innerWidth <= 768) {
                             setTimeout(() => {
                                 document.getElementById('documentViewer').classList.add('open');
-                                document.getElementById('overlay').classList.add('active');
                             }, 100);
                         }
                     }
@@ -1176,7 +1215,6 @@ Output:`;
                         // Open document viewer on mobile when selecting from sidebar
                         if (window.innerWidth <= 768) {
                             document.getElementById('documentViewer').classList.add('open');
-                            document.getElementById('overlay').classList.add('active');
                             
                             // Close sidebar after selection
                             document.getElementById('sidebar').classList.remove('open');
@@ -1321,7 +1359,6 @@ Output:`;
                 // Open document viewer on mobile
                 if (window.innerWidth <= 768) {
                     document.getElementById('documentViewer').classList.add('open');
-                    document.getElementById('overlay').classList.add('active');
                 }
             },
 
@@ -1694,36 +1731,18 @@ Quick actions will be generated from these H2 headings.`;
             // Mobile functions
             toggleSidebar() {
                 const sidebar = document.getElementById('sidebar');
-                const overlay = document.getElementById('overlay');
-                const isOpen = sidebar.classList.contains('open');
-                
-                if (isOpen) {
-                    sidebar.classList.remove('open');
-                    overlay.classList.remove('active');
-                } else {
-                    sidebar.classList.add('open');
-                    overlay.classList.add('active');
-                }
+                sidebar.classList.toggle('open');
             },
             
             closeAll() {
                 document.getElementById('sidebar').classList.remove('open');
-                document.getElementById('documentViewer').classList.remove('open');
-                document.getElementById('overlay').classList.remove('active');
-                
-                // Focus back on chat input when closing via overlay
-                setTimeout(() => {
-                    if (this.mainInput && this.mainInput.focus) {
-                        this.mainInput.focus();
-                    }
-                }, 300);
+                this.closeTray();
             },
             
             closeTray() {
                 const viewer = document.getElementById('documentViewer');
                 if (viewer.classList.contains('open')) {
                     viewer.classList.remove('open');
-                    document.getElementById('overlay').classList.remove('active');
                     // Focus back on chat input
                     setTimeout(() => {
                         if (this.mainInput && this.mainInput.focus) {
