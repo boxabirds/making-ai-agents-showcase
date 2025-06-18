@@ -30,7 +30,7 @@
         font-family: system-ui, -apple-system, sans-serif;
         background: var(--color-bg);
         color: var(--color-text);
-        height: 100dvh; /* dynamic viewport height */
+        height: 100dvh;
         overflow: hidden;
     }
     
@@ -39,6 +39,10 @@
         display: grid;
         height: 100dvh;
         grid-template-columns: var(--sidebar-width) var(--chat-width) 1fr;
+        
+        /* FIX 2: Constrain the app layout's width and prevent horizontal overflow */
+        width: 100%;
+        overflow-x: hidden;
     }
     
     /* Basic containers */
@@ -54,7 +58,6 @@
         border-right: 1px solid var(--color-border);
         display: flex;
         flex-direction: column;
-        /* CHANGE #1: Removed `height: 100vh` for more robust flexbox behavior */
     }
     
     .messages-area {
@@ -85,7 +88,6 @@
         position: relative;
     }
     
-    /* Zoom button */
     .zoom-button {
         position: absolute;
         top: 4.5rem;
@@ -114,7 +116,6 @@
         color: var(--color-text);
     }
     
-    /* Full screen document viewer */
     .document-viewer.fullscreen {
         position: fixed;
         top: 0;
@@ -132,7 +133,7 @@
         }
     }
     
-    /* Mobile layout - EXACTLY from Phase 1 */
+    /* Mobile layout */
     @media (max-width: 768px) {
         .app-layout {
             grid-template-columns: 1fr;
@@ -164,7 +165,7 @@
         
         .chat-panel {
             grid-row: 2;
-            height: calc(100dvh - var(--header-height));
+            /* FIX 1: Remove the redundant height property. The grid's `1fr` row handles this. */
         }
         
         .document-viewer {
@@ -179,8 +180,6 @@
             border-radius: 1rem 1rem 0 0;
             box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
             z-index: 200;
-
-            /* This is correct and robust! */
             padding-top: max(1rem, env(safe-area-inset-top));
         }
         
@@ -247,17 +246,14 @@
             transform: translateY(0);
         }
         
-        /* When document viewer is open, move the input group to bottom of screen */
         body:has(.document-viewer.open) .chat-panel input-group {
             position: fixed;
             bottom: 0;
-            /* CHANGE #2: Removed the incorrect duplicate `bottom` property */
             left: 0;
             right: 0;
             z-index: 210;
             padding-bottom: env(safe-area-inset-bottom, 0);
         }
-        
     }
     
     /* Desktop-only */
@@ -275,7 +271,6 @@
         }
     }
     
-    /* ... rest of your styles are perfect ... */
     /* Sidebar improvements */
     .sidebar h2 {
         margin-bottom: 1rem;
