@@ -931,10 +931,6 @@ function addArtifactToChat(title, type, sectionId) {
     artifactDiv.className = 'artifact-reference';
     artifactDiv.innerHTML = `
         <div class="artifact-icon">${type === 'section' ? '📑' : '📄'}</div>
-        <div class="artifact-info">
-            <div class="artifact-title">${title}</div>
-            <div class="artifact-type">${type === 'section' ? 'Section' : 'Subsection'}</div>
-        </div>
     `;
     
     artifactDiv.addEventListener('click', () => {
