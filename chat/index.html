@@ -226,6 +226,20 @@
                 display: block;
             }
             
+            .sidebar-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 99;
+                display: none;
+            }
+            
+            body:has(.sidebar.open) .sidebar-backdrop {
+                display: block;
+            }
+            
             .document-viewer.open {
                 transform: translateY(0);
             }
@@ -636,7 +650,7 @@
     </style>
     
     <!-- Load the FIXED component with updateQuickActions() -->
-    <script src="input-group-component.js?v=fixed"></script>
+    <script src="./src/components/input-group-component.js?v=fixed"></script>
     
     <!-- Load marked.js for markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -737,7 +751,8 @@ Application: Use contractions where appropriate. Address the reader directly.`;
         // Parse assistant response for tool calls
         function parseAssistantResponse(responseData) {
             if (!responseData.candidates || !responseData.candidates[0] || !responseData.candidates[0].content) {
-                throw new Error('Invalid response format from AI model');
+                console.error('Invalid API response:', responseData);
+                throw new Error('API error');
             }
             
             const content = responseData.candidates[0].content;
@@ -906,13 +921,13 @@ Output:`;
     <div class="app-layout">
         <!-- Mobile header -->
         <header class="mobile-header">
-            <button onclick="app.toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer;">☰</button>
+            <button onclick="app.toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer; font-size: 2rem;">☰</button>
             <h1 style="margin: 0 auto; font-size: 1.25rem;">Tech Writers Agents in Python</h1>
         </header>
         
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
-            <h2>Documentation</h2>
+            <h2>Python AI Agents</h2>
             <div id="sidebar-sections">
                 <!-- Populated dynamically -->
             </div>
@@ -971,6 +986,9 @@ Output:`;
     
     <!-- Tray backdrop for click-to-close -->
     <div class="tray-backdrop" id="trayBackdrop" onclick="app.closeTray()"></div>
+    
+    <!-- Sidebar backdrop for click-to-close -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="app.closeSidebar()"></div>
     
     <script type="module">
         import { documentParser } from './src/components/document-parser.js';
@@ -1452,7 +1470,19 @@ Output:`;
                 } catch (error) {
                     console.error('❌ Chat error:', error);
                     this.hideTyping();
-                    this.addMessage(`I apologize, but I encountered an error: ${error.message}`, 'assistant');
+                    
+                    // User-friendly error messages
+                    let errorMessage = "I apologize, there's a temporary problem with the chat service. Please try again in a moment.";
+                    
+                    if (error.message.includes('overloaded') || error.message.includes('503')) {
+                        errorMessage = "The AI service is currently experiencing high demand. Please try again in a few moments.";
+                    } else if (error.message.includes('429')) {
+                        errorMessage = "You're sending messages too quickly. Please wait a moment before trying again.";
+                    } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                        errorMessage = "There seems to be a network connectivity issue. Please check your connection and try again.";
+                    }
+                    
+                    this.addMessage(errorMessage, 'assistant');
                 }
                 
                 state.isProcessing = false;
@@ -1488,6 +1518,12 @@ Output:`;
                 const data = await response.json();
                 
                 if (data.error) {
+                    // Check for specific error types
+                    if (data.error.code === 503 || data.error.status === 'UNAVAILABLE') {
+                        throw new Error('overloaded');
+                    } else if (data.error.code === 429) {
+                        throw new Error('429');
+                    }
                     throw new Error(data.error.message || 'API error');
                 }
                 
@@ -1731,6 +1767,17 @@ Quick actions will be generated from these H2 headings.`;
             toggleSidebar() {
                 const sidebar = document.getElementById('sidebar');
                 sidebar.classList.toggle('open');
+            },
+            
+            closeSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                sidebar.classList.remove('open');
+                // Focus back on chat input
+                setTimeout(() => {
+                    if (this.mainInput && this.mainInput.focus) {
+                        this.mainInput.focus();
+                    }
+                }, 300);
             },
             
             closeAll() {
