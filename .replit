@@ -14,3 +14,7 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd chat && python3 serve-build.py"
+
+[deployment]
+deploymentTarget = "static"
+publicDir = "chat/build"
