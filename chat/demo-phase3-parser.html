@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 3 - Document Parser Integration</title>
+    
+    <!-- REUSE: Phase 1's exact CSS -->
+    <style>
+        /* Global design tokens only */
+        :root {
+            --color-bg: #f7f8fa;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text: #1e293b;
+            --color-primary: #3b82f6;
+            --color-primary-dark: #2563eb;
+            
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --chat-width: 400px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Simple layout grid */
+        .app-layout {
+            display: grid;
+            height: 100vh;
+            grid-template-columns: var(--sidebar-width) var(--chat-width) 1fr;
+        }
+        
+        /* Basic containers */
+        .sidebar {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .chat-panel {
+            background: var(--color-surface);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--color-bg);
+            border-radius: 0.5rem;
+        }
+        
+        .document-viewer {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        /* Mobile layout */
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: var(--header-height) 1fr;
+            }
+            
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                padding: 1rem;
+                background: var(--color-surface);
+                border-bottom: 1px solid var(--color-border);
+            }
+            
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 100;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .chat-panel {
+                grid-row: 2;
+                height: calc(100vh - var(--header-height));
+            }
+            
+            .document-viewer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 75vh;
+                background: var(--color-surface);
+                transform: translateY(100%);
+                transition: transform 0.3s ease;
+                border-radius: 1rem 1rem 0 0;
+                box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 90;
+            }
+            
+            .document-viewer.open {
+                transform: translateY(0);
+            }
+            
+            /* When document viewer is open, move the input group to bottom of screen */
+            body:has(.document-viewer.open) .chat-panel input-group {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 95;
+            }
+            
+            .overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+                z-index: 85;
+            }
+            
+            .overlay.active {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+        
+        /* Desktop-only */
+        @media (min-width: 769px) {
+            .mobile-header {
+                display: none;
+            }
+            
+            .overlay {
+                display: none;
+            }
+            
+            /* Fullscreen document viewer on desktop */
+            .document-viewer.fullscreen {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 100;
+                padding: 3rem;
+                max-width: 1200px;
+                margin: 0 auto;
+                background: var(--color-surface);
+                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            }
+        }
+        
+        /* Demo controls */
+        .demo-controls {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+        }
+        
+        .demo-controls button {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        
+        .demo-controls button:hover {
+            background: var(--color-primary-dark);
+        }
+        
+        /* Sidebar items */
+        .sidebar-item {
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            background: var(--color-bg);
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        
+        .sidebar-item.active {
+            background: var(--color-primary);
+            color: white;
+        }
+    </style>
+    
+    <!-- Load the WORKING component from Phase 1 -->
+    <script src="input-group-component.js"></script>
+    
+    <!-- Load marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile header -->
+        <header class="mobile-header">
+            <button onclick="toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer;">☰</button>
+            <h1 style="margin: 0 auto; font-size: 1.25rem;">Document Chat</h1>
+        </header>
+        
+        <!-- Sidebar - will be populated from parsed document -->
+        <aside class="sidebar" id="sidebar">
+            <h2>Sections</h2>
+            <div id="sidebar-sections">
+                <!-- Populated by document parser -->
+            </div>
+        </aside>
+        
+        <!-- Chat panel -->
+        <section class="chat-panel">
+            <div class="messages-area" id="messagesArea">
+                <div class="message">
+                    <strong>Assistant:</strong> Loading document and parsing structure...
+                </div>
+            </div>
+            
+            <!-- REUSE the working input group component -->
+            <input-group id="mainInput"></input-group>
+        </section>
+        
+        <!-- Document viewer -->
+        <section class="document-viewer" id="documentViewer">
+            <button onclick="toggleDocViewer()" style="position: absolute; top: 1rem; right: 1rem; padding: 0.5rem 1rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 0.25rem; cursor: pointer;">
+                ✕ Close
+            </button>
+            <div id="documentContent">
+                <!-- Populated by document parser -->
+            </div>
+        </section>
+    </div>
+    
+    <!-- Mobile overlay -->
+    <div class="overlay" id="overlay" onclick="closeAll()"></div>
+    
+    <!-- Demo controls -->
+    <div class="demo-controls">
+        <h3 style="margin-bottom: 0.5rem;">Demo Controls</h3>
+        <button onclick="toggleDocViewer()">Toggle Document Viewer</button>
+        <button onclick="loadSampleDocument()">Reload Document</button>
+    </div>
+    
+    <script type="module">
+        import { documentParser } from './src/components/document-parser.js';
+        import { state } from './src/state-manager.js';
+        
+        // Sample markdown document
+        const sampleMarkdown = `# Introduction [Getting Started]
+
+Welcome to our comprehensive documentation. This guide will help you understand all the features.
+
+## Overview
+
+Get a high-level understanding of the system architecture and capabilities.
+
+## Key Concepts
+
+Learn the fundamental concepts that power our platform.
+
+## Quick Start
+
+Jump right in with our 5-minute quick start guide.
+
+# Installation [Setup Guide]
+
+Everything you need to get up and running with our platform.
+
+## System Requirements
+
+Check that your system meets the minimum requirements.
+
+## Download & Install
+
+Step-by-step installation instructions for all platforms.
+
+## Configuration
+
+Configure your environment for optimal performance.
+
+## Troubleshooting
+
+Common installation issues and how to resolve them.
+
+# API Reference [Developer Docs]
+
+Complete API documentation for developers.
+
+## Authentication
+
+Learn how to authenticate your API requests.
+
+## Endpoints
+
+Detailed documentation of all available endpoints.
+
+## Examples
+
+Real-world examples to get you started quickly.`;
+        
+        // Initialize
+        const mainInput = document.getElementById('mainInput');
+        let currentSection = null;
+        let parsedSections = [];
+        
+        // Load and parse document
+        function loadSampleDocument() {
+            // Parse the markdown
+            parsedSections = documentParser.parseMarkdown(sampleMarkdown);
+            
+            // Populate sidebar
+            populateSidebar();
+            
+            // Select first section
+            if (parsedSections.length > 0) {
+                selectSection(parsedSections[0].id);
+            }
+            
+            // Update document content
+            const content = document.getElementById('documentContent');
+            content.innerHTML = documentParser.renderFullHTML();
+            
+            addMessage('Assistant', 'Document loaded! I\'ve parsed the structure. Click sections in the sidebar or use quick actions below to navigate.');
+        }
+        
+        // Populate sidebar from parsed sections
+        function populateSidebar() {
+            const container = document.getElementById('sidebar-sections');
+            container.innerHTML = '';
+            
+            parsedSections.forEach((section, index) => {
+                const div = document.createElement('div');
+                div.className = 'sidebar-item';
+                div.textContent = section.title;
+                div.onclick = () => selectSection(section.id);
+                if (index === 0) div.classList.add('active');
+                container.appendChild(div);
+            });
+        }
+        
+        // Select a section
+        function selectSection(sectionId) {
+            currentSection = parsedSections.find(s => s.id === sectionId);
+            if (!currentSection) return;
+            
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach((item, index) => {
+                item.classList.toggle('active', parsedSections[index].id === sectionId);
+            });
+            
+            // Update quick actions from subsections
+            const quickActions = currentSection.subsections.map(sub => ({
+                id: sub.id,
+                text: sub.title
+            }));
+            mainInput.quickActions = quickActions;
+            
+            // Scroll to section in document
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            
+            // Update state
+            state.set({ currentSection: sectionId });
+        }
+        
+        // Listen for quick action clicks
+        mainInput.addEventListener('action-click', (e) => {
+            const subsectionId = e.detail.actionId;
+            
+            // Scroll to subsection
+            const element = document.getElementById(subsectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Highlight briefly
+                element.style.background = '#e0f2fe';
+                setTimeout(() => {
+                    element.style.background = '';
+                }, 1000);
+            }
+            
+            // On mobile, open document viewer
+            if (window.innerWidth <= 768) {
+                document.getElementById('documentViewer').classList.add('open');
+                document.getElementById('overlay').classList.add('active');
+            }
+        });
+        
+        // Listen for messages
+        mainInput.addEventListener('message-submit', (e) => {
+            addMessage('You', e.detail.message);
+            
+            setTimeout(() => {
+                addMessage('Assistant', 'I can help you navigate the document. Use the quick actions or sidebar to jump to different sections.');
+            }, 500);
+        });
+        
+        // REUSE: Core functions from Phase 1
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+        
+        function toggleDocViewer() {
+            const viewer = document.getElementById('documentViewer');
+            const overlay = document.getElementById('overlay');
+            
+            if (window.innerWidth <= 768) {
+                viewer.classList.toggle('open');
+                overlay.classList.toggle('active');
+            } else {
+                viewer.classList.toggle('fullscreen');
+            }
+        }
+        
+        function closeAll() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('documentViewer').classList.remove('open');
+            document.getElementById('overlay').classList.remove('active');
+        }
+        
+        function addMessage(sender, text) {
+            const messagesArea = document.getElementById('messagesArea');
+            const message = document.createElement('div');
+            message.className = 'message';
+            message.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            messagesArea.appendChild(message);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+        
+        // Initialize on load
+        window.toggleSidebar = toggleSidebar;
+        window.toggleDocViewer = toggleDocViewer;
+        window.loadSampleDocument = loadSampleDocument;
+        
+        // Load document on startup
+        loadSampleDocument();
+    </script>
+</body>
+</html>

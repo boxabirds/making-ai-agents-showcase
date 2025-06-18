@@ -1,4 +1,4 @@
-# Tech Writer Agent in 7 different frameworks
+# Tech Writer Agent in 7 different frameworks (Overview)
 
 So you want to make an agent.   
 **How useful are agent frameworks anyway?**   
@@ -6,7 +6,7 @@ In a [past issue of Making AI Agents](https://makingaiagents.substack.com/p/i-bu
 This "no framework" agent showed how simple agents can be, yet still have quite magical properties that were sci-fi just a few years back.   
 To answer the framework question, I implemented the exact same tech writer agent in a selection of different frameworks, and share my insights here. 
 
-## But first, how many agent maker frameworks are there?
+## But first, how many agent maker frameworks are there? (Agent Landscape)
 
 At last count I have identified approximately:
 
@@ -25,7 +25,7 @@ So far, I have rewritten the tech writer agent seven different frameworks:
 * Langgraph  
 * Pydantic-AI
 
-## Why did you pick the tech writer agent for evaluation?
+## Why did you pick the tech writer agent for evaluation? (Tech Writer Choice)
 
 The tech writer agent **answers plain-English questions about a github repo**. 
 
@@ -41,7 +41,7 @@ These all can be answered by the same agent: **in the past they'd have required 
 
 So the tech writer agent is a **great combination of being both very simple, and very useful**. 
 
-## What did I learn?
+## What did I learn? (Insights)
 
 For a simple agent like my tech writer, the agent frameworks are useful, but not essential. 
 
@@ -64,7 +64,7 @@ As such, a good agent framework makes light work of these 3 things:
 When agents answer these three questions well, they also require less code to write.   
 To this end, of the 7 I initially chose, standout agent makers were **DSPy** and **Agno**, both being very compact and flexible. 
 
-## What did I standardise on?
+## What did I standardise on? (Shared Code)
 
 A rule that in the end added a smidge of complexity to every agent was a firm rule: **"use the common functions and constants wherever possible".** 
 
@@ -80,7 +80,7 @@ This turned out to be a mixed blessing:
 
 Also I standardised on execution: they all use uv, the new hotness when it comes to python package management. Uv was the right choice: it's ultra fast and made it easy to create isolated agent environments to avoid any potential conflicts. 
 
-## How did I rank them?
+## How did I rank them? (Leaderboard)
 
 All the frameworks have their pros and cons. 
 
@@ -117,7 +117,7 @@ Higher friction
 
 * Atomic Agents: overengineered for my use case
 
-# Google Agent Developer Kit
+# Google Agent Developer Kit (adk-python)
 
 At around 115 lines, this is a good, concise framework to work with:
 
@@ -218,7 +218,7 @@ The only reason this wasn't one of the lightest was its specific way to define t
 
 Again, as for Langgraph, I don't understand python scoping rules enough to understand why this additional wrapper was required when other frameworks don't need it, but it translates to slightly higher friction and cognitive load as you have to understand what a RunContext is and why it's required. 
 
-# Other python agent maker frameworks
+# Other python agent maker frameworks (Other Packages)
 
 In future I hope to cover the remaining 8 python package agent makers I've found so far:
 
@@ -231,7 +231,7 @@ In future I hope to cover the remaining 8 python package agent makers I've found
 * [Semantic Kernel](https://github.com/microsoft/semantic-kernel) (Microsoft, multilingual)  
 * [Smolagents](https://github.com/huggingface/smolagents) (HuggingFace)
 
-# Other python agent makers
+# Other python agent makers (Python Servers)
 
 In addition, there are around 15 other open source python solutions, available only, as far as I could make out, as standalone servers. These I'll also assess at some point, but many cannot easily be scripted, they will be a lot more involved to assess:
 
@@ -252,7 +252,7 @@ In addition, there are around 15 other open source python solutions, available o
 * [SuperAGI](https://github.com/TransformerOptimus/SuperAGI)  
 * [Agent Zero](https://github.com/frdel/agent-zero)
 
-# TypeScript agent makers
+# TypeScript agent makers (TypeScript Agents)
 
 Outside Python the second largest set of open source agent makers are those made in TypeScript. 
 

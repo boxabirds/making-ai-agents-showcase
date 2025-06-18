@@ -1,0 +1,11 @@
+[project]
+name = "quick-actions-labeler"
+version = "0.1.0"
+description = "DSPy-based label generator for quick action buttons"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dspy>=2.6.27",
+    "openai>=1.86.0",
+    "pydantic>=2.11.5",
+]

@@ -195,43 +195,42 @@
             <code>python3 -m http.server 8080</code> or <code>npx http-server -p 8080</code>
         </div>
         
-        <!-- Correct Implementation -->
+        <!-- Working Implementation -->
         <div class="section">
             <h2 class="section-title">
-                <span>✅ Correct Original Specification</span>
-                <span class="phase-badge phase-correct">REFERENCE</span>
+                <span>✅ Working Demos</span>
+                <span class="phase-badge phase-correct">VERIFIED</span>
             </h2>
             <div class="demo-grid">
                 <div class="demo-card highlight-card">
-                    <h3>3-Column Layout: Nav / Chat / Doc</h3>
-                    <div class="filename">demo-correct-3-column-layout.html</div>
+                    <h3>Phase 4: Complete Working Demo</h3>
+                    <div class="filename">demo-phase4-consolidated.html</div>
                     <p class="description">
-                        The CORRECT implementation with 3 columns on desktop.
-                        Navigation | Chat | Document viewer.
+                        The most complete working implementation. Combines all working parts.
                     </p>
                     <ul class="test-list">
-                        <li>Desktop: 3 columns (nav/chat/doc)</li>
-                        <li>Mobile: Chat full screen</li>
-                        <li>Document viewer inline on desktop</li>
-                        <li>Document viewer overlay on mobile</li>
-                        <li>Input moves to bottom on mobile</li>
-                        <li>Fixed infinite loop issue</li>
+                        <li>3-column layout (nav/chat/doc)</li>
+                        <li>Document parser integration</li>
+                        <li>Quick actions navigate document</li>
+                        <li>Mobile: overlay with input movement</li>
+                        <li>Clean, working code</li>
                     </ul>
-                    <a href="demo-correct-3-column-layout.html" class="demo-link">View Correct Demo →</a>
+                    <a href="demo-phase4-consolidated.html" class="demo-link">View Demo →</a>
                 </div>
                 
-                <div class="demo-card">
-                    <h3>Previous Mobile-First Attempt</h3>
-                    <div class="filename">demo-correct-original-spec.html</div>
+                <div class="demo-card highlight-card">
+                    <h3>Phase 1: Original Working Layout</h3>
+                    <div class="filename">demo-phase1-initial-components.html</div>
                     <p class="description">
-                        Earlier attempt (has infinite loop bug). Shows mobile-first approach but wrong desktop layout.
+                        The original working implementation with web components.
                     </p>
                     <ul class="test-list">
-                        <li>Has infinite loop when loading document</li>
-                        <li>Wrong desktop layout (2 columns)</li>
-                        <li>Mobile behavior mostly correct</li>
+                        <li>Correct 3-column layout</li>
+                        <li>Working mobile behavior</li>
+                        <li>Input group web component</li>
+                        <li>Simple and clean</li>
                     </ul>
-                    <a href="demo-correct-original-spec.html" class="demo-link">View Demo →</a>
+                    <a href="demo-phase1-initial-components.html" class="demo-link">View Demo →</a>
                 </div>
             </div>
         </div>
@@ -307,34 +306,33 @@
             </h2>
             <div class="demo-grid">
                 <div class="demo-card">
-                    <h3>Phase 2 Corrected</h3>
-                    <div class="filename">demo-phase2-corrected.html</div>
+                    <h3>Phase 2: Enhanced with Navigation</h3>
+                    <div class="filename">demo-phase2-fresh.html</div>
                     <p class="description">
-                        Proper Phase 2 building on Phase 1's correct layout. Maintains 3-column structure.
+                        Phase 1 + quick actions that navigate document.
                     </p>
                     <ul class="test-list">
-                        <li>Preserves Phase 1 layout (nav/chat/doc)</li>
-                        <li>Sidebar toggle from Phase 1</li>
-                        <li>Enhanced sidebar with search</li>
-                        <li>Document parser integration</li>
-                        <li>Proper mobile behavior</li>
+                        <li>Quick actions navigate to subsections</li>
+                        <li>Document content updates on section change</li>
+                        <li>Preserves Phase 1 layout</li>
+                        <li>Simple enhancements only</li>
                     </ul>
-                    <a href="demo-phase2-corrected.html" class="demo-link">View Demo →</a>
+                    <a href="demo-phase2-fresh.html" class="demo-link">View Demo →</a>
                 </div>
                 
-                <div class="demo-card" style="opacity: 0.7;">
-                    <h3>Sidebar & Document Viewer (Wrong)</h3>
-                    <div class="filename">demo-phase2.html</div>
+                <div class="demo-card">
+                    <h3>Phase 3: Document Parser Integration</h3>
+                    <div class="filename">demo-phase3-parser.html</div>
                     <p class="description">
-                        ⚠️ INCORRECT LAYOUT - Got sidetracked from original spec.
+                        Integrates the document parser to work with real markdown.
                     </p>
                     <ul class="test-list">
-                        <li>Wrong layout (chat on right)</li>
-                        <li>Lost the 3-column structure</li>
-                        <li>Different sidebar behavior</li>
-                        <li>Components work but layout wrong</li>
+                        <li>Parses markdown documents</li>
+                        <li>Generates sidebar from H1 sections</li>
+                        <li>Quick actions from H2 subsections</li>
+                        <li>Proper navigation between sections</li>
                     </ul>
-                    <a href="demo-phase2.html" class="demo-link">View Demo →</a>
+                    <a href="demo-phase3-parser.html" class="demo-link">View Demo →</a>
                 </div>
             </div>
         </div>
