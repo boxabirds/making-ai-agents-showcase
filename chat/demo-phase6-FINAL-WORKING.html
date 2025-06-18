@@ -55,12 +55,24 @@
             border-right: 1px solid var(--color-border);
             display: flex;
             flex-direction: column;
+            position: relative;
         }
         
         .messages-area {
             flex: 1;
             overflow-y: auto;
             padding: 1rem;
+            padding-bottom: 120px; /* Space for fixed input */
+        }
+        
+        /* Fix input to bottom of chat panel */
+        .chat-panel input-group {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--color-surface);
+            border-top: 1px solid var(--color-border);
         }
         
         .message {
@@ -265,6 +277,147 @@
             MAX_TOKENS: 1024,
             TEMPERATURE: 0.0
         };
+
+        // Tone profile for tech writer assistant
+        const TONE_PROFILE = `TONE OF VOICE PROFILE
+
+Skeptical Optimism (Core Dimension):
+Description: A foundational tone that approaches claims with healthy skepticism but maintains an underlying optimism about the potential of Vibe Coding and AI agents. It questions hype while looking for genuine value and practical applications.
+Application: Critically evaluate tools and success stories, acknowledge limitations and potential pitfalls, but ultimately highlight the empowering aspects and future possibilities in a positive light.
+
+Upbeat & Engaging:
+Description: The overall energy should be positive, enthusiastic, and engaging, drawing the reader in rather than presenting information dryly.
+Application: Use active voice, varied sentence structure, and a generally positive framing, even when discussing complex or challenging topics.
+
+Truthful & Accurate (Evidence-Based):
+Description: All information, especially claims and technical descriptions, must be grounded in verifiable facts and evidence. Avoid making unsubstantiated statements.
+Application: Prioritize accuracy in describing tools, technologies, and case studies. Clearly distinguish between established facts, reported claims (with sources), and speculative future trends.
+
+Slightly Sarcastic / Witty Humor:
+Description: Incorporate occasional, subtle sarcasm or witty observations to add personality and make the content more relatable and entertaining.
+Application: Use sparingly in appropriate contexts, perhaps when commenting on industry hype, common misconceptions, or the quirks of technology.
+
+Clear & Accessible (Non-Technical Focus):
+Description: While knowledgeable, the language must remain accessible to non-technical people with business ideas.
+Application: Break down complex concepts into simpler terms. Use analogies or relatable examples.
+
+Conversational & Relatable:
+Description: Avoid overly academic or formal language. The tone should feel more like an engaging conversation with a knowledgeable guide.
+Application: Use contractions where appropriate. Address the reader directly.`;
+
+        // Build tool definitions for navigation
+        function buildToolDefinitions(sections) {
+            if (!sections || sections.length === 0) {
+                return [];
+            }
+            
+            // Build structured hierarchy
+            const sectionStructure = sections.map(s => ({
+                name: s.title,
+                subsections: s.subsections.map(sub => sub.title)
+            }));
+            
+            // Generate clear description
+            const sectionDescriptions = sectionStructure.map(s => {
+                if (s.subsections.length > 0) {
+                    return `${s.name} (subsections: ${s.subsections.join(', ')})`;
+                }
+                return s.name;
+            }).join('; ');
+            
+            const sectionNames = sectionStructure.map(s => s.name);
+            const allSubsections = sectionStructure.flatMap(s => s.subsections);
+            const uniqueSubsections = [...new Set(allSubsections)];
+            
+            return [{
+                function_declarations: [{
+                    name: "navigate_to_section",
+                    description: `When user asks about content related to these sections, navigate there instead of describing it. Available sections: ${sectionDescriptions}`,
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            section: {
+                                type: "string",
+                                description: "The main section name",
+                                enum: sectionNames
+                            },
+                            subsection: {
+                                type: "string",
+                                description: "The subsection name within the main section (optional)",
+                                enum: uniqueSubsections.length > 0 ? uniqueSubsections : undefined
+                            }
+                        },
+                        required: ["section"]
+                    }
+                }]
+            }];
+        }
+
+        // Parse assistant response for tool calls
+        function parseAssistantResponse(responseData) {
+            if (!responseData.candidates || !responseData.candidates[0] || !responseData.candidates[0].content) {
+                throw new Error('Invalid response format from AI model');
+            }
+            
+            const content = responseData.candidates[0].content;
+            
+            // Check for function call
+            if (content.parts && content.parts[0] && content.parts[0].functionCall) {
+                const functionCall = content.parts[0].functionCall;
+                return {
+                    toolCall: {
+                        tool: functionCall.name,
+                        section: functionCall.args.section,
+                        subsection: functionCall.args.subsection
+                    },
+                    text: ""
+                };
+            }
+            
+            // Regular text response
+            if (content.parts && content.parts[0] && content.parts[0].text) {
+                return { text: content.parts[0].text };
+            }
+            
+            throw new Error('No valid content in response');
+        }
+
+        // Handle tool calls for navigation
+        function handleToolCall(toolCall, sections, navigationCallback) {
+            if (toolCall.tool === 'navigate_to_section') {
+                const { section: sectionName, subsection: subsectionName } = toolCall;
+                
+                // Find matching section
+                const sectionObj = sections.find(
+                    s => s.title.toLowerCase() === sectionName.toLowerCase()
+                );
+                
+                if (!sectionObj) {
+                    console.error('Section not found:', sectionName);
+                    return `I couldn't find the section "${sectionName}". Available sections are: ${sections.map(s => s.title).join(', ')}`;
+                }
+                
+                // Handle subsection navigation
+                if (subsectionName) {
+                    const subsectionObj = sectionObj.subsections.find(
+                        sub => sub.title.toLowerCase() === subsectionName.toLowerCase()
+                    );
+                    
+                    if (subsectionObj) {
+                        navigationCallback(subsectionObj.id);
+                        return `Navigated to "${subsectionName}" in the "${sectionName}" section.`;
+                    } else {
+                        navigationCallback(sectionObj.id);
+                        return `I found the "${sectionName}" section, but couldn't locate the specific subsection "${subsectionName}". Showing the main section instead.`;
+                    }
+                } else {
+                    navigationCallback(sectionObj.id);
+                    return `Navigated to the "${sectionName}" section.`;
+                }
+            }
+            
+            return `Unknown tool call: ${toolCall.tool}`;
+        }
 
         // Quick Action Label Generation Prompt (from DSPy training)
         const QUICK_ACTION_PROMPT = `Generate short 1-3 word labels for section headings used as quick action buttons.
@@ -616,29 +769,45 @@ Output:`;
             },
             
             buildChatPrompt(userMessage, documentContext) {
-                return `You are a helpful AI assistant for navigating and understanding technical documentation.
+                return `You are a technical writing assistant specializing in AI agent frameworks and development tools.
 
+${TONE_PROFILE}
+
+DOCUMENT CONTEXT:
 ${documentContext}
+
+When users ask about specific sections or topics covered in the documentation, use the navigate_to_section tool to take them directly to the relevant content instead of just describing it.
 
 User question: ${userMessage}
 
-Provide a helpful response based on the document structure shown above. If the user is asking about a specific section, you can reference it by name.`;
+Respond in the tone profile above - be skeptically optimistic, engaging, and conversational while providing accurate, helpful information.`;
             },
             
             async callGeminiChat(prompt) {
+                const tools = buildToolDefinitions(this.sections);
+                
+                const requestBody = {
+                    model: CONFIG.MODEL,
+                    contents: [
+                        { role: "user", parts: [{ text: prompt }] }
+                    ],
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 512
+                    }
+                };
+                
+                // Add tools if available
+                if (tools.length > 0) {
+                    requestBody.tools = tools;
+                }
+                
+                console.log('🔧 Making API call with tools:', tools.length > 0 ? 'enabled' : 'disabled');
+                
                 const response = await fetch(CONFIG.WORKER_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: CONFIG.MODEL,
-                        contents: [
-                            { role: "user", parts: [{ text: prompt }] }
-                        ],
-                        generationConfig: {
-                            temperature: 0.7,
-                            maxOutputTokens: 512
-                        }
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const data = await response.json();
@@ -647,7 +816,23 @@ Provide a helpful response based on the document structure shown above. If the u
                     throw new Error(data.error.message || 'API error');
                 }
                 
-                return data.candidates[0].content.parts[0].text.trim();
+                // Parse response for tool calls or text
+                const parsed = parseAssistantResponse(data);
+                
+                if (parsed.toolCall) {
+                    console.log('🔧 Tool call detected:', parsed.toolCall);
+                    const toolResult = handleToolCall(parsed.toolCall, this.sections, (elementId) => {
+                        this.scrollToElement(elementId);
+                        // Open document viewer on mobile
+                        if (window.innerWidth <= 768) {
+                            document.getElementById('documentViewer').classList.add('open');
+                            document.getElementById('overlay').classList.add('active');
+                        }
+                    });
+                    return toolResult;
+                }
+                
+                return parsed.text.trim();
             },
             
             showTyping() {
