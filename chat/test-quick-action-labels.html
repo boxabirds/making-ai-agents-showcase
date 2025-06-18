@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Quick Action Label Generation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>Document Navigator</h3>
+                <button class="close-btn" id="closeSidebar">✕</button>
+            </div>
+            <nav class="sidebar-nav" id="sectionsList">
+                <!-- Sections will be rendered here -->
+            </nav>
+        </aside>
+
+        <!-- Main Chat Container -->
+        <main class="chat-main">
+            <div class="chat-container">
+                <!-- Header -->
+                <header class="chat-header">
+                    <button class="hamburger" id="hamburgerBtn">☰</button>
+                    <h2 id="documentTitle">Chat with Document</h2>
+                </header>
+
+                <!-- Messages Area -->
+                <div class="messages-container" id="messagesContainer">
+                    <div class="welcome-message">
+                        <h3>Welcome! 👋</h3>
+                        <p>This is a test of the automatic quick action label generation.</p>
+                        <p>Load a document to see how section headings are converted to concise labels.</p>
+                    </div>
+                </div>
+
+                <!-- Input Area with Quick Actions -->
+                <div class="input-area">
+                    <div class="quick-actions" id="quickActions">
+                        <!-- Quick action buttons will be rendered here -->
+                    </div>
+                    <div class="input-container">
+                        <input 
+                            type="text" 
+                            class="chat-input" 
+                            id="chatInput" 
+                            placeholder="Ask about the document..."
+                            autocomplete="off"
+                        >
+                        <button class="send-button" id="sendButton">
+                            <svg viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Typing Indicator -->
+                <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Document Detail Panel -->
+        <aside class="detail-panel" id="detailPanel">
+            <div class="panel-header">
+                <h3 id="panelTitle">Document Content</h3>
+                <button class="close-btn" id="closePanelBtn">✕</button>
+            </div>
+            <div class="panel-content" id="panelContent">
+                <!-- Document content will be displayed here -->
+            </div>
+        </aside>
+    </div>
+
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <!-- Separator -->
+    <div class="separator-vertical" id="separatorVertical"></div>
+
+    <!-- Load dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Load modules -->
+    <script type="module">
+        // Import the document parser
+        import { documentParser } from './src/components/document-parser.js';
+        
+        // Make it available globally for script.js
+        window.documentParser = documentParser;
+        
+        // Create a test document with various heading types
+        const testMarkdown = `# Introduction to Machine Learning
+
+This section provides an overview of machine learning concepts.
+
+## What is Machine Learning?
+
+Machine learning is a subset of artificial intelligence.
+
+## Getting Started with Python
+
+Learn how to set up your Python environment for ML.
+
+# Understanding Neural Networks
+
+Deep dive into neural network architectures.
+
+## Perceptrons and Neurons
+
+The basic building blocks of neural networks.
+
+## Backpropagation Algorithm
+
+How neural networks learn from data.
+
+# Advanced Topics in AI
+
+Exploring cutting-edge AI research.
+
+## Reinforcement Learning
+
+Training agents through rewards and penalties.
+
+## Natural Language Processing
+
+Teaching computers to understand human language.
+
+# Frequently Asked Questions
+
+Common questions about machine learning.
+
+## How do I choose the right algorithm?
+
+Guidance on algorithm selection.
+
+## What hardware do I need?
+
+Hardware requirements for ML development.`;
+
+        // Add button to load test document
+        const loadButton = document.createElement('button');
+        loadButton.textContent = 'Load Test Document';
+        loadButton.style.cssText = 'position: fixed; top: 10px; right: 10px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;';
+        loadButton.onclick = async () => {
+            loadButton.disabled = true;
+            loadButton.textContent = 'Loading...';
+            
+            // Process the document
+            await processDocument(testMarkdown);
+            
+            loadButton.textContent = 'Document Loaded';
+            
+            // Log the generated labels
+            console.log('Generated Quick Action Labels:');
+            documentParser.getMainSections().forEach(section => {
+                console.log(`Section: "${section.title}" → Label: "${section.quickActionLabel || 'N/A'}"`);
+                section.subsections.forEach(sub => {
+                    console.log(`  Subsection: "${sub.title}" → Label: "${sub.quickActionLabel || 'N/A'}"`);
+                });
+            });
+        };
+        document.body.appendChild(loadButton);
+    </script>
+    
+    <!-- Load main script -->
+    <script src="script.js"></script>
+</body>
+</html>

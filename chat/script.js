@@ -6,6 +6,42 @@ const CONFIG = {
     TEMPERATURE: 0.0
 };
 
+// Quick Action Label Generation Prompt (from DSPy training)
+const QUICK_ACTION_PROMPT = `Generate short 1-3 word labels for section headings used as quick action buttons.
+
+Examples:
+Input: ["Tech Writer Agent in 7 different frameworks", "But first, how many agent maker frameworks are there?", "Why did you pick the tech writer agent for evaluation?"]
+Output: ["Overview", "Agent Landscape", "Tech Writer Choice"]
+
+Input: ["What did I learn?", "What did I standardise on?", "How did I rank them?"]
+Output: ["Insights", "Shared Code", "Leaderboard"]
+
+Input: ["Google Agent Developer Kit", "Other python agent maker frameworks", "TypeScript agent makers"]
+Output: ["adk-python", "Other Packages", "TypeScript Agents"]
+
+Input: ["Introduction to Machine Learning", "Getting Started with Python", "Understanding Neural Networks"]
+Output: ["ML Introduction", "Python Setup", "Neural Networks"]
+
+Input: ["Frequently Asked Questions", "API Authentication and Security", "Performance Optimization Techniques"]
+Output: ["FAQ", "API Security", "Performance Tips"]
+
+Guidelines:
+- Keep labels concise (1-3 words maximum)
+- Use title case for labels
+- For questions, extract the key topic
+- For long headings, capture the essence
+- Common patterns:
+  - "Introduction to X" → "Introduction" or "X Intro"
+  - "How to X" → "X Guide" or just "X"
+  - "What is X?" → "X Overview" or just "X"
+  - "Getting Started with X" → "Getting Started" or "X Setup"
+
+Return ONLY a JSON array of strings. No other text, no markdown, no explanations.
+The output array MUST have the same length as the input array.
+
+Input: {headings}
+Output:`;
+
 // Tone profile constant
 const TONE_PROFILE = `TONE OF VOICE PROFILE
 
@@ -190,9 +226,9 @@ Built with vanilla JavaScript and modern web standards for maximum compatibility
     processDocument(sampleMarkdown);
 }
 
-function processDocument(markdown) {
+async function processDocument(markdown) {
     // Parse the markdown document
-    const sections = window.documentParser.parseMarkdown(markdown);
+    const sections = await window.documentParser.parseMarkdown(markdown);
     state.documentContent = markdown;
     
     // Clear conversation history when new document is loaded
@@ -702,6 +738,60 @@ async function callGeminiAPI(contents) {
     
     // Return the full response data for parsing
     return data;
+}
+
+// Generate quick action labels for an array of headings
+window.generateQuickActionLabels = async function generateQuickActionLabels(headings) {
+    if (!headings || headings.length === 0) return [];
+    
+    const prompt = QUICK_ACTION_PROMPT.replace('{headings}', JSON.stringify(headings));
+    
+    try {
+        const response = await fetch(CONFIG.WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: CONFIG.MODEL,
+                contents: [
+                    { role: "user", parts: [{ text: prompt }] }
+                ],
+                generationConfig: {
+                    temperature: 0.3,  // More creative than 0.0 but still consistent
+                    maxOutputTokens: 256  // Enough for many labels
+                }
+            })
+        });
+        
+        const data = await response.json();
+        
+        // Check for errors
+        if (data.error) {
+            throw new Error(data.error.message || 'API error');
+        }
+        
+        // Extract the response text
+        const content = data.candidates[0].content.parts[0].text.trim();
+        
+        // Parse JSON response
+        const labels = JSON.parse(content);
+        
+        // Validate same length
+        if (labels.length !== headings.length) {
+            throw new Error('Label count mismatch');
+        }
+        
+        console.log('Generated labels:', labels);
+        return labels;
+    } catch (error) {
+        console.error('Failed to generate labels:', error);
+        // Fallback: generate simple labels
+        return headings.map(heading => {
+            const words = heading.split(' ').filter(w => 
+                w.length > 2 && !['the', 'and', 'for', 'with', 'from'].includes(w.toLowerCase())
+            );
+            return words.slice(0, 2).join(' ') || heading.slice(0, 20);
+        });
+    }
 }
 
 function parseAssistantResponse(responseData) {

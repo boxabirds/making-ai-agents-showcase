@@ -27,7 +27,7 @@ export class DocumentParser extends BaseComponent {
    * Handles H1 sections with H2 subsections
    * Supports bracketed phrases in titles
    */
-  parseMarkdown(markdownContent) {
+  async parseMarkdown(markdownContent) {
     this.state.rawMarkdown = markdownContent;
     this.state.sections = [];
     
@@ -109,6 +109,11 @@ export class DocumentParser extends BaseComponent {
       this.state.sections.push(currentSection);
     }
     
+    // Generate quick action labels if the function is available
+    if (window.generateQuickActionLabels) {
+      await this.generateLabelsForSections();
+    }
+    
     // Update global state
     state.set({
       sections: this.state.sections,
@@ -119,6 +124,50 @@ export class DocumentParser extends BaseComponent {
     this.renderFullHTML();
     
     return this.state.sections;
+  }
+  
+  /**
+   * Generate quick action labels for all sections
+   */
+  async generateLabelsForSections() {
+    const allHeadings = [];
+    const headingMap = new Map(); // Map heading to section/subsection object
+    
+    // Collect all headings
+    this.state.sections.forEach(section => {
+      allHeadings.push(section.title);
+      headingMap.set(section.title, section);
+      
+      section.subsections.forEach(sub => {
+        allHeadings.push(sub.title);
+        headingMap.set(sub.title, sub);
+      });
+    });
+    
+    if (allHeadings.length === 0) return;
+    
+    try {
+      // Generate labels for all headings at once
+      const labels = await window.generateQuickActionLabels(allHeadings);
+      
+      // Apply labels to sections
+      labels.forEach((label, index) => {
+        const heading = allHeadings[index];
+        const sectionObj = headingMap.get(heading);
+        if (sectionObj) {
+          sectionObj.quickActionLabel = label;
+          // For subsections, also set the text property used by quick actions
+          if (sectionObj.level === 2) {
+            sectionObj.text = label;
+          }
+        }
+      });
+      
+      console.log('Quick action labels generated successfully');
+    } catch (error) {
+      console.error('Failed to generate quick action labels:', error);
+      // Labels will fall back to titles
+    }
   }
   
   /**
@@ -199,7 +248,7 @@ export class DocumentParser extends BaseComponent {
     
     return section.subsections.map(sub => ({
       id: sub.id,
-      text: sub.title,
+      text: sub.quickActionLabel || sub.title,  // Use generated label or fallback to title
       fullTitle: `${section.title} > ${sub.title}`
     }));
   }
