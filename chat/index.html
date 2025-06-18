@@ -236,7 +236,7 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
-                z-index: 95;
+                z-index: 210;
             }
             
         }
@@ -791,7 +791,7 @@ Application: Use contractions where appropriate. Address the reader directly.`;
                     if (subsectionObj) {
                         console.log('Navigating to subsection:', subsectionObj.id, 'in section:', sectionObj.id);
                         app.scrollToElement(subsectionObj.id);
-                        app.addArtifactToChat(`${sectionObj.title} > ${subsectionObj.title}`, 'subsection', subsectionObj.id);
+                        app.addArtifactToChat(`Show ${sectionObj.title} > ${subsectionObj.title}`, 'subsection', subsectionObj.id);
                         
                         // Open document viewer on mobile
                         if (window.innerWidth <= 768) {
@@ -801,7 +801,7 @@ Application: Use contractions where appropriate. Address the reader directly.`;
                         // Subsection not found, fallback to main section
                         console.log('Subsection not found, falling back to main section');
                         app.scrollToElement(sectionObj.id);
-                        app.addArtifactToChat(sectionObj.title, 'section', sectionObj.id);
+                        app.addArtifactToChat(`Show ${sectionObj.title}`, 'section', sectionObj.id);
                         app.addMessage(`I couldn't find the subsection "${subsectionName}" in ${sectionName}, so I'm showing the main section.`, 'assistant');
                         
                         // Open document viewer on mobile
@@ -813,12 +813,11 @@ Application: Use contractions where appropriate. Address the reader directly.`;
                     // Navigate to main section only
                     console.log('Navigating to main section:', sectionObj.id);
                     app.scrollToElement(sectionObj.id);
-                    app.addArtifactToChat(sectionObj.title, 'section', sectionObj.id);
+                    app.addArtifactToChat(`Show ${sectionObj.title}`, 'section', sectionObj.id);
                     
                     // Open document viewer on mobile
                     if (window.innerWidth <= 768) {
                         document.getElementById('documentViewer').classList.add('open');
-                        document.getElementById('overlay').classList.add('active');
                     }
                 }
             }
