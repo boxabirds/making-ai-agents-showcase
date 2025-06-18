@@ -698,14 +698,11 @@ Output:`;
             <div class="messages-area" id="messagesArea">
                 <div class="message assistant">
                     <div class="avatar">AI</div>
-                    <div class="message-content">Welcome to the Making AI Agents comparison report on tech writer agents.</div>
-                </div>
-                <div class="message assistant">
-                    <div class="avatar">AI</div>
                     <div class="message-content">
-                        <a href="https://makingaiagents.substack.com" target="_blank" style="display: block; text-decoration: none;">
-                            <img src="assets/maia-banner-small.png" alt="Making AI Agents" style="max-width: 100%; height: auto; border-radius: 8px; cursor: pointer;">
+                        <a href="https://makingaiagents.substack.com" target="_blank" style="display: block; text-decoration: none; margin-bottom: 0.75rem;">
+                            <img src="assets/maia-banner-small.png" alt="Making AI Agents" style="width: 100%; height: auto; border-radius: 8px; cursor: pointer;">
                         </a>
+                        Welcome to the Making AI Agents comparison report on tech writer agents.
                     </div>
                 </div>
             </div>
@@ -774,13 +771,115 @@ Output:`;
                 }
                 
                 this.setupEventListeners();
+                this.setupKeyboardNavigation();
                 this.loadDocument().catch(async (err) => {
                     console.error('Document load failed:', err);
                     this.addMessage('System', `Error loading document: ${err.message}`, true);
                     await this.loadSampleDocument();
                 });
+                
+                // Auto-focus chat input after load
+                setTimeout(() => {
+                    if (this.mainInput && this.mainInput.focus) {
+                        this.mainInput.focus();
+                    }
+                }, 500);
             },
             
+            setupKeyboardNavigation() {
+                const documentViewer = document.getElementById('documentContent');
+                
+                // Handle spacebar navigation
+                document.addEventListener('keydown', (e) => {
+                    // Skip if user is typing in input
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    
+                    if (e.code === 'Space') {
+                        this.handleSpacebarNavigation(e);
+                    }
+                });
+                
+                // Handle arrow key navigation  
+                documentViewer.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                        this.handleArrowNavigation(e);
+                    }
+                });
+            },
+
+            handleSpacebarNavigation(e) {
+                const panel = document.getElementById('documentContent');
+                const viewer = document.getElementById('documentViewer');
+                const isAtEnd = viewer.scrollHeight - viewer.scrollTop <= viewer.clientHeight + 10;
+                const isAtTop = viewer.scrollTop <= 10;
+                
+                if (e.shiftKey && isAtTop) {
+                    // Shift+spacebar at top: Move to previous section
+                    e.preventDefault();
+                    const currentIndex = this.sections.findIndex(s => s.id === state.currentSection);
+                    
+                    if (currentIndex > 0) {
+                        const prevSection = this.sections[currentIndex - 1];
+                        this.selectSection(prevSection.id);
+                        
+                        // Scroll to bottom of previous section
+                        setTimeout(() => {
+                            viewer.scrollTop = viewer.scrollHeight;
+                        }, 50);
+                    }
+                } else if (!e.shiftKey && isAtEnd) {
+                    // Spacebar at end: Move to next section
+                    e.preventDefault();
+                    const currentIndex = this.sections.findIndex(s => s.id === state.currentSection);
+                    
+                    if (currentIndex >= 0 && currentIndex < this.sections.length - 1) {
+                        const nextSection = this.sections[currentIndex + 1];
+                        this.selectSection(nextSection.id);
+                        
+                        // Scroll to top of new section
+                        setTimeout(() => {
+                            viewer.scrollTop = 0;
+                        }, 50);
+                    }
+                }
+            },
+
+            handleArrowNavigation(e) {
+                const viewer = document.getElementById('documentViewer');
+                const isAtEnd = viewer.scrollHeight - viewer.scrollTop <= viewer.clientHeight + 10;
+                const isAtTop = viewer.scrollTop <= 10;
+                
+                if (e.key === 'ArrowUp' && isAtTop) {
+                    // Up arrow at top: Move to previous section
+                    e.preventDefault();
+                    const currentIndex = this.sections.findIndex(s => s.id === state.currentSection);
+                    
+                    if (currentIndex > 0) {
+                        const prevSection = this.sections[currentIndex - 1];
+                        this.selectSection(prevSection.id);
+                        
+                        // Scroll to bottom of previous section
+                        setTimeout(() => {
+                            viewer.scrollTop = viewer.scrollHeight;
+                        }, 50);
+                    }
+                } else if (e.key === 'ArrowDown' && isAtEnd) {
+                    // Down arrow at end: Move to next section
+                    e.preventDefault();
+                    const currentIndex = this.sections.findIndex(s => s.id === state.currentSection);
+                    
+                    if (currentIndex >= 0 && currentIndex < this.sections.length - 1) {
+                        const nextSection = this.sections[currentIndex + 1];
+                        this.selectSection(nextSection.id);
+                        
+                        // Scroll to top of new section
+                        setTimeout(() => {
+                            viewer.scrollTop = 0;
+                        }, 50);
+                    }
+                }
+            },
+
             setupEventListeners() {
                 console.log('📡 Setting up event listeners...');
                 
