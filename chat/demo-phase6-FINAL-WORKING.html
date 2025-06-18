@@ -682,7 +682,7 @@ Output:`;
         <!-- Mobile header -->
         <header class="mobile-header">
             <button onclick="app.toggleSidebar()" style="padding: 0.5rem; background: none; border: none; cursor: pointer;">☰</button>
-            <h1 style="margin: 0 auto; font-size: 1.25rem;">Document Chat</h1>
+            <h1 style="margin: 0 auto; font-size: 1.25rem;">Tech Writers Agents in Python</h1>
         </header>
         
         <!-- Sidebar -->
@@ -698,7 +698,15 @@ Output:`;
             <div class="messages-area" id="messagesArea">
                 <div class="message assistant">
                     <div class="avatar">AI</div>
-                    <div class="message-content">Welcome! This is the FINAL WORKING version with complete chat integration. Both chat and quick actions should work perfectly with full conversation history.</div>
+                    <div class="message-content">Welcome to the Making AI Agents comparison report on tech writer agents.</div>
+                </div>
+                <div class="message assistant">
+                    <div class="avatar">AI</div>
+                    <div class="message-content">
+                        <a href="https://makingaiagents.substack.com" target="_blank" style="display: block; text-decoration: none;">
+                            <img src="assets/maia-banner-small.png" alt="Making AI Agents" style="max-width: 100%; height: auto; border-radius: 8px; cursor: pointer;">
+                        </a>
+                    </div>
                 </div>
             </div>
             
@@ -836,10 +844,17 @@ Output:`;
                     
                     if (this.sections.length > 0) {
                         this.selectSection(this.sections[0].id);
+                        
+                        // Open document viewer by default on mobile
+                        if (window.innerWidth <= 768) {
+                            setTimeout(() => {
+                                document.getElementById('documentViewer').classList.add('open');
+                                document.getElementById('overlay').classList.add('active');
+                            }, 100);
+                        }
                     }
                     
                     console.log('📄 Document loaded successfully');
-                    
                 } catch (error) {
                     console.error('❌ loadDocument error:', error);
                     throw error;
@@ -857,7 +872,24 @@ Output:`;
                         ${section.title}
                         ${section.bracketedPhrase ? `<span class="badge">${section.bracketedPhrase}</span>` : ''}
                     `;
-                    div.onclick = () => this.selectSection(section.id);
+                    div.onclick = () => {
+                        this.selectSection(section.id);
+                        
+                        // Open document viewer on mobile when selecting from sidebar
+                        if (window.innerWidth <= 768) {
+                            document.getElementById('documentViewer').classList.add('open');
+                            document.getElementById('overlay').classList.add('active');
+                            
+                            // Close sidebar after selection
+                            document.getElementById('sidebar').classList.remove('open');
+                            document.getElementById('overlay').classList.remove('active');
+                            
+                            // Re-add overlay for document viewer
+                            setTimeout(() => {
+                                document.getElementById('overlay').classList.add('active');
+                            }, 10);
+                        }
+                    };
                     container.appendChild(div);
                 });
             },
@@ -880,20 +912,29 @@ Output:`;
                     items[index]?.classList.toggle('active', s.id === sectionId);
                 });
                 
-                // CRITICAL: Update quick actions using FIXED component
-                console.log('🔄 Setting quick actions using FIXED component...');
-                console.log('Component updateQuickActions method exists?', typeof this.mainInput.updateQuickActions);
+                // Check if we need to generate labels first
+                const needsLabels = section.subsections.length > 0 && 
+                                   !section.subsections[0].label && 
+                                   window.generateQuickActionLabels;
                 
-                this.mainInput.quickActions = section.subsections.map(sub => ({
-                    id: sub.id,
-                    text: sub.label || sub.title
-                }));
-                
-                console.log('✅ Quick actions set successfully without render()!');
-                
-                // Generate AI labels for quick actions if not already done
-                if (section.subsections.length > 0 && !section.subsections[0].label && window.generateQuickActionLabels) {
-                    this.generateLabelsForSection(section);
+                if (needsLabels) {
+                    // Clear quick actions while generating labels to prevent flash
+                    this.mainInput.quickActions = [];
+                    
+                    // Generate labels first, then set quick actions
+                    this.generateLabelsForSection(section).then(() => {
+                        // Now set quick actions with generated labels
+                        this.mainInput.quickActions = section.subsections.map(sub => ({
+                            id: sub.id,
+                            text: sub.label || sub.title
+                        }));
+                    });
+                } else {
+                    // Labels already exist, set quick actions immediately
+                    this.mainInput.quickActions = section.subsections.map(sub => ({
+                        id: sub.id,
+                        text: sub.label || sub.title
+                    }));
                 }
                 
                 this.scrollToElement(sectionId);
@@ -915,14 +956,8 @@ Output:`;
                         }
                     });
                     
-                    if (this.currentSection === section.id) {
-                        console.log('🔄 Updating quick actions with AI labels using FIXED component...');
-                        this.mainInput.quickActions = section.subsections.map(sub => ({
-                            id: sub.id,
-                            text: sub.label || sub.title
-                        }));
-                        console.log('✅ Quick actions updated with AI labels successfully!');
-                    }
+                    // Quick actions are now updated in selectSection after labels are ready
+                    console.log('✅ AI labels generated successfully');
                 } catch (error) {
                     console.error('Failed to generate labels for section:', section.title, error);
                 }
