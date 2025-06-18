@@ -249,13 +249,169 @@
         }
         
         /* Message improvements */
-        .message strong {
-            color: var(--color-primary);
+        .message {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+        
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        
+        .message .avatar {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .message.user .avatar {
+            background: var(--color-primary);
+            color: white;
+        }
+        
+        .message.assistant .avatar {
+            background: var(--color-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+        
+        .message-content {
+            flex: 1;
+            background: var(--color-surface);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--color-border);
+        }
+        
+        .message.user .message-content {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
         }
         
         .message.system {
             background: #f0f9ff;
             border-left: 3px solid var(--color-primary);
+        }
+        
+        /* Typing indicator */
+        .typing-indicator {
+            display: none;
+            padding: 1rem;
+        }
+        
+        .typing-indicator.active {
+            display: block;
+        }
+        
+        .typing-bubble {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+        
+        .typing-bubble .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--color-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .typing-dots {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.25rem;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--color-text);
+            opacity: 0.4;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+        
+        /* Artifact Reference (clickable section links) */
+        .artifact-reference {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            cursor: pointer !important;
+            transition: all 0.2s ease;
+            max-width: fit-content;
+            margin: 0.5rem 0;
+            user-select: none;
+        }
+
+        .artifact-reference:hover {
+            background: #e0f2fe;
+            border-color: var(--color-primary);
+            transform: translateX(2px);
+        }
+
+        .artifact-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .artifact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+
+        .artifact-title {
+            font-weight: 500;
+            color: var(--color-text);
+            font-size: 0.875rem;
+        }
+
+        .artifact-type {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
         }
     </style>
     
@@ -379,41 +535,67 @@ Application: Use contractions where appropriate. Address the reader directly.`;
             throw new Error('No valid content in response');
         }
 
-        // Handle tool calls for navigation
-        function handleToolCall(toolCall, sections, navigationCallback) {
+        // Handle tool calls for navigation (FIXED to match working version)
+        function handleToolCall(toolCall, sections, app) {
+            console.log('Handling tool call:', toolCall);
+            
             if (toolCall.tool === 'navigate_to_section') {
                 const { section: sectionName, subsection: subsectionName } = toolCall;
+                console.log(`Looking for section: "${sectionName}", subsection: "${subsectionName}"`);
                 
-                // Find matching section
+                // Find matching section by name (case-insensitive)
                 const sectionObj = sections.find(
                     s => s.title.toLowerCase() === sectionName.toLowerCase()
                 );
                 
                 if (!sectionObj) {
                     console.error('Section not found:', sectionName);
-                    return `I couldn't find the section "${sectionName}". Available sections are: ${sections.map(s => s.title).join(', ')}`;
+                    app.addMessage(`I couldn't find the section "${sectionName}". Please check the section name and try again.`, 'assistant');
+                    return;
                 }
                 
-                // Handle subsection navigation
                 if (subsectionName) {
+                    // User wants to navigate to a subsection
                     const subsectionObj = sectionObj.subsections.find(
                         sub => sub.title.toLowerCase() === subsectionName.toLowerCase()
                     );
                     
                     if (subsectionObj) {
-                        navigationCallback(subsectionObj.id);
-                        return `Navigated to "${subsectionName}" in the "${sectionName}" section.`;
+                        console.log('Navigating to subsection:', subsectionObj.id, 'in section:', sectionObj.id);
+                        app.scrollToElement(subsectionObj.id);
+                        app.addArtifactToChat(`${sectionObj.title} > ${subsectionObj.title}`, 'subsection', subsectionObj.id);
+                        
+                        // Open document viewer on mobile
+                        if (window.innerWidth <= 768) {
+                            document.getElementById('documentViewer').classList.add('open');
+                            document.getElementById('overlay').classList.add('active');
+                        }
                     } else {
-                        navigationCallback(sectionObj.id);
-                        return `I found the "${sectionName}" section, but couldn't locate the specific subsection "${subsectionName}". Showing the main section instead.`;
+                        // Subsection not found, fallback to main section
+                        console.log('Subsection not found, falling back to main section');
+                        app.scrollToElement(sectionObj.id);
+                        app.addArtifactToChat(sectionObj.title, 'section', sectionObj.id);
+                        app.addMessage(`I couldn't find the subsection "${subsectionName}" in ${sectionName}, so I'm showing the main section.`, 'assistant');
+                        
+                        // Open document viewer on mobile
+                        if (window.innerWidth <= 768) {
+                            document.getElementById('documentViewer').classList.add('open');
+                            document.getElementById('overlay').classList.add('active');
+                        }
                     }
                 } else {
-                    navigationCallback(sectionObj.id);
-                    return `Navigated to the "${sectionName}" section.`;
+                    // Navigate to main section only
+                    console.log('Navigating to main section:', sectionObj.id);
+                    app.scrollToElement(sectionObj.id);
+                    app.addArtifactToChat(sectionObj.title, 'section', sectionObj.id);
+                    
+                    // Open document viewer on mobile
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('documentViewer').classList.add('open');
+                        document.getElementById('overlay').classList.add('active');
+                    }
                 }
             }
-            
-            return `Unknown tool call: ${toolCall.tool}`;
         }
 
         // Quick Action Label Generation Prompt (from DSPy training)
@@ -514,8 +696,21 @@ Output:`;
         <!-- Chat panel -->
         <section class="chat-panel">
             <div class="messages-area" id="messagesArea">
-                <div class="message">
-                    <strong>Assistant:</strong> Welcome! This is the FINAL WORKING version with the fixed component. Both chat and quick actions should work perfectly.
+                <div class="message assistant">
+                    <div class="avatar">AI</div>
+                    <div class="message-content">Welcome! This is the FINAL WORKING version with complete chat integration. Both chat and quick actions should work perfectly with full conversation history.</div>
+                </div>
+            </div>
+            
+            <!-- Typing indicator -->
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-bubble">
+                    <div class="avatar">AI</div>
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
                 </div>
             </div>
             
@@ -536,8 +731,17 @@ Output:`;
     
     <script type="module">
         import { documentParser } from './src/components/document-parser.js';
-        import { state } from './src/state-manager.js';
         
+        // Complete state management (from working script.js)
+        const state = {
+            currentSection: null,
+            currentSubsection: null,
+            chatHistory: [],
+            documentContent: null,
+            conversationHistory: [],
+            isProcessing: false
+        };
+
         // Application state and methods
         const app = {
             sections: [],
@@ -586,8 +790,7 @@ Output:`;
                 // Message submissions
                 this.mainInput.addEventListener('message-submit', (e) => {
                     console.log('✅ Message submit event received:', e.detail.message);
-                    this.addMessage('You', e.detail.message);
-                    this.handleUserMessage(e.detail.message);
+                    this.sendMessage(e.detail.message);
                 });
             },
             
@@ -599,6 +802,9 @@ Output:`;
                         throw new Error('Failed to load report.md');
                     }
                     const markdown = await response.text();
+                    
+                    // Store document content for system prompt (CRITICAL!)
+                    state.documentContent = markdown;
                     
                     this.sections = await documentParser.parseMarkdown(markdown);
                     this.populateSidebar();
@@ -667,7 +873,7 @@ Output:`;
                 }
                 
                 this.scrollToElement(sectionId);
-                state.set({ currentSection: sectionId });
+                state.currentSection = sectionId;
             },
             
             // Generate AI labels for a section's subsections
@@ -698,6 +904,31 @@ Output:`;
                 }
             },
             
+            navigateToSection(sectionId, subsectionId) {
+                console.log('🔗 Navigating to section:', sectionId, 'subsection:', subsectionId);
+                
+                // Find and select the section
+                const section = this.sections.find(s => s.id === sectionId);
+                if (section) {
+                    this.selectSection(sectionId);
+                }
+                
+                // If subsection specified, scroll to it
+                if (subsectionId) {
+                    setTimeout(() => {
+                        this.scrollToElement(subsectionId);
+                    }, 100);
+                } else {
+                    this.scrollToElement(sectionId);
+                }
+                
+                // Open document viewer on mobile
+                if (window.innerWidth <= 768) {
+                    document.getElementById('documentViewer').classList.add('open');
+                    document.getElementById('overlay').classList.add('active');
+                }
+            },
+
             navigateToSubsection(subsectionId) {
                 console.log('🔗 Navigating to subsection:', subsectionId);
                 this.scrollToElement(subsectionId);
@@ -721,73 +952,84 @@ Output:`;
                 }
             },
             
-            async handleUserMessage(message) {
-                console.log('🚀 handleUserMessage called with:', message);
+            // Complete sendMessage function from working script.js
+            async sendMessage(message) {
+                if (!message || state.isProcessing) return;
                 
+                state.isProcessing = true;
+                
+                // Add user message
+                this.addMessage(message, 'user');
+                
+                // Show typing indicator
                 this.showTyping();
                 
+                // Process message with LLM
                 try {
-                    const context = this.buildDocumentContext();
-                    const prompt = this.buildChatPrompt(message, context);
-                    const response = await this.callGeminiChat(prompt);
-                    
+                    const response = await this.processUserMessage(message);
                     this.hideTyping();
-                    this.addMessage('Assistant', response);
                     
+                    // Check if response contains tool calls
+                    if (response.toolCall) {
+                        // Use FIXED handleToolCall that adds artifacts like working version
+                        handleToolCall(response.toolCall, this.sections, this);
+                        
+                        // Update conversation history with tool call
+                        state.conversationHistory.push(
+                            { role: 'user', content: message }
+                        );
+                        
+                        state.conversationHistory.push({
+                            role: 'assistant',
+                            content: '',
+                            parts: [{
+                                functionCall: {
+                                    name: response.toolCall.tool,
+                                    args: {
+                                        section: response.toolCall.section,
+                                        subsection: response.toolCall.subsection || ''
+                                    }
+                                }
+                            }]
+                        });
+                        
+                        // Add function response to history  
+                        state.conversationHistory.push({
+                            role: 'function',
+                            parts: [{
+                                functionResponse: {
+                                    name: response.toolCall.tool,
+                                    response: { result: "Navigation completed" }
+                                }
+                            }]
+                        });
+                        
+                    } else {
+                        this.addMessage(response.text, 'assistant');
+                        
+                        // Update conversation history
+                        state.conversationHistory.push(
+                            { role: 'user', content: message },
+                            { role: 'assistant', content: response.text }
+                        );
+                    }
                 } catch (error) {
                     console.error('❌ Chat error:', error);
                     this.hideTyping();
-                    this.addMessage('Assistant', `I apologize, but I encountered an error: ${error.message}`);
-                }
-            },
-            
-            buildDocumentContext() {
-                if (!this.sections || this.sections.length === 0) {
-                    return "No document loaded.";
+                    this.addMessage(`I apologize, but I encountered an error: ${error.message}`, 'assistant');
                 }
                 
-                let context = "Document sections:\\n";
-                this.sections.forEach(section => {
-                    context += `- ${section.title}`;
-                    if (section.subsections.length > 0) {
-                        context += ` (${section.subsections.map(sub => sub.title).join(', ')})`;
-                    }
-                    context += "\\n";
-                });
-                
-                if (this.currentSection) {
-                    const section = this.sections.find(s => s.id === this.currentSection);
-                    if (section) {
-                        context += `\\nCurrently viewing: ${section.title}`;
-                    }
-                }
-                
-                return context;
+                state.isProcessing = false;
             },
-            
-            buildChatPrompt(userMessage, documentContext) {
-                return `You are a technical writing assistant specializing in AI agent frameworks and development tools.
 
-${TONE_PROFILE}
-
-DOCUMENT CONTEXT:
-${documentContext}
-
-When users ask about specific sections or topics covered in the documentation, use the navigate_to_section tool to take them directly to the relevant content instead of just describing it.
-
-User question: ${userMessage}
-
-Respond in the tone profile above - be skeptically optimistic, engaging, and conversational while providing accurate, helpful information.`;
-            },
-            
-            async callGeminiChat(prompt) {
+            // Process user message with complete tool handling
+            async processUserMessage(message) {
+                const contents = this.buildContents(message);
                 const tools = buildToolDefinitions(this.sections);
                 
                 const requestBody = {
                     model: CONFIG.MODEL,
-                    contents: [
-                        { role: "user", parts: [{ text: prompt }] }
-                    ],
+                    contents: contents,
                     generationConfig: {
                         temperature: 0.7,
                         maxOutputTokens: 512
@@ -814,48 +1056,207 @@ Respond in the tone profile above - be skeptically optimistic, engaging, and con
                 }
                 
                 // Parse response for tool calls or text
-                const parsed = parseAssistantResponse(data);
+                return parseAssistantResponse(data);
+            },
+
+            // Build contents with conversation history
+            buildContents(currentMessage) {
+                const contents = [];
                 
-                if (parsed.toolCall) {
-                    console.log('🔧 Tool call detected:', parsed.toolCall);
-                    const toolResult = handleToolCall(parsed.toolCall, this.sections, (elementId) => {
-                        this.scrollToElement(elementId);
-                        // Open document viewer on mobile
-                        if (window.innerWidth <= 768) {
-                            document.getElementById('documentViewer').classList.add('open');
-                            document.getElementById('overlay').classList.add('active');
+                // Build system prompt
+                const systemPrompt = this.buildSystemPrompt();
+                
+                // Always include system prompt at the beginning
+                contents.push({
+                    role: "user",
+                    parts: [{ text: systemPrompt }]
+                });
+                contents.push({
+                    role: "model", 
+                    parts: [{ text: "I understand. I'm ready to help you navigate and understand this document. I can answer questions about its content and help you find specific sections." }]
+                });
+                
+                // Add conversation history
+                state.conversationHistory.forEach(msg => {
+                    if (msg.role === 'function') {
+                        // Function responses use the exact format from history
+                        contents.push({
+                            role: 'function',
+                            parts: msg.parts
+                        });
+                    } else if (msg.parts) {
+                        // Tool calls with parts array
+                        contents.push({
+                            role: msg.role === 'assistant' ? 'model' : msg.role,
+                            parts: msg.parts
+                        });
+                    } else {
+                        // Regular text messages
+                        contents.push({
+                            role: msg.role === 'user' ? 'user' : 'model',
+                            parts: [{ text: msg.content }]
+                        });
+                    }
+                });
+                
+                // Add current message
+                contents.push({
+                    role: "user",
+                    parts: [{ text: currentMessage }]
+                });
+                
+                return contents;
+            },
+
+            buildSystemPrompt() {
+                let prompt = `You are a helpful AI assistant that helps users navigate and understand the report.
+    You respond in a tone of voice profile as defined below. Your answers should be accurate, concise, and helpful.
+
+<report>
+${state.documentContent || 'No document loaded yet.'}
+</report>
+
+<available-sections>
+`;
+                
+                // Add available sections for navigation (from working script.js)
+                if (this.sections) {
+                    this.sections.forEach(section => {
+                        prompt += `- ${section.title} (id: ${section.id})`;
+                        if (section.subsections.length > 0) {
+                            prompt += '\n  Subsections:';
+                            section.subsections.forEach(sub => {
+                                prompt += `\n    - ${sub.title} (id: ${sub.id})`;
+                            });
                         }
+                        prompt += '\n';
                     });
-                    return toolResult;
                 }
                 
-                return parsed.text.trim();
+                prompt += `</available-sections>
+
+<tone-profile>
+${TONE_PROFILE}
+</tone-profile>
+
+Remember: 
+- Base your answers on the document content provided above
+- Be helpful in navigating the document
+- Keep responses concise and relevant
+- When users ask about specific topics that are covered in the sections, jump to that section instead of responding with a message`;
+                
+                return prompt;
             },
             
+            buildDocumentContext() {
+                if (!this.sections || this.sections.length === 0) {
+                    return "No document loaded.";
+                }
+                
+                let context = "Document sections:\\n";
+                this.sections.forEach(section => {
+                    context += `- ${section.title}`;
+                    if (section.subsections.length > 0) {
+                        context += ` (${section.subsections.map(sub => sub.title).join(', ')})`;
+                    }
+                    context += "\\n";
+                });
+                
+                if (this.currentSection) {
+                    const section = this.sections.find(s => s.id === this.currentSection);
+                    if (section) {
+                        context += `\\nCurrently viewing: ${section.title}`;
+                    }
+                }
+                
+                return context;
+            },
+            
+            
             showTyping() {
-                const messagesArea = document.getElementById('messagesArea');
-                const typing = document.createElement('div');
-                typing.className = 'message typing-indicator';
-                typing.id = 'typing-message';
-                typing.innerHTML = '<strong>Assistant:</strong> <span class="dots">...</span>';
-                messagesArea.appendChild(typing);
-                messagesArea.scrollTop = messagesArea.scrollHeight;
+                const indicator = document.getElementById('typingIndicator');
+                if (indicator) {
+                    indicator.classList.add('active');
+                    this.scrollToBottom();
+                }
             },
             
             hideTyping() {
-                const typing = document.getElementById('typing-message');
-                if (typing) {
-                    typing.remove();
+                const indicator = document.getElementById('typingIndicator');
+                if (indicator) {
+                    indicator.classList.remove('active');
                 }
             },
-            
-            addMessage(sender, text, isSystem = false) {
+
+            scrollToBottom() {
                 const messagesArea = document.getElementById('messagesArea');
-                const message = document.createElement('div');
-                message.className = 'message' + (isSystem ? ' system' : '');
-                message.innerHTML = `<strong>${sender}:</strong> ${text}`;
-                messagesArea.appendChild(message);
-                messagesArea.scrollTop = messagesArea.scrollHeight;
+                if (messagesArea) {
+                    messagesArea.scrollTop = messagesArea.scrollHeight;
+                }
+            },
+
+            // Add clickable artifact reference (from working script.js)
+            addArtifactToChat(title, type, sectionId) {
+                const messagesArea = document.getElementById('messagesArea');
+                const artifactDiv = document.createElement('div');
+                artifactDiv.className = 'artifact-reference';
+                artifactDiv.innerHTML = `
+                    <div class="artifact-icon">${type === 'section' ? '📑' : '📄'}</div>
+                    <div class="artifact-info">
+                        <div class="artifact-title">${title}</div>
+                        <div class="artifact-type">${type === 'section' ? 'Section' : 'Subsection'}</div>
+                    </div>
+                `;
+                
+                artifactDiv.addEventListener('click', () => {
+                    if (type === 'section') {
+                        this.navigateToSection(sectionId);
+                    } else {
+                        // For subsections, find parent section
+                        const section = this.sections.find(s => 
+                            s.subsections.some(sub => sub.id === sectionId)
+                        );
+                        if (section) {
+                            this.navigateToSection(section.id, sectionId);
+                        }
+                    }
+                });
+                
+                messagesArea.appendChild(artifactDiv);
+                this.scrollToBottom();
+            },
+            
+            addMessage(content, sender) {
+                const messagesArea = document.getElementById('messagesArea');
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar';
+                avatar.textContent = sender === 'user' ? 'You' : 'AI';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                
+                if (sender === 'assistant') {
+                    // Parse markdown in assistant messages
+                    contentDiv.innerHTML = marked.parse(content);
+                } else {
+                    contentDiv.textContent = content;
+                }
+                
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(contentDiv);
+                
+                // Remove welcome message if exists
+                const welcomeMsg = messagesArea.querySelector('.message:first-child');
+                if (welcomeMsg && welcomeMsg.querySelector('.message-content')?.textContent.includes('Welcome!')) {
+                    welcomeMsg.remove();
+                }
+                
+                messagesArea.appendChild(messageDiv);
+                this.scrollToBottom();
             },
             
             async loadSampleDocument() {
@@ -870,6 +1271,9 @@ This is a demonstration of the document parser.
 ## Another Section
 
 Quick actions will be generated from these H2 headings.`;
+                
+                // Store document content for system prompt (CRITICAL!)
+                state.documentContent = fallbackMarkdown;
                 
                 this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
                 this.populateSidebar();
