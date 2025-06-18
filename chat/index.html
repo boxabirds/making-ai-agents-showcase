@@ -1030,8 +1030,7 @@ Output:`;
                 this.setupKeyboardNavigation();
                 this.loadDocument().catch(async (err) => {
                     console.error('Document load failed:', err);
-                    this.addMessage('System', `Error loading document: ${err.message}`, true);
-                    await this.loadSampleDocument();
+                    this.addMessage('Error: Could not load report.md. Please ensure the file exists in the same directory as index.html.', 'assistant');
                 });
                 
                 // Auto-focus chat input after load
@@ -1737,30 +1736,6 @@ Remember:
                 
                 messagesArea.appendChild(messageDiv);
                 this.scrollToBottom();
-            },
-            
-            async loadSampleDocument() {
-                const fallbackMarkdown = `# Tech Writer Agent Demo [Fallback]
-
-Couldn't load report.md - using sample content.
-
-## Sample Section
-
-This is a demonstration of the document parser.
-
-## Another Section
-
-Quick actions will be generated from these H2 headings.`;
-                
-                // Store document content for system prompt (CRITICAL!)
-                state.documentContent = fallbackMarkdown;
-                
-                this.sections = await documentParser.parseMarkdown(fallbackMarkdown);
-                this.populateSidebar();
-                this.renderDocument();
-                if (this.sections.length > 0) {
-                    this.selectSection(this.sections[0].id);
-                }
             },
             
             // Mobile functions
