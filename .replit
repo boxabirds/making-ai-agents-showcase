@@ -1,0 +1,22 @@
+modules = ["web"]
+
+[nix]
+channel = "stable-24_05"
+packages = ["vim"]
+
+[workflows]
+runButton = "Serve Build"
+
+[[workflows.workflow]]
+name = "Serve Build"
+author = 24622140
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd chat && python3 serve-build.py"
+
+[deployment]
+deploymentTarget = "static"
+publicDir = "chat/build"
+build = ["sh", "-c", "cd chat && ./build.sh"]
