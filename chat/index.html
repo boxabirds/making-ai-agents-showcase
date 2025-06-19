@@ -40,7 +40,7 @@
         height: 100dvh;
         grid-template-columns: var(--sidebar-width) var(--chat-width) 1fr;
         
-        /* FIX 2: Constrain the app layout's width and prevent horizontal overflow */
+        /* This is correct */
         width: 100%;
         overflow-x: hidden;
     }
@@ -58,6 +58,8 @@
         border-right: 1px solid var(--color-border);
         display: flex;
         flex-direction: column;
+        height: 100%;
+        overflow: hidden;
     }
     
     .messages-area {
@@ -177,7 +179,11 @@
         
         .chat-panel {
             grid-row: 2;
-            /* FIX 1: Remove the redundant height property. The grid's `1fr` row handles this. */
+            /* === THE FIX IS HERE === */
+            /* Removed the incorrect `height` property to let the parent grid work. */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         
         .document-viewer {
@@ -665,7 +671,8 @@
         letter-spacing: 0.025em;
     }
 </style>
-    <!-- Load the FIXED component with updateQuickActions() -->
+
+<!-- Load the FIXED component with updateQuickActions() -->
     <script src="./src/components/input-group-component.js?v=fixed"></script>
     
     <!-- Load marked.js for markdown rendering -->

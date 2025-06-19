@@ -58,6 +58,8 @@
         border-right: 1px solid var(--color-border);
         display: flex;
         flex-direction: column;
+        height: 100%;
+        overflow: hidden;
     }
     
     .messages-area {
@@ -177,7 +179,10 @@
         
         .chat-panel {
             grid-row: 2;
-            /* FIX 1: Remove the redundant height property. The grid's `1fr` row handles this. */
+            height: calc(100vh - var(--header-height));
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         
         .document-viewer {
