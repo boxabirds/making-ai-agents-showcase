@@ -201,35 +201,22 @@
             padding-top: max(1rem, env(safe-area-inset-top));
         }
         
-        .tray-header {
-            position: sticky;
-            top: 0;
-            background: var(--color-surface);
-            z-index: 20;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1rem;
-            border-bottom: 1px solid var(--color-border);
-        }
-        
-        .tray-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: var(--color-text);
-        }
-        
         .tray-close {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
             width: 32px;
             height: 32px;
             border-radius: 8px;
-            background: transparent;
-            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--color-border);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s ease;
+            transition: all 0.2s ease;
+            z-index: 25;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
         .tray-close:hover {
@@ -988,13 +975,11 @@ Output:`;
         
         <!-- Document viewer -->
         <section class="document-viewer" id="documentViewer">
-            <div class="tray-header">
-                <button class="tray-close" onclick="app.closeTray()" title="Close">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 6L6 18M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
+            <button class="tray-close" onclick="app.closeTray()" title="Close">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
             <div class="document-controls">
                 <button class="zoom-button" id="zoomButton" onclick="app.toggleFullscreen()" title="Toggle fullscreen">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
