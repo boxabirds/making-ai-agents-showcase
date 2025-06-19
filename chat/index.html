@@ -1179,6 +1179,86 @@ Output:`;
                     console.log('✅ Message submit event received:', e.detail.message);
                     this.sendMessage(e.detail.message);
                 });
+                
+                // Add scroll detection for automatic section highlighting
+                const documentViewer = document.getElementById('documentViewer');
+                let scrollTimeout;
+                documentViewer.addEventListener('scroll', () => {
+                    // Debounce scroll events
+                    clearTimeout(scrollTimeout);
+                    scrollTimeout = setTimeout(() => {
+                        this.detectCurrentSection();
+                    }, 100);
+                });
+            },
+            
+            detectCurrentSection() {
+                const viewer = document.getElementById('documentViewer');
+                const scrollTop = viewer.scrollTop;
+                const viewerTop = viewer.getBoundingClientRect().top;
+                
+                // Find all section headers (h1 elements)
+                const headers = viewer.querySelectorAll('h1[id]');
+                let currentSectionId = null;
+                
+                // Find the last header that's above the viewport top + small offset
+                for (let i = headers.length - 1; i >= 0; i--) {
+                    const header = headers[i];
+                    const headerTop = header.getBoundingClientRect().top - viewerTop;
+                    
+                    // If header is at or above the top of viewport (with 50px offset for better UX)
+                    if (headerTop <= 50) {
+                        currentSectionId = header.id;
+                        break;
+                    }
+                }
+                
+                // If no section found (user at very top), use first section
+                if (!currentSectionId && headers.length > 0) {
+                    currentSectionId = headers[0].id;
+                }
+                
+                // Update the navigation if section changed
+                if (currentSectionId && currentSectionId !== this.currentSection) {
+                    // Update internal state
+                    this.currentSection = currentSectionId;
+                    state.currentSection = currentSectionId;
+                    
+                    // Update sidebar active state
+                    const items = document.querySelectorAll('.sidebar-item');
+                    this.sections.forEach((s, index) => {
+                        items[index]?.classList.toggle('active', s.id === currentSectionId);
+                    });
+                    
+                    // Update quick actions for the new section
+                    const section = this.sections.find(s => s.id === currentSectionId);
+                    if (section) {
+                        // Check if we need to generate labels first
+                        const needsLabels = section.subsections.length > 0 && 
+                                           section.subsections.some(sub => !sub.label) && 
+                                           window.generateQuickActionLabels;
+                        
+                        if (needsLabels) {
+                            // Clear quick actions while generating labels
+                            this.mainInput.quickActions = [];
+                            
+                            // Generate labels first, then set quick actions
+                            this.generateLabelsForSection(section).then(() => {
+                                // Now set quick actions with generated labels
+                                this.mainInput.quickActions = section.subsections.map(sub => ({
+                                    id: sub.id,
+                                    text: sub.label || sub.title
+                                }));
+                            });
+                        } else {
+                            // Labels already exist, set quick actions immediately
+                            this.mainInput.quickActions = section.subsections.map(sub => ({
+                                id: sub.id,
+                                text: sub.label || sub.title
+                            }));
+                        }
+                    }
+                }
             },
             
             async loadDocument() {
