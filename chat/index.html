@@ -83,15 +83,26 @@
     }
     
     .document-viewer {
-        padding: 2rem;
-        overflow-y: auto;
         position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .document-controls {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        z-index: 30;
+    }
+    
+    #documentContent {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem;
     }
     
     .zoom-button {
-        position: absolute;
-        top: 4.5rem;
-        right: 1rem;
         width: 40px;
         height: 40px;
         border-radius: 8px;
@@ -102,7 +113,7 @@
         align-items: center;
         justify-content: center;
         transition: all 0.2s ease;
-        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     
     .zoom-button:hover {
@@ -185,6 +196,10 @@
         }
         
         .tray-header {
+            position: sticky;
+            top: 0;
+            background: var(--color-surface);
+            z-index: 20;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -974,11 +989,13 @@ Output:`;
                     </svg>
                 </button>
             </div>
-            <button class="zoom-button" id="zoomButton" onclick="app.toggleFullscreen()" title="Toggle fullscreen">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                </svg>
-            </button>
+            <div class="document-controls">
+                <button class="zoom-button" id="zoomButton" onclick="app.toggleFullscreen()" title="Toggle fullscreen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                </button>
+            </div>
             <div id="documentContent">
                 <!-- Populated dynamically -->
             </div>
@@ -1049,6 +1066,16 @@ Output:`;
                 document.addEventListener('keydown', (e) => {
                     // Skip if user is typing in input
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    
+                    // Also skip if the focus is within the input-group component
+                    const activeElement = document.activeElement;
+                    if (activeElement && activeElement.tagName === 'INPUT-GROUP') {
+                        // Check if shadow DOM has focus
+                        const shadowRoot = activeElement.shadowRoot;
+                        if (shadowRoot && shadowRoot.activeElement) {
+                            return; // Input inside shadow DOM has focus
+                        }
+                    }
                     
                     if (e.code === 'Space') {
                         this.handleSpacebarNavigation(e);
