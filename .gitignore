@@ -38,6 +38,43 @@ build/
 dist/
 *.egg-info/
 
+# C/C++
+*.o
+*.obj
+*.exe
+*.out
+*.a
+*.so
+*.dylib
+*.dll
+tech-writer
+
+# Rust
+target/
+Cargo.lock
+
+# Go
+*.test
+vendor/
+
+# Zig
+zig-cache/
+zig-out/
+
+# PHP
+vendor/
+composer.lock
+
+# TypeScript/Bun
+node_modules/
+bun.lockb
+*.tsbuildinfo
+
+# Temporary files
+.request.json
+*.tmp
+*~
+
 # Exceptions - include chat/build in version control
 !chat/build/
 !chat/build/**
