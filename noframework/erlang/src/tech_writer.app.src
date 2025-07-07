@@ -1,0 +1,16 @@
+{application, tech_writer,
+ [{description, "Tech Writer Agent - Erlang Implementation"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib,
+    inets,
+    ssl,
+    jsx
+   ]},
+  {env,[]},
+  {modules, []},
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.

@@ -1,0 +1,29 @@
+cabal-version:      2.4
+name:               tech-writer
+version:            0.1.0.0
+synopsis:           Tech Writer Agent - Haskell Implementation
+description:        A pure Haskell implementation of the tech writer agent that analyzes codebases and generates technical documentation using a ReAct-style approach.
+license:            Apache-2.0
+author:             Tech Writer
+maintainer:         tech-writer@example.com
+category:           Development
+build-type:         Simple
+
+executable tech-writer
+    main-is:          Main.hs
+    
+    build-depends:    base >=4.14 && <5,
+                      aeson >=1.4 && <3,
+                      aeson-pretty >=0.8 && <1,
+                      bytestring >=0.10 && <1,
+                      directory >=1.3 && <2,
+                      filepath >=1.4 && <2,
+                      http-conduit >=2.3 && <3,
+                      process >=1.6 && <2,
+                      regex-tdfa >=1.3 && <2,
+                      text >=1.2 && <3,
+                      time >=1.9 && <2
+    
+    hs-source-dirs:   .
+    default-language: Haskell2010
+    ghc-options:      -threaded -rtsopts -with-rtsopts=-N -Wall
