@@ -90,6 +90,25 @@ classDiagram
     Axios --> Adapter
 ```
 
+
+# Questions to ask after this analysis:
+1. What level of architectural rigor is implied and explicit in this repo? For both, choose from 1. none: prototype, 2: basic consistency 3. enough for serious commercial robustness at small scale 4. large scale enterprise or high volume external customer usage 5. mission critical: risk of endangerment of life
+1. What architectural standards are already in place that should be adhered to with any changes?
+2. How well are they being adhered to?
+3. Are there any external standards that need to be considered?
+4. Given those things, what extent specialist roles should be involved in this project? From this list: 
+    - Test Strategist
+    - Coding Standards Analyst
+    - Tech stack compliance analyst
+    - project manager
+    - product manager
+    - External API researcher
+    - Custom script engineer
+    - deployment and operations engineer
+    - data engineer
+    - privacy specialist
+    - AI engineer 
+
 ## Output Format Guidelines
 
 -   Begin with an executive summary (max 3 paragraphs) summarizing key findings.
