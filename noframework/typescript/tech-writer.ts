@@ -7,7 +7,7 @@ import { execSync } from 'child_process';
 import { glob } from 'glob';
 
 // Constants
-const MAX_STEPS = 15;
+const MAX_STEPS = 50;
 const CACHE_DIR = path.join(process.env.HOME || '', '.cache/github');
 
 // Environment variables

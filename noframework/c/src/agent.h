@@ -5,7 +5,7 @@
 #include "http.h"
 #include "cJSON.h"
 
-#define MAX_STEPS 15
+#define MAX_STEPS 50
 #define MAX_MEMORY_SIZE 100
 
 extern const char* REACT_SYSTEM_PROMPT;

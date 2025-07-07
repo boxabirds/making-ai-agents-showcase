@@ -13,7 +13,7 @@ typedef struct {
 
 // Tool functions matching the agent's requirements
 char* find_all_matching_files(const char* directory, const char* pattern);
-char* read_file_content(const char* file_path);
+char* read_file(const char* file_path);
 
 // File list management
 FileList* file_list_create(void);

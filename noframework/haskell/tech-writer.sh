@@ -37,7 +37,7 @@ fi
 # Build if binary doesn't exist
 if [ ! -f "$SCRIPT_DIR/tech-writer" ]; then
     echo "Building tech-writer..." >&2
-    (cd "$SCRIPT_DIR" && cabal update && cabal build && cp $(cabal list-bins) tech-writer)
+    (cd "$SCRIPT_DIR" && cabal update && cabal build && cp $(cabal list-bin tech-writer) tech-writer)
 fi
 
 # Execute the Haskell tech writer

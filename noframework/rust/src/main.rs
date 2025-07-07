@@ -20,7 +20,7 @@ use std::{
     process::Command,
 };
 
-const MAX_STEPS: usize = 15;
+const MAX_STEPS: usize = 50;
 const REACT_SYSTEM_PROMPT: &str = r#"You are a technical documentation assistant that analyses codebases and generates comprehensive documentation.
 
 When given a directory path and a specific analysis request, you will:

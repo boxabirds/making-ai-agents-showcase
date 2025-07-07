@@ -6,7 +6,9 @@ const process = std.process;
 const mem = std.mem;
 const fmt = std.fmt;
 
-const MAX_STEPS = 15;
+const MAX_STEPS = 50;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const TEMPERATURE: f32 = 0;
 const REACT_SYSTEM_PROMPT =
     \\You are a technical documentation assistant that analyses codebases and generates comprehensive documentation.
     \\
@@ -46,7 +48,7 @@ const Message = struct {
 const ChatRequest = struct {
     model: []const u8,
     messages: []Message,
-    temperature: f32 = 0,
+    temperature: f32 = TEMPERATURE,
 };
 
 const Choice = struct {
@@ -224,7 +226,7 @@ const TechWriterAgent = struct {
         const request_body = try json.stringifyAlloc(self.allocator, ChatRequest{
             .model = self.model_id,
             .messages = self.memory.items,
-            .temperature = 0,
+            .temperature = TEMPERATURE,
         }, .{});
         defer self.allocator.free(request_body);
 
@@ -263,7 +265,7 @@ const TechWriterAgent = struct {
             return error.HttpRequestFailed;
         }
 
-        const body = try req.reader().readAllAlloc(self.allocator, 10 * 1024 * 1024);
+        const body = try req.reader().readAllAlloc(self.allocator, MAX_FILE_SIZE);
         defer self.allocator.free(body);
 
         const parsed = try json.parseFromSlice(ChatResponse, self.allocator, body, .{ .ignore_unknown_fields = true });
@@ -455,7 +457,7 @@ const TechWriterAgent = struct {
         defer file.close();
 
         const stat = try file.stat();
-        if (stat.size > 10 * 1024 * 1024) {
+        if (stat.size > MAX_FILE_SIZE) {
             return try fmt.allocPrint(self.allocator, "{{\"error\": \"File too large: {s}\"}}", .{file_path});
         }
 

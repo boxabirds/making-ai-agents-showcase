@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Constants
+readonly TEMPERATURE=0
+
 # Global variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CACHE_DIR="${HOME}/.cache/github"
@@ -15,7 +18,7 @@ MODEL="openai/gpt-4o-mini"
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 BASE_URL=""
-MAX_STEPS=15
+MAX_STEPS=50
 MEMORY=()
 FINAL_ANSWER=""
 
@@ -246,7 +249,8 @@ call_openai_api() {
     local request_body=$(jq -n \
         --arg model "$model_id" \
         --argjson messages "$messages" \
-        '{model: $model, messages: $messages, temperature: 0}')
+        --arg temp "$TEMPERATURE" \
+        '{model: $model, messages: $messages, temperature: ($temp | tonumber)}')
     
     # Make the API call
     local response

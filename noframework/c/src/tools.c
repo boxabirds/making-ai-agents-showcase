@@ -237,7 +237,7 @@ char* find_all_matching_files(const char* directory, const char* pattern) {
     return json_string;
 }
 
-char* read_file_content(const char* file_path) {
+char* read_file(const char* file_path) {
     log_message(LOG_INFO, "Tool invoked: read_file(file_path='%s')", file_path);
     
     FILE* file = fopen(file_path, "rb");

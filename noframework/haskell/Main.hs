@@ -12,6 +12,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import qualified Data.Text.Encoding as TE
 import Data.Time
 import GHC.Generics
 import Network.HTTP.Simple
@@ -205,10 +206,12 @@ cloneOrUpdateRepo :: String -> FilePath -> IO String
 cloneOrUpdateRepo repoUrl logFile = do
     home <- getHomeDirectory
     let repoName = takeFileName $ dropTrailingPathSeparator repoUrl
-        cacheDir = home </> ".cache" </> "github"
-        repoPath = cacheDir </> repoName
+        -- Extract organization/repo from URL
+        repoPath = case reverse $ splitDirectories repoUrl of
+            (repo:org:_) -> home </> ".cache" </> "github" </> org </> repo
+            _ -> home </> ".cache" </> "github" </> repoName
     
-    createDirectoryIfMissing True cacheDir
+    createDirectoryIfMissing True (takeDirectory repoPath)
     
     exists <- doesDirectoryExist (repoPath </> ".git")
     if exists
@@ -241,8 +244,10 @@ reactLoop repoPath prompt model step maxSteps memory logFile
                 logInfo logFile "Final answer received"
                 return answer
             Action action actionInput -> do
+                logInfo logFile $ "Executing action: " ++ action ++ " with input: " ++ actionInput
                 -- Execute action
                 observation <- executeAction action actionInput repoPath logFile
+                logInfo logFile $ "Action result: " ++ take 100 observation ++ if length observation > 100 then "..." else ""
                 
                 -- Add to memory
                 let thought = extractThought response
@@ -316,20 +321,59 @@ data LLMAction = FinalAnswer String | Action String String | NoAction
 -- Parse LLM response
 parseLLMResponse :: String -> LLMAction
 parseLLMResponse response
-    | response =~ "Final Answer:\\s*(.+)" :: Bool =
-        let [[_, answer]] = response =~ "Final Answer:\\s*(.+)" :: [[String]]
-        in FinalAnswer (trim answer)
-    | response =~ "Action:\\s*(\\w+)\\s*Action Input:\\s*(.+?)(?=Observation:|Thought:|$)" :: Bool =
-        let [[_, action, input]] = response =~ "Action:\\s*(\\w+)\\s*Action Input:\\s*(.+?)(?=Observation:|Thought:|$)" :: [[String]]
-        in Action (trim action) (trim input)
+    | "Final Answer:" `isInfixOf` response =
+        let parts = splitOn "Final Answer:" response
+        in case parts of
+            [_, answer] -> FinalAnswer (trim $ takeWhile (/= '\n') answer)
+            _ -> NoAction
+    | "Action:" `isInfixOf` response && "Action Input:" `isInfixOf` response =
+        case parseAction response of
+            Just (action, input) -> Action action input
+            Nothing -> NoAction
     | otherwise = NoAction
+  where
+    isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
+    isPrefixOf [] _ = True
+    isPrefixOf _ [] = False
+    isPrefixOf (x:xs) (y:ys) = x == y && isPrefixOf xs ys
+    tails [] = [[]]
+    tails xs@(_:xs') = xs : tails xs'
+    splitOn delim str = 
+        let (prefix, suffix) = breakOn delim str
+        in if null suffix then [prefix] else [prefix, drop (length delim) suffix]
+    breakOn delim str = 
+        case findIndex (isPrefixOf delim) (tails str) of
+            Nothing -> (str, "")
+            Just i -> splitAt i str
+    findIndex p xs = lookup True $ zip (map p xs) [0..]
+
+parseAction :: String -> Maybe (String, String)
+parseAction response = do
+    let lines' = lines response
+    actionLine <- find ("Action:" `isInfixOf`) lines'
+    inputLine <- find ("Action Input:" `isInfixOf`) lines'
+    let action = trim $ drop (length ("Action:" :: String)) $ dropWhile (/= ':') actionLine
+    let input = trim $ drop (length ("Action Input:" :: String)) $ dropWhile (/= ':') inputLine
+    return (action, input)
+  where
+    isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
+    isPrefixOf [] _ = True
+    isPrefixOf _ [] = False
+    isPrefixOf (x:xs) (y:ys) = x == y && isPrefixOf xs ys
+    tails [] = [[]]
+    tails xs@(_:xs') = xs : tails xs'
+    find p xs = case filter p xs of
+                    [] -> Nothing
+                    (x:_) -> Just x
 
 -- Extract thought from response
 extractThought :: String -> String
 extractThought response
-    | response =~ "Thought:\\s*(.+?)(?=Action:|Final Answer:|$)" :: Bool =
-        let [[_, thought]] = response =~ "Thought:\\s*(.+?)(?=Action:|Final Answer:|$)" :: [[String]]
-        in trim thought
+    | (response :: String) =~ ("Thought:\\s*([^\n]+)" :: String) :: Bool =
+        let matches = (response :: String) =~ ("Thought:\\s*([^\n]+)" :: String) :: [[String]]
+        in case matches of
+            [[_, thought]] -> trim thought
+            _ -> ""
     | otherwise = ""
 
 -- Trim whitespace
@@ -357,7 +401,7 @@ callLLM modelStr systemPrompt userPrompt logFile = do
     -- Make request
     request <- parseRequest $ baseUrl ++ "/chat/completions"
     let request' = setRequestMethod "POST"
-                 $ setRequestHeader "Authorization" ["Bearer " <> T.encodeUtf8 (T.pack apiKey)]
+                 $ setRequestHeader "Authorization" ["Bearer " <> TE.encodeUtf8 (T.pack apiKey)]
                  $ setRequestHeader "Content-Type" ["application/json"]
                  $ setRequestBodyLBS (encode requestBody)
                  $ request
@@ -399,13 +443,13 @@ getModelName modelStr = case break (== '/') modelStr of
 
 -- Execute action
 executeAction :: String -> String -> String -> FilePath -> IO String
-executeAction "find_all_matching_files" input repoPath logFile = do
+executeAction "find_all_matching_files" input repoPath _ = do
     -- Parse JSON input (simple parsing for this use case)
     let pattern = extractPattern input
         directory = extractDirectory input repoPath
     
     -- Find files
-    files <- findFiles directory pattern
+    files <- Main.findFiles directory pattern
     return $ unlines files
 
 executeAction "read_file" input _ logFile = do
@@ -413,35 +457,39 @@ executeAction "read_file" input _ logFile = do
     let filePath = extractFilePath input
     
     -- Read file
-    catch (do
-        content <- readFile filePath
-        -- Limit size
-        return $ if length content > 10000
-            then take 10000 content ++ "\n[truncated]"
-            else content
-    ) (\e -> return $ "Error reading file: " ++ show (e :: SomeException))
+    catch
+        (do
+            content <- readFile filePath
+            -- Limit size
+            return $ if length content > 10000
+                then take 10000 content ++ "\n[truncated]"
+                else content)
+        (\e -> return $ "Error reading file: " ++ show (e :: SomeException))
 
 executeAction action _ _ _ = return $ "Error: Unknown action '" ++ action ++ "'"
 
 -- Simple JSON extraction helpers
 extractPattern :: String -> String
 extractPattern input
-    | input =~ "\"pattern\"\\s*:\\s*\"([^\"]+)\"" :: Bool =
-        let [[_, pattern]] = input =~ "\"pattern\"\\s*:\\s*\"([^\"]+)\"" :: [[String]]
+    | (input :: String) =~ ("\"pattern\"\\s*:\\s*\"([^\"]+)\"" :: String) :: Bool =
+        let [[_, pattern]] = (input :: String) =~ ("\"pattern\"\\s*:\\s*\"([^\"]+)\"" :: String) :: [[String]]
         in pattern
     | otherwise = "*"
 
 extractDirectory :: String -> String -> String
 extractDirectory input defaultDir
-    | input =~ "\"directory\"\\s*:\\s*\"([^\"]+)\"" :: Bool =
-        let [[_, dir]] = input =~ "\"directory\"\\s*:\\s*\"([^\"]+)\"" :: [[String]]
+    | (input :: String) =~ ("\"directory\"\\s*:\\s*\"([^\"]+)\"" :: String) :: Bool =
+        let [[_, dir]] = (input :: String) =~ ("\"directory\"\\s*:\\s*\"([^\"]+)\"" :: String) :: [[String]]
+        in dir
+    | (input :: String) =~ ("\"path\"\\s*:\\s*\"([^\"]+)\"" :: String) :: Bool =
+        let [[_, dir]] = (input :: String) =~ ("\"path\"\\s*:\\s*\"([^\"]+)\"" :: String) :: [[String]]
         in dir
     | otherwise = defaultDir
 
 extractFilePath :: String -> String
 extractFilePath input
-    | input =~ "\"file_path\"\\s*:\\s*\"([^\"]+)\"" :: Bool =
-        let [[_, path]] = input =~ "\"file_path\"\\s*:\\s*\"([^\"]+)\"" :: [[String]]
+    | (input :: String) =~ ("\"file_path\"\\s*:\\s*\"([^\"]+)\"" :: String) :: Bool =
+        let [[_, path]] = (input :: String) =~ ("\"file_path\"\\s*:\\s*\"([^\"]+)\"" :: String) :: [[String]]
         in path
     | otherwise = ""
 

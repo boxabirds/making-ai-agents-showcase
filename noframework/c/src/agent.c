@@ -283,7 +283,7 @@ char* agent_execute_tool(TechWriterAgent* agent, const char* tool_name, const ch
         cJSON* file_path = cJSON_GetObjectItem(input, "file_path");
         
         if (file_path && cJSON_IsString(file_path)) {
-            result = read_file_content(file_path->valuestring);
+            result = read_file(file_path->valuestring);
         } else {
             result = safe_strdup("{\"error\": \"file_path parameter required\"}");
         }

@@ -13,7 +13,7 @@ import (
 
 // Constants for system prompts
 const (
-	MAX_ITERATIONS = 30
+	MAX_ITERATIONS = 50
 	
 	ROLE_AND_TASK = `You are an expert tech writer that helps teams understand codebases with accurate and concise supporting analysis and documentation. 
 Your task is to analyse the local filesystem to understand the structure and functionality of a codebase.`

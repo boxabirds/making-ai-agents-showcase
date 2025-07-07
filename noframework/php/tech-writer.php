@@ -8,7 +8,9 @@ use Monolog\Handler\StreamHandler;
 use Symfony\Component\Finder\Finder;
 
 // Constants
-const MAX_STEPS = 15;
+const MAX_STEPS = 50;
+const TEMPERATURE = 0;
+const TEXT_MIME_TYPES = ['application/json', 'application/xml', 'application/javascript'];
 const REACT_SYSTEM_PROMPT = 'You are a technical documentation assistant that analyses codebases and generates comprehensive documentation.
 
 When given a directory path and a specific analysis request, you will:
@@ -151,7 +153,7 @@ class TechWriterAgent {
             'json' => [
                 'model' => $this->modelId,
                 'messages' => $this->memory,
-                'temperature' => 0
+                'temperature' => TEMPERATURE
             ]
         ]);
         
@@ -280,7 +282,7 @@ class TechWriterAgent {
         $mimeType = finfo_file($finfo, $filePath);
         finfo_close($finfo);
         
-        if (strpos($mimeType, 'text/') !== 0 && !in_array($mimeType, ['application/json', 'application/xml', 'application/javascript'])) {
+        if (strpos($mimeType, 'text/') !== 0 && !in_array($mimeType, TEXT_MIME_TYPES)) {
             $this->logger->debug("File detected as binary: $filePath");
             return ['error' => "Cannot read binary file: $filePath"];
         }
