@@ -112,9 +112,9 @@ def get_github_avatar(github_url):
 
 def process_csv():
     """Main function to process the CSV file."""
-    input_file = 'oss-agent-makers.csv'
-    output_file = 'oss-agent-makers-with-images.csv'
-    progress_file = 'og-extraction-progress.json'
+    input_file = '../data/oss-agent-makers.csv'
+    output_file = '../data/oss-agent-makers-with-images.csv'
+    progress_file = '../logs/og-extraction-progress.json'
     
     # Load progress if exists
     progress = {}

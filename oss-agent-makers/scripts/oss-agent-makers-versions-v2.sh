@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Output CSV file
-output_file="oss-agent-makers-versions.csv"
+output_file="../data/oss-agent-makers-versions.csv"
 
 # Write CSV header
 echo "repo_name,version,package_name" > "$output_file"
@@ -23,12 +23,17 @@ extract_package_names() {
 }
 
 # Process each directory in oss-agent-makers
-for dir in oss-agent-makers/*/; do
+for dir in ../*/; do
     # Skip if not a directory
     [ -d "$dir" ] || continue
     
     # Get the repo name (directory name)
     repo_name=$(basename "$dir")
+    
+    # Skip special directories
+    if [[ "$repo_name" == "scripts" || "$repo_name" == "data" || "$repo_name" == "logs" || "$repo_name" == "extraction" ]]; then
+        continue
+    fi
     
     # Extract package names from install.sh
     packages=($(extract_package_names "$dir/install.sh"))

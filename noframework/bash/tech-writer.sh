@@ -500,6 +500,10 @@ main() {
                 repo_url="$2"
                 shift 2
                 ;;
+            --prompt)
+                prompt_file="$2"
+                shift 2
+                ;;
             --cache-dir)
                 CACHE_DIR="$2"
                 shift 2
@@ -530,16 +534,16 @@ main() {
                 ;;
             -h|--help)
                 cat <<EOF
-Usage: $0 [directory] prompt_file [options]
+Usage: $0 [directory] [options]
 
 Analyse a codebase using an LLM agent.
 
 Positional arguments:
   directory             Directory containing the codebase to analyse
-  prompt_file           Path to a file containing the analysis prompt
 
 Options:
   --repo REPO           GitHub repository URL to clone (e.g. https://github.com/owner/repo)
+  --prompt FILE         Path to a file containing the analysis prompt (required)
   --cache-dir DIR       Directory to cache cloned repositories (default: ~/.cache/github)
   --output-dir DIR      Directory to save results to (default: output)
   --extension EXT       File extension for output files (default: .md)
@@ -559,8 +563,6 @@ EOF
             *)
                 if [[ -z "$directory" ]] && [[ -z "$repo_url" ]]; then
                     directory="$1"
-                elif [[ -z "$prompt_file" ]]; then
-                    prompt_file="$1"
                 else
                     echo "Error: Unknown argument: $1" >&2
                     exit 1

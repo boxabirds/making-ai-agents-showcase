@@ -42,8 +42,8 @@ def get_github_og_image(github_url):
 
 def process_csv():
     """Main function to process the CSV file."""
-    input_file = 'oss-agent-makers.csv'
-    output_file = 'oss-agent-makers-with-images.csv'
+    input_file = '../data/oss-agent-makers.csv'
+    output_file = '../data/oss-agent-makers-with-images.csv'
     
     # Read existing data
     rows = []

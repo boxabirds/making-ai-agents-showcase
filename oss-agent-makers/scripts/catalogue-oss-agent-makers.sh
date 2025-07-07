@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Output CSV file
-output_file="oss-agent-makers-catalogue.csv"
+output_file="../data/oss-agent-makers-catalogue.csv"
 
 # Write CSV header
 echo "repo_name,language,format" > "$output_file"
 
 # Find all metadata.json files in oss-agent-makers subdirectories
-find oss-agent-makers -name "metadata.json" -type f | while read -r metadata_file; do
+find .. -name "metadata.json" -type f -not -path "*/scripts/*" -not -path "*/data/*" -not -path "*/logs/*" -not -path "*/extraction/*" | while read -r metadata_file; do
     # Extract repo_name and eval_output from metadata.json
     repo_name=$(jq -r '.repo_name // empty' "$metadata_file" 2>/dev/null)
     eval_output=$(jq -r '.eval_output // empty' "$metadata_file" 2>/dev/null)

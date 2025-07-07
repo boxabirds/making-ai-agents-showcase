@@ -43,7 +43,6 @@ repo_name,language,format
 "magma","TypeScript","Package option"
 "suna","Python","Server required"
 "julep","Python","Server required"
-"Integuru","Python","Package option"
 "autogen","Python","Package option"
 "dify","Python","Server required"
 "voltagent","TypeScript","Package option"

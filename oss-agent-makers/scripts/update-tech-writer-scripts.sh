@@ -60,7 +60,7 @@ EOF
 
 # Find all tech-writer.sh files
 echo "Finding all tech-writer.sh files..."
-tech_writer_files=$(find /Users/julian/expts/awesome-agent-showcase/oss-agent-makers -name "tech-writer.sh" -type f)
+tech_writer_files=$(find .. -name "tech-writer.sh" -type f)
 
 # Update each file
 for file in $tech_writer_files; do

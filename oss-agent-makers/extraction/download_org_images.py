@@ -39,8 +39,8 @@ def get_file_extension(url):
 
 def main():
     # Setup paths
-    csv_file = 'oss-agent-makers-with-images.csv'
-    assets_dir = Path('chat/assets')
+    csv_file = '../data/oss-agent-makers-with-images.csv'
+    assets_dir = Path('../../chat/assets')
     
     # Create assets directory if it doesn't exist
     assets_dir.mkdir(parents=True, exist_ok=True)

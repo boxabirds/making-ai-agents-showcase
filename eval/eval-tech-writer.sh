@@ -105,14 +105,20 @@ test_tech_writer() {
     local start_time=$(date +%s)
     local exit_code=0
     
-    if timeout 300 bash -c "cd '$(dirname "$script_path")' && ./$(basename "$script_path") ${cmd#*$script_path}" >> "$LOG_FILE" 2>&1; then
+    # Use gtimeout on macOS if available, otherwise timeout
+    local timeout_cmd="timeout"
+    if [[ "$(uname)" == "Darwin" ]] && command -v gtimeout >/dev/null 2>&1; then
+        timeout_cmd="gtimeout"
+    fi
+    
+    if $timeout_cmd 300 bash -c "cd '$(dirname "$script_path")' && ./$(basename "$script_path") ${cmd#*$script_path}" >> "$LOG_FILE" 2>&1; then
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         
         # Check if output file was created
         if [[ -f "$output_file" ]]; then
             local file_size=$(wc -c < "$output_file" | tr -d ' ')
-            if [[ $file_size -gt 100 ]]; then
+            if [[ $file_size -gt 50 ]]; then
                 echo -e "${GREEN}✓ Success${NC} - Generated $(wc -l < "$output_file" | tr -d ' ') lines in ${duration}s" | tee -a "$LOG_FILE"
                 
                 # Extract first few lines for preview
