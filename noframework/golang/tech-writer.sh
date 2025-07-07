@@ -3,11 +3,12 @@
 # Tech Writer Agent Launcher Script for Go implementation
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENT_DIR="$SCRIPT_DIR/tech-writer-agent"
 
 # Build if binary doesn't exist
-if [ ! -f "$SCRIPT_DIR/tech-writer-agent" ]; then
+if [ ! -f "$AGENT_DIR/tech-writer-agent" ]; then
     echo "Building tech-writer-agent..." >&2
-    (cd "$SCRIPT_DIR" && go build -o tech-writer-agent)
+    (cd "$AGENT_DIR" && go build -o tech-writer-agent)
 fi
 
 # Convert double-dash arguments to single-dash for Go's flag package
@@ -28,4 +29,4 @@ while [[ $i -le $# ]]; do
 done
 
 # Execute the Go tech writer with converted arguments
-exec "$SCRIPT_DIR/tech-writer-agent" "${args[@]}"
+exec "$AGENT_DIR/tech-writer-agent" "${args[@]}"

@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Check if vendor directory exists, if not run composer install
 if [ ! -d "$SCRIPT_DIR/vendor" ]; then
     echo "Installing dependencies..." >&2
-    (cd "$SCRIPT_DIR" && composer install)
+    (cd "$SCRIPT_DIR" && composer install --no-interaction)
 fi
 
 # Execute the PHP tech writer

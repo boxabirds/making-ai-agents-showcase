@@ -1,0 +1,9 @@
+Implementation,Status,Time (s),CPU (%),Memory (MB)
+bash,PASS,14.23,3.58,7.40
+c,PASS,7.40,0.94,7.39
+golang,PASS,8.34,0.11,11.12
+php,PASS,5.50,2.90,28.21
+python,PASS,13.84,3.82,73.48
+rust,PASS,10.80,1.66,13.92
+typescript,PASS,6.06,4.62,95.10
+zig,PASS,4.49,2.67,51.01

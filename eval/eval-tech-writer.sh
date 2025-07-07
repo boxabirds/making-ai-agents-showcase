@@ -134,6 +134,8 @@ LAST_WALL_TIME=""
 LAST_CPU_PERCENT=""
 LAST_MEMORY_MB=""
 LAST_EXIT_CODE=""
+LAST_USER_TIME=""
+LAST_SYS_TIME=""
 
 # Parse stats from time command output
 parse_stats_linux() {
@@ -151,21 +153,34 @@ parse_stats_linux() {
 
 parse_stats_macos() {
     local output="$1"
-    # macOS time output format is different
-    local real_time=$(echo "$output" | grep "real" | awk '{print $1}')
-    LAST_WALL_TIME="$real_time"
+    # macOS time output format has leading whitespace: "        0.00 real         0.00 user         0.00 sys"
+    local stats_line=$(echo "$output" | grep -E "^\s+[0-9]+\.[0-9]+ real\s+[0-9]+\.[0-9]+ user\s+[0-9]+\.[0-9]+ sys")
     
-    # CPU calculation from user + sys time
-    local user_time=$(echo "$output" | grep "user" | awk '{print $1}')
-    local sys_time=$(echo "$output" | grep "sys" | awk '{print $1}')
-    if [[ -n "$user_time" ]] && [[ -n "$sys_time" ]] && [[ -n "$real_time" ]]; then
-        LAST_CPU_PERCENT=$(echo "scale=1; (($user_time + $sys_time) / $real_time) * 100" | bc 2>/dev/null || echo "")
+    if [[ -n "$stats_line" ]]; then
+        local real_time=$(echo "$stats_line" | awk '{print $1}')
+        local user_time=$(echo "$stats_line" | awk '{print $3}')
+        local sys_time=$(echo "$stats_line" | awk '{print $5}')
+        
+        LAST_WALL_TIME="$real_time"
+        LAST_USER_TIME="$user_time"
+        LAST_SYS_TIME="$sys_time"
+        
+        # CPU calculation from user + sys time
+        if [[ "$real_time" != "0.00" ]]; then
+            # Use scale=4 for more precision
+            cpu_calc=$(echo "scale=4; ($user_time + $sys_time) / $real_time * 100" | bc)
+            # Format to 2 decimal places
+            LAST_CPU_PERCENT=$(printf "%.2f" "$cpu_calc")
+        else
+            LAST_CPU_PERCENT=""
+        fi
     fi
     
     # Memory in bytes, convert to MB
-    local mem_bytes=$(echo "$output" | grep "peak memory footprint" | awk '{print $1}')
+    # Use maximum resident set size, not peak memory footprint
+    local mem_bytes=$(echo "$output" | grep "maximum resident set size" | awk '{print $1}')
     if [[ -n "$mem_bytes" ]]; then
-        LAST_MEMORY_MB=$(echo "scale=2; $mem_bytes / 1024 / 1024" | bc 2>/dev/null || echo "")
+        LAST_MEMORY_MB=$(echo "scale=2; $mem_bytes / 1024 / 1024" | bc)
     fi
 }
 
@@ -302,6 +317,13 @@ test_tech_writer_with_stats() {
                 fi
                 if [[ -n "$LAST_MEMORY_MB" ]]; then
                     echo "  Memory: ${LAST_MEMORY_MB} MB" | tee -a "$log_file"
+                fi
+                if [[ -n "$LAST_USER_TIME" ]] && [[ -n "$LAST_SYS_TIME" ]]; then
+                    # Use scale=3 for millisecond precision
+                    local cpu_time=$(echo "scale=3; $LAST_USER_TIME + $LAST_SYS_TIME" | bc)
+                    # Format with printf to ensure we always show 3 decimal places
+                    cpu_time=$(printf "%.3f" "$cpu_time")
+                    echo "  CPU time: ${cpu_time}s" | tee -a "$log_file"
                 fi
                 
                 # Extract preview
