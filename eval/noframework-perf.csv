@@ -1,9 +1,11 @@
-Implementation,Status,Time (s),CPU (%),Memory (MB)
-bash,PASS,14.23,3.58,7.40
-c,PASS,7.40,0.94,7.39
-golang,PASS,8.34,0.11,11.12
-php,PASS,5.50,2.90,28.21
-python,PASS,13.84,3.82,73.48
-rust,PASS,10.80,1.66,13.92
-typescript,PASS,6.06,4.62,95.10
-zig,PASS,4.49,2.67,51.01
+Implementation,Status,CPU Time (s),CPU (%),Memory (MB)
+bash,PASS,0.630,3.27,7.48
+c,PASS,0.090,1.84,7.09
+erlang,PASS,0.470,4.07,76.28
+golang,FAIL,0.000,0.00,1.78
+haskell,PASS,0.280,2.37,70.87
+php,PASS,0.180,1.49,34.01
+python,PASS,0.530,2.65,74.18
+rust,PASS,0.190,0.12,14.21
+typescript,PASS,0.310,4.24,95.32
+zig,PASS,0.200,1.82,51.17

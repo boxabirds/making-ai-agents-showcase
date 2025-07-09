@@ -137,7 +137,8 @@ def get_gitignore_spec(directory: str) -> pathspec.PathSpec:
     Returns:
         A PathSpec object for matching against .gitignore patterns
     """
-    ignore_patterns = []
+    # Always ignore .git directory
+    ignore_patterns = ['.git/']
     
     # Try to read .gitignore file
     gitignore_path = Path(directory) / ".gitignore"

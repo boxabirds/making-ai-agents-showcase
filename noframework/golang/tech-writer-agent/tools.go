@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	
+	gitignore "github.com/denormal/go-gitignore"
 )
 
 // Tool represents a callable tool function
@@ -94,10 +95,10 @@ func findAllMatchingFiles(args map[string]interface{}) (interface{}, error) {
 		return FileSearchResult{Files: []string{}, Count: 0}, nil
 	}
 	
-	// Get gitignore patterns if needed
-	var gitignorePatterns []string
+	// Get gitignore matcher if needed
+	var matcher gitignore.GitIgnore
 	if respectGitignore {
-		gitignorePatterns = getGitignorePatterns(absDir)
+		matcher = loadGitignoreMatcher(absDir)
 	}
 	
 	var matchingFiles []string
@@ -110,6 +111,10 @@ func findAllMatchingFiles(args map[string]interface{}) (interface{}, error) {
 		
 		// Skip directories
 		if info.IsDir() {
+			// Always skip .git directory
+			if filepath.Base(path) == ".git" {
+				return filepath.SkipDir
+			}
 			// Skip subdirectories if not included
 			if !includeSubdirs && path != absDir {
 				return filepath.SkipDir
@@ -129,7 +134,7 @@ func findAllMatchingFiles(args map[string]interface{}) (interface{}, error) {
 		}
 		
 		// Skip gitignored files
-		if respectGitignore && isGitignored(relPath, gitignorePatterns) {
+		if respectGitignore && matcher != nil && matcher.Ignore(relPath) {
 			return nil
 		}
 		
@@ -196,56 +201,24 @@ func readFile(args map[string]interface{}) (interface{}, error) {
 	}, nil
 }
 
-// getGitignorePatterns reads .gitignore patterns from a directory
-func getGitignorePatterns(directory string) []string {
-	var patterns []string
-	
+// loadGitignoreMatcher creates a gitignore matcher from .gitignore file
+func loadGitignoreMatcher(directory string) gitignore.GitIgnore {
 	gitignorePath := filepath.Join(directory, ".gitignore")
-	file, err := os.Open(gitignorePath)
+	
+	// Try to load from file
+	matcher, err := gitignore.NewFromFile(gitignorePath)
 	if err != nil {
-		return patterns
-	}
-	defer file.Close()
-	
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		// Skip empty lines and comments
-		if line != "" && !strings.HasPrefix(line, "#") {
-			patterns = append(patterns, line)
-		}
+		// If no .gitignore file, create empty matcher
+		// For now, we'll return nil and handle it in the caller
+		log.Printf("No .gitignore found: %v", err)
+		return nil
+	} else {
+		log.Printf("Loaded gitignore patterns from %s", gitignorePath)
 	}
 	
-	log.Printf("Loaded %d patterns from .gitignore", len(patterns))
-	return patterns
+	return matcher
 }
 
-// isGitignored checks if a file path matches any gitignore pattern
-func isGitignored(path string, patterns []string) bool {
-	// Convert to forward slashes for consistent matching
-	path = filepath.ToSlash(path)
-	
-	for _, pattern := range patterns {
-		// Simple pattern matching (not full gitignore spec)
-		// Handle directory patterns
-		if strings.HasSuffix(pattern, "/") {
-			if strings.HasPrefix(path, pattern) || strings.Contains(path, "/"+pattern) {
-				return true
-			}
-		} else {
-			// Handle file patterns
-			matched, _ := filepath.Match(pattern, filepath.Base(path))
-			if matched {
-				return true
-			}
-			// Also check if the pattern matches any part of the path
-			if strings.Contains(path, pattern) {
-				return true
-			}
-		}
-	}
-	return false
-}
 
 // isBinary checks if a file is binary by reading the first few bytes
 func isBinary(filePath string) bool {

@@ -392,8 +392,17 @@ run_all_noframework() {
             local status="FAIL"
         fi
         
-        # Store result
-        ALL_RESULTS+=("$name|$status|$LAST_WALL_TIME|$LAST_CPU_PERCENT|$LAST_MEMORY_MB")
+        # Calculate CPU time for storage
+        local cpu_time_for_storage=""
+        if [[ -n "$LAST_USER_TIME" ]] && [[ -n "$LAST_SYS_TIME" ]]; then
+            cpu_time_for_storage=$(echo "scale=3; $LAST_USER_TIME + $LAST_SYS_TIME" | bc)
+            cpu_time_for_storage=$(printf "%.3f" "$cpu_time_for_storage")
+        else
+            cpu_time_for_storage="$LAST_WALL_TIME"  # Fallback to wall time if CPU time not available
+        fi
+        
+        # Store result with CPU time instead of wall time
+        ALL_RESULTS+=("$name|$status|$cpu_time_for_storage|$LAST_CPU_PERCENT|$LAST_MEMORY_MB")
     done
     
     # Generate report
@@ -412,8 +421,8 @@ generate_comparison_report() {
     echo "" | tee -a "$log_file"
     
     # Header
-    printf "%-15s %-8s %-10s %-10s %-12s\n" "Implementation" "Status" "Time (s)" "CPU (%)" "Memory (MB)" | tee -a "$log_file"
-    printf "%-15s %-8s %-10s %-10s %-12s\n" "--------------" "------" "---------" "--------" "-----------" | tee -a "$log_file"
+    printf "%-15s %-8s %-10s %-10s %-12s\n" "Implementation" "Status" "CPU Time (s)" "CPU (%)" "Memory (MB)" | tee -a "$log_file"
+    printf "%-15s %-8s %-10s %-10s %-12s\n" "--------------" "------" "-----------" "--------" "-----------" | tee -a "$log_file"
     
     # Process results
     local fastest_time=999999
@@ -483,7 +492,7 @@ generate_comparison_report() {
 
 # Export results to CSV
 export_csv() {
-    echo "Implementation,Status,Time (s),CPU (%),Memory (MB)" > "$CSV_OUTPUT"
+    echo "Implementation,Status,CPU Time (s),CPU (%),Memory (MB)" > "$CSV_OUTPUT"
     for result in "${ALL_RESULTS[@]}"; do
         IFS='|' read -r impl status time cpu mem <<< "$result"
         echo "$impl,$status,$time,$cpu,$mem" >> "$CSV_OUTPUT"
@@ -509,7 +518,7 @@ export_json() {
         
         json+="{\"implementation\":\"$impl\","
         json+="\"status\":\"$status\","
-        json+="\"time_seconds\":${time:-null},"
+        json+="\"cpu_time_seconds\":${time:-null},"
         json+="\"cpu_percent\":${cpu:-null},"
         json+="\"memory_mb\":${mem:-null}}"
     done
