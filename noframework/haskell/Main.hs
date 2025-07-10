@@ -352,8 +352,8 @@ parseAction response = do
     let lines' = lines response
     actionLine <- find ("Action:" `isInfixOf`) lines'
     inputLine <- find ("Action Input:" `isInfixOf`) lines'
-    let action = trim $ drop (length ("Action:" :: String)) $ dropWhile (/= ':') actionLine
-    let input = trim $ drop (length ("Action Input:" :: String)) $ dropWhile (/= ':') inputLine
+    let action = trim $ drop 1 $ dropWhile (/= ':') actionLine
+    let input = trim $ drop 1 $ dropWhile (/= ':') inputLine
     return (action, input)
   where
     isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
@@ -443,10 +443,12 @@ getModelName modelStr = case break (== '/') modelStr of
 
 -- Execute action
 executeAction :: String -> String -> String -> FilePath -> IO String
-executeAction "find_all_matching_files" input repoPath _ = do
+executeAction "find_all_matching_files" input repoPath logFile = do
     -- Parse JSON input (simple parsing for this use case)
     let pattern = extractPattern input
         directory = extractDirectory input repoPath
+    
+    logInfo logFile $ "Tool invoked: find_all_matching_files(directory='" ++ directory ++ "', pattern='" ++ pattern ++ "')"
     
     -- Find files
     files <- Main.findFiles directory pattern
@@ -496,9 +498,13 @@ extractFilePath input
 -- Find files matching pattern
 findFiles :: String -> String -> IO [String]
 findFiles directory pattern = do
-    let findCmd = "find " ++ directory ++ " -type f -name '" ++ pattern ++ "' 2>/dev/null"
+    -- Include hidden files but exclude .git directory
+    let findCmd = "find " ++ directory ++ " -type f -name '" ++ pattern ++ "' -not -path '*/.git/*' 2>/dev/null"
     result <- readProcess "sh" ["-c", findCmd] ""
-    return $ lines result
+    let files = lines result
+    -- Log the file count
+    putStrLn $ "Found " ++ show (length files) ++ " matching files"
+    return files
 
 -- Extract final answer from memory
 extractFinalAnswer :: [(String, String)] -> String

@@ -326,15 +326,20 @@ extract_thought(Response) ->
     end.
 
 %% Execute action
-execute_action("find_all_matching_files", Input, RepoPath, _LogFile) ->
+execute_action("find_all_matching_files", Input, RepoPath, LogFile) ->
     %% Parse JSON input
     try
         Decoded = jsx:decode(list_to_binary(Input), [return_maps]),
         Directory = maps:get(<<"directory">>, Decoded, RepoPath),
         Pattern = maps:get(<<"pattern">>, Decoded, <<"*">>),
         
+        log_info(io_lib:format("Tool invoked: find_all_matching_files(directory='~s', pattern='~s')", 
+                               [Directory, Pattern]), LogFile),
+        
         %% Find files
         Files = find_files(binary_to_list(Directory), binary_to_list(Pattern)),
+        FileCount = length(Files),
+        log_info(io_lib:format("Found ~p matching files", [FileCount]), LogFile),
         string:join(Files, "\n")
     catch
         _:_ ->

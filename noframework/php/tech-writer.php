@@ -238,6 +238,12 @@ class TechWriterAgent {
         $finder = new Finder();
         $finder->files()->in($directory);
         
+        // Include dot files (hidden files) - let gitignore handle exclusions
+        $finder->ignoreDotFiles(false);
+        
+        // Always exclude .git directory
+        $finder->exclude('.git');
+        
         // Handle pattern
         if ($pattern === '*' || $pattern === '*.*') {
             // Match all files

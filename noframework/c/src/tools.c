@@ -59,16 +59,19 @@ GitIgnore* gitignore_load(const char* directory) {
     char gitignore_path[1024];
     snprintf(gitignore_path, sizeof(gitignore_path), "%s/.gitignore", directory);
     
-    if (!platform_file_exists(gitignore_path)) {
-        return NULL;
-    }
-    
-    FILE* file = fopen(gitignore_path, "r");
-    if (!file) return NULL;
-    
     GitIgnore* ignore = safe_calloc(1, sizeof(GitIgnore));
     ignore->capacity = 16;
     ignore->patterns = safe_calloc(ignore->capacity, sizeof(char*));
+    
+    // Always ignore .git directory
+    ignore->patterns[ignore->count++] = safe_strdup(".git/");
+    
+    if (!platform_file_exists(gitignore_path)) {
+        return ignore;
+    }
+    
+    FILE* file = fopen(gitignore_path, "r");
+    if (!file) return ignore;
     
     char line[256];
     while (fgets(line, sizeof(line), file)) {
@@ -157,7 +160,10 @@ void traverse_directory(const char* directory, const char* pattern, FileList* re
         }
         
         if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            traverse_directory(full_path, pattern, results, gitignore, base_dir);
+            // Skip .git directory
+            if (strcmp(find_data.cFileName, ".git") != 0) {
+                traverse_directory(full_path, pattern, results, gitignore, base_dir);
+            }
         } else {
             if (match_pattern(find_data.cFileName, pattern)) {
                 file_list_add(results, full_path);
@@ -193,7 +199,10 @@ void traverse_directory(const char* directory, const char* pattern, FileList* re
         struct stat st;
         if (stat(full_path, &st) == 0) {
             if (S_ISDIR(st.st_mode)) {
-                traverse_directory(full_path, pattern, results, gitignore, base_dir);
+                // Skip .git directory
+                if (strcmp(entry->d_name, ".git") != 0) {
+                    traverse_directory(full_path, pattern, results, gitignore, base_dir);
+                }
             } else if (S_ISREG(st.st_mode)) {
                 if (match_pattern(entry->d_name, pattern)) {
                     file_list_add(results, full_path);

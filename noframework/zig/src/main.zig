@@ -5,6 +5,7 @@ const fs = std.fs;
 const process = std.process;
 const mem = std.mem;
 const fmt = std.fmt;
+const GitIgnore = @import("gitignore.zig").GitIgnore;
 
 const MAX_STEPS = 50;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -372,49 +373,28 @@ const TechWriterAgent = struct {
         var walker = try dir.walk(self.allocator);
         defer walker.deinit();
 
-        // Check for .gitignore
-        var gitignore_patterns = std.ArrayList([]const u8).init(self.allocator);
-        defer {
-            for (gitignore_patterns.items) |p| {
-                self.allocator.free(p);
-            }
-            gitignore_patterns.deinit();
-        }
-
+        // Load gitignore patterns
         const gitignore_path = try fmt.allocPrint(self.allocator, "{s}/.gitignore", .{directory});
         defer self.allocator.free(gitignore_path);
-
-        if (fs.cwd().openFile(gitignore_path, .{})) |gitignore_file| {
-            defer gitignore_file.close();
-            const content = try gitignore_file.readToEndAlloc(self.allocator, 1024 * 1024);
-            defer self.allocator.free(content);
-
-            var lines = mem.tokenize(u8, content, "\n");
-            while (lines.next()) |line| {
-                const trimmed = mem.trim(u8, line, " \t\r");
-                if (trimmed.len > 0 and trimmed[0] != '#') {
-                    try gitignore_patterns.append(try self.allocator.dupe(u8, trimmed));
-                }
-            }
-        } else |_| {}
+        
+        var gitignore = try GitIgnore.loadFromFile(self.allocator, gitignore_path);
+        defer gitignore.deinit();
 
         while (try walker.next()) |entry| {
             if (entry.kind != .file) continue;
 
-            // Check gitignore patterns
-            var ignored = false;
-            for (gitignore_patterns.items) |ignore_pattern| {
-                if (mem.indexOf(u8, entry.path, ignore_pattern) != null) {
-                    ignored = true;
-                    break;
-                }
-            }
-            if (ignored) continue;
+            // Check if file should be ignored
+            if (gitignore.shouldIgnore(entry.path, false)) continue;
 
             // Check pattern match
             var matches = false;
-            if (mem.eql(u8, pattern, "*") or mem.eql(u8, pattern, "*.*")) {
+            if (mem.eql(u8, pattern, "*")) {
                 matches = true;
+            } else if (mem.eql(u8, pattern, "*.*")) {
+                // Match files with a dot in the name
+                if (mem.indexOf(u8, entry.basename, ".") != null) {
+                    matches = true;
+                }
             } else if (mem.startsWith(u8, pattern, "*.")) {
                 const ext = pattern[1..];
                 if (mem.endsWith(u8, entry.path, ext)) {

@@ -1,0 +1,1 @@
+The predominant programming language used in this repository is **JavaScript**, with **TypeScript** also significantly represented.

@@ -116,21 +116,46 @@ function findAllMatchingFiles(
 
   try {
     // Read .gitignore patterns if needed
-    let gitignorePatterns: string[] = [];
+    let gitignorePatterns: string[] = ['.git/**'];  // Always ignore .git directory
     if (respectGitignore) {
       const gitignorePath = path.join(absoluteDir, '.gitignore');
       if (fs.existsSync(gitignorePath)) {
-        gitignorePatterns = fs.readFileSync(gitignorePath, 'utf-8')
+        const rawPatterns = fs.readFileSync(gitignorePath, 'utf-8')
           .split('\n')
-          .filter(line => line.trim() && !line.startsWith('#'));
+          .filter(line => line.trim() && !line.startsWith('#'))
+          .map(line => line.trim());
+        
+        // Convert gitignore patterns to glob patterns
+        for (const pattern of rawPatterns) {
+          if (pattern.startsWith('!')) continue; // Skip negations for now
+          
+          if (pattern.endsWith('/')) {
+            // Directory pattern
+            gitignorePatterns.push(pattern + '**');
+            gitignorePatterns.push('**/' + pattern + '**');
+          } else if (!pattern.includes('/')) {
+            // Simple filename/pattern - should match in any directory
+            gitignorePatterns.push(pattern);
+            gitignorePatterns.push('**/' + pattern);
+          } else if (pattern.startsWith('/')) {
+            // Root-relative pattern
+            gitignorePatterns.push(pattern.substring(1));
+          } else {
+            // Other patterns
+            gitignorePatterns.push(pattern);
+            gitignorePatterns.push('**/' + pattern);
+          }
+        }
       }
     }
 
     // Use glob to find files
-    const globPattern = includeSubdirs ? `**/${pattern}` : pattern;
+    const globPattern = includeSubdirs 
+      ? (pattern === '*' ? '**/*' : `**/${pattern}`)
+      : pattern;
     const options = {
       cwd: absoluteDir,
-      dot: includeHidden,
+      dot: true,  // Always include hidden files, let gitignore handle exclusions
       ignore: respectGitignore ? gitignorePatterns : undefined,
       nodir: true
     };

@@ -185,6 +185,9 @@ fn find_all_matching_files(
     let walker = WalkBuilder::new(dir_path)
         .hidden(false)
         .git_ignore(true)
+        .git_global(false)
+        .git_exclude(false)
+        .filter_entry(|e| e.file_name() != ".git")
         .build();
 
     for entry in walker {

@@ -154,22 +154,36 @@ find_all_matching_files() {
         find_opts+=("-maxdepth" "1")
     fi
     
+    # Always exclude .git directory first
+    find_opts+=("-path" "*/.git" "-prune" "-o")
+    
     # Handle hidden files
     if [[ "$include_hidden" != "true" ]]; then
-        find_opts+=("-not" "-path" "*/.*")
+        # Exclude hidden files and directories (but not hidden files in root)
+        find_opts+=("-name" ".*" "-prune" "-o")
     fi
     
     # Add file type and pattern
-    find_opts+=("-type" "f" "-name" "$pattern")
+    find_opts+=("-type" "f")
+    
+    # Handle patterns
+    if [[ "$pattern" != "*.*" ]] && [[ "$pattern" != "*" ]]; then
+        find_opts+=("-name" "$pattern")
+    fi
+    
+    # Print the results
+    find_opts+=("-print")
     
     # Execute find and process results
+    log_debug "Find command: $find_cmd ${find_opts[@]}"
     local results="["
     local first=true
     
     while IFS= read -r file; do
         # Skip if gitignore should be respected and file is ignored
         if [[ "$respect_gitignore" == "true" ]] && command -v git >/dev/null 2>&1; then
-            if git -C "$directory" check-ignore "$file" 2>/dev/null; then
+            # Check if the directory is a git repository
+            if [[ -d "$directory/.git" ]] && git -C "$directory" check-ignore "$file" 2>/dev/null; then
                 continue
             fi
         fi
@@ -311,12 +325,12 @@ parse_response() {
         fi
     fi
     
-    # Extract Action using awk
-    local action=$(echo "$response" | awk '/^Action:/ {sub(/^Action:[[:space:]]*/, ""); print; exit}')
+    # Extract Action using awk (allow whitespace before Action:)
+    local action=$(echo "$response" | awk '/Action:/ {sub(/.*Action:[[:space:]]*/, ""); print; exit}')
     
     # Extract Action Input - get everything between "Action Input:" and the next section marker
     local action_input=$(echo "$response" | awk '
-        /^Action Input:/ {p=1; next}
+        /Action Input:/ {p=1; sub(/.*Action Input:[[:space:]]*/, ""); if (length($0) > 0) print; next}
         /^(Thought:|Action:|Observation:|Final Answer:)/ {if(p) exit}
         p {print}
     ' | tr -d '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')

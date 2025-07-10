@@ -57,10 +57,18 @@ def find_all_matching_files(
         for path in paths:
             if path.is_file():
                 # Skip hidden files if not explicitly included
-                # Only check the file name, not the entire path
+                # But only skip if they're in hidden directories
                 if not include_hidden and path.name.startswith('.'):
-                    logger.debug(f"Skipping hidden file: {path}")
-                    continue
+                    # Check if any parent directory is hidden (excluding the file itself)
+                    rel_path = path.relative_to(directory_path)
+                    parent_parts = rel_path.parts[:-1]  # Exclude the filename
+                    has_hidden_parent = any(part.startswith('.') for part in parent_parts)
+                    
+                    # Only skip if it's in a hidden directory, not just a hidden file in root
+                    if has_hidden_parent:
+                        logger.debug(f"Skipping hidden file in hidden directory: {path}")
+                        continue
+                    # Hidden files in non-hidden directories (like .gitignore) should be included
                 
                 # Skip if should be ignored
                 if respect_gitignore and spec:

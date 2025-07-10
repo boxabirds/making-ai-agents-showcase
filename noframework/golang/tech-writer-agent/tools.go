@@ -130,11 +130,24 @@ func findAllMatchingFiles(args map[string]interface{}) (interface{}, error) {
 		
 		// Skip hidden files if not included
 		if !includeHidden && strings.HasPrefix(filepath.Base(path), ".") {
-			return nil
+			// Check if any parent directory is hidden
+			parts := strings.Split(relPath, string(filepath.Separator))
+			hasHiddenParent := false
+			for i := 0; i < len(parts)-1; i++ { // Exclude the filename itself
+				if strings.HasPrefix(parts[i], ".") {
+					hasHiddenParent = true
+					break
+				}
+			}
+			// Only skip if it's in a hidden directory
+			if hasHiddenParent {
+				return nil
+			}
+			// Hidden files in non-hidden directories (like .gitignore) should be included
 		}
 		
 		// Skip gitignored files
-		if respectGitignore && matcher != nil && matcher.Ignore(relPath) {
+		if respectGitignore && shouldIgnore(relPath, matcher) {
 			return nil
 		}
 		
@@ -218,6 +231,36 @@ func loadGitignoreMatcher(directory string) gitignore.GitIgnore {
 	
 	return matcher
 }
+
+// shouldIgnore checks if a file should be ignored based on gitignore patterns
+// This function works around several issues in the go-gitignore library:
+// 1. The library doesn't handle directory patterns correctly (e.g., "node_modules/")
+// 2. The library's Match() method can cause nil pointer panics
+// 3. The library doesn't work well when not in the repository directory
+func shouldIgnore(relPath string, matcher gitignore.GitIgnore) bool {
+	if matcher == nil {
+		return false
+	}
+	
+	// First try the matcher's Ignore method
+	if matcher.Ignore(relPath) {
+		return true
+	}
+	
+	// The go-gitignore library has issues with directory patterns.
+	// Check if the file is in a directory that should be ignored.
+	parts := strings.Split(relPath, string(filepath.Separator))
+	for i := 1; i <= len(parts); i++ {
+		dirPath := strings.Join(parts[:i], string(filepath.Separator))
+		// Check both with and without trailing slash
+		if matcher.Ignore(dirPath) || matcher.Ignore(dirPath + "/") {
+			return true
+		}
+	}
+	
+	return false
+}
+
 
 
 // isBinary checks if a file is binary by reading the first few bytes
