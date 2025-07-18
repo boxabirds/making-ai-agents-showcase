@@ -30,7 +30,7 @@ for dir in ../*/; do
         
         # Add special cases
         case "$repo_name" in
-            "autogen") patterns+=("pyautogen") ;;
+            "autogen") patterns+=("ag2") ;;
             "camel") patterns+=("camel_ai" "camel-ai") ;;
             "water") patterns+=("water_ai" "water-ai") ;;
         esac
