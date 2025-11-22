@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <h2 class="mb-3">{{ heading }}</h2>
+    <form method="post" action="{{ action }}">
+      {% for field in fields %}
+      <div class="mb-3">
+        <label class="form-label">{{ field.label }}</label>
+        <input class="form-control" type="{{ field.type }}" name="{{ field.name }}" value="{{ field.value|default('') }}" required="{{ field.required|default(False) }}">
+        {% if field.help %}<div class="form-text">{{ field.help }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      <button class="btn btn-primary" type="submit">{{ submit_label }}</button>
+    </form>
+    {% if result %}
+    <div class="mt-4">
+      <h5>Result</h5>
+      <pre class="bg-light p-3 border">{{ result }}</pre>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

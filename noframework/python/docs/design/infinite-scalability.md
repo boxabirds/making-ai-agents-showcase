@@ -4,7 +4,7 @@
 - Handle arbitrary-size codebases without context overruns.
 - Produce citation-backed, high-coverage reports with measurable quality gates.
 - Iterate until thresholds are met; be auditable and rerunnable (all artifacts persisted).
-- Primary output is a single Markdown file matching the user’s tech-writing brief; the SQLite store is working state only.
+- Primary output is a single Markdown file matching the user’s tech-writing brief; the SQLite store is per-run working state only.
 
 ## Key Concepts (MECE)
 - **Source of Truth**: Parsed chunks with line ranges + raw text; persisted in SQLite.
@@ -16,6 +16,7 @@
 - **Iteration**: Generate → check → fix until thresholds met; issues tracked with severity.
 - **Contracts**: Pydantic models define IO for tools, storage records, and LLM outputs.
 - **Orchestration**: DSPy modules encode pipeline stages and tool usage; DSPy compiler can tune prompts/policies.
+- **CLI**: `python -m infinite_scalability.cli --prompt <file> [--repo https://github.com/axios/axio|directory] [--persist-store] [--store-path <path>]` (skeleton end-to-end wiring; DSPy stages pending).
  
 ## Infrastructure
 - **SQLite**: Primary store (file-based). Enable WAL mode for concurrency; set sensible pragmas (foreign_keys=ON, journal_mode=WAL, synchronous=NORMAL).
@@ -24,7 +25,7 @@
 - **Tree-sitter**: Language-specific parsing; pluggable grammars.
 - **Pydantic**: Models for DB rows, tool IO, LLM IO; validation on ingest and on LLM outputs.
 - **DSPy**: Compose modules: ingest → summarize → retrieve → draft → verify → revise; DSPy handles tool selection and prompt tuning under schema constraints.
-- **Store lifecycle**: SQLite DB lives in a temp location by default and is deleted after the run; `--persist-store` retains it for later querying/evals.
+- **Store lifecycle**: SQLite DB is created at run start for that specific instruction, lives in a temp location by default, and is deleted after the run; `--persist-store` retains it for later querying/evals. DBs are never reused across runs. LLM calls require `OPENAI_API_KEY`; no deterministic fallbacks in production.
 
 ## Data Model (Pydantic-first)
 - `FileRecord`: id:int, path:str, hash:str, lang:str, size:int, mtime:datetime.
@@ -51,8 +52,8 @@
 - Pragmas at connection: `PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA temp_store=MEMORY;`.
 
 ## Parsing & Chunking (Tree-sitter)
-- Per-language parsers; extract symbols and AST-backed chunks (functions/classes/methods). Docs chunked by headings/paragraphs.
-- Chunks carry `kind` (function|class|method|block|paragraph).
+- Per-language parsers (from tree-sitter-languages); extract symbols and AST-backed chunks (functions/classes/methods/sections). No fallbacks: add language support rather than skipping to naive chunking.
+- Chunks carry `kind` (function|class|method|block|paragraph/section/etc.).
 - Build symbol table; edges for imports, calls, inheritance, member-of, exports.
 
 ## Knowledge Build (Bottom-Up)
@@ -79,11 +80,11 @@
 - `IssuePlanner`: build prioritized issue list (high/med/low) from claim checks + coverage gaps.
 - `ReviseReport`: apply fixes using issues list; produce new report version; update claims.
 - Termination: high == 0; medium below threshold; coverage ≥ target; citation coverage ≥ target; else loop (bounded max iterations with failure report).
-- Teardown: emit the final Markdown report. If `--persist-store` is not set, delete the working SQLite DB and temp artifacts; if set, keep them for post-hoc queries/evals.
+- Teardown: emit the final Markdown report. If `--persist-store` is not set, delete the per-run working SQLite DB and temp artifacts; if set, keep them for post-hoc queries/evals. DBs are never reused across different user instructions.
 
 ## Output & Store Lifecycle
 - **Primary artifact**: single Markdown report matching the prompt/brief.
-- **Working store**: SQLite DB used during the run. Default: created in a temp path (e.g., `.cache/tech-writer/run-<ts>.db`) and deleted on success/failure.
+- **Working store**: SQLite DB used during the run. Default: created at run start in a temp path (e.g., `.cache/tech-writer/run-<ts>.db`) and deleted on success/failure; not reused across runs.
 - **Persistence flag**: `--persist-store` retains the DB (and logs) for inspection, debugging, and evaluations.
 - **Post-run tools (when persisted)**:
   - `list_files()`, `get_file(path)` → file/chunk/symbol metadata.
@@ -91,6 +92,7 @@
   - `get_symbol(name|regex)`, `symbol_neighbors(symbol_id, edge_type)`.
   - `get_summary(level, target_id)`.
   - `get_report_versions()`, `get_claims(report_version_id)`, `export_report(report_version_id)` → Markdown content (primary artifact).
+- **Usage note**: For remote runs, `--repo https://github.com/axios/axio` is the reference example; by default the store is per-run and deleted unless `--persist-store` is set.
 
 ## DSPy Module Sketch (signatures)
 - `IngestRepo(root: str) -> list[FileRecord]`
@@ -120,20 +122,21 @@
 - Regression (optional): compare to prior approved report; flag regressions in support/coverage.
 - Iteration criteria: continue until gates met or max iterations; on fail, emit issue list + rationale.
 - Evaluations should run with `--persist-store` to allow post-hoc querying and auditor tools over the stored artifacts.
+- Evaluation harness: extract claims + citations from the generated report, re-run retrieval against stored chunks/summaries/symbols, grade support, and emit metrics (support_rate, citation_rate, coverage). CLI: `python -m infinite_scalability.eval_runner --prompt <file> [--repo https://github.com/axios/axios|directory] [--persist-store] [--metrics-out metrics.json]`.
 
 ## Test Approach (what remains to implement)
-- Unit tests (SQLite in tmpdir, Pydantic validation) for:
+- Unit tests (pytest) with SQLite in tmpdir, Pydantic validation for:
   - Parsing/chunking per language.
   - DB persistence and retrieval queries (FTS, graph neighbors).
   - Pydantic validation of tool IO and LLM outputs (happy path + failure retries).
   - Coverage and claim-check scoring logic (deterministic fixtures).
-- Integration tests (small repos):
+- Integration tests (pytest on small repos):
   - End-to-end ingest → summarize → draft → verify → revise with stub LLMs.
   - Iteration loop termination criteria behavior.
-- Property tests:
+- Property tests (pytest + hypothesis if desired):
   - Idempotent ingest on unchanged files (hash-based skip).
   - Summaries always include valid citations.
-- Golden tests:
+- Golden tests (pytest):
   - Fixed small repo + prompt; assert metrics (support/coverage) meet thresholds with recorded snapshots.
 
 ## Mermaid: Entity Relationships
