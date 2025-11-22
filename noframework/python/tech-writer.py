@@ -5,6 +5,7 @@ from openai import OpenAI
 import inspect
 import typing
 import sys
+import os
 
 # Import from common/utils.py
 from common.utils import (
@@ -14,10 +15,7 @@ from common.utils import (
     REACT_SYSTEM_PROMPT,
     CustomEncoder,
     configure_code_base_source,
-    get_command_line_args,
-    OPENAI_API_KEY,
-    GEMINI_API_KEY,
-    GEMINI_MODELS
+    get_command_line_args
 )
 
 from common.tools import TOOLS
@@ -35,16 +33,18 @@ class TechWriterReActAgent:
         # Determine which API to use based on vendor
         # TODO v2: delegate this to LiteLLM that everyone uses now
         if vendor == "google":
-            if not GEMINI_API_KEY:
+            gemini_api_key = os.environ.get("GEMINI_API_KEY")
+            if not gemini_api_key:
                 raise ValueError("GEMINI_API_KEY environment variable is not set but a Google model was specified.")
             self.client = OpenAI(
-                api_key=GEMINI_API_KEY,
+                api_key=gemini_api_key,
                 base_url=base_url or "https://generativelanguage.googleapis.com/v1beta/openai/"
             )
         elif vendor == "openai":
-            if not OPENAI_API_KEY:
+            openai_api_key = os.environ.get("OPENAI_API_KEY")
+            if not openai_api_key:
                 raise ValueError("OPENAI_API_KEY environment variable is not set but an OpenAI model was specified.")
-            self.client = OpenAI(api_key=OPENAI_API_KEY, base_url=base_url)
+            self.client = OpenAI(api_key=openai_api_key, base_url=base_url)
         else:
             raise ValueError(f"Unknown model vendor: {vendor}")
 
@@ -52,6 +52,89 @@ class TechWriterReActAgent:
         self.system_prompt = REACT_SYSTEM_PROMPT
 
         self.tools = self.create_openai_tool_definitions(TOOLS)
+
+    @staticmethod
+    def _stringify_content(content) -> str:
+        """Normalise message content to a string for logging."""
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for part in content:
+                if isinstance(part, dict) and "text" in part:
+                    parts.append(str(part["text"]))
+                else:
+                    parts.append(str(part))
+            return "\n".join(parts)
+        return str(content)
+
+    @staticmethod
+    def _get_attr(message, attr, default=None):
+        """Safely fetch attributes for both dicts and SDK objects."""
+        if isinstance(message, dict):
+            return message.get(attr, default)
+        return getattr(message, attr, default)
+
+    @staticmethod
+    def _estimate_token_count(text: str) -> int:
+        """
+        Provide a rough token estimate so we can see when memory is ballooning.
+        This keeps instrumentation dependency-free, and only aims to highlight
+        suspicious payloads rather than provide exact counts.
+        """
+        if not text:
+            return 0
+        return max(1, len(text) // 4)
+
+    def log_memory_usage(self, step: int | None = None):
+        """Log per-message memory usage to diagnose context explosions."""
+        stats = []
+        total_chars = 0
+        total_tokens = 0
+
+        for idx, message in enumerate(self.memory):
+            content = self._stringify_content(self._get_attr(message, "content"))
+            role = self._get_attr(message, "role", "unknown")
+            tool_calls = self._get_attr(message, "tool_calls")
+            char_len = len(content)
+            token_estimate = self._estimate_token_count(content)
+            total_chars += char_len
+            total_tokens += token_estimate
+
+            stats.append({
+                "index": idx,
+                "role": role,
+                "char_len": char_len,
+                "token_estimate": token_estimate,
+                "tool_calls": len(tool_calls) if tool_calls else 0,
+                "preview": content.replace("\n", " ")[:200] if content else "",
+                "message_type": type(message).__name__
+            })
+
+        prefix = f"Step {step + 1}" if step is not None else "Current"
+        logger.info(
+            "%s memory usage: %d messages, %d chars (~%d tokens)",
+            prefix,
+            len(self.memory),
+            total_chars,
+            total_tokens
+        )
+
+        # Highlight the noisiest messages so we can trim them later if needed.
+        for stat in sorted(stats, key=lambda s: s["char_len"], reverse=True)[:5]:
+            logger.info(
+                "Largest message #%d role=%s type=%s size=%d chars (~%d tokens) tool_calls=%d",
+                stat["index"],
+                stat["role"],
+                stat["message_type"],
+                stat["char_len"],
+                stat["token_estimate"],
+                stat["tool_calls"]
+            )
+            if stat["preview"]:
+                logger.debug("Message #%d preview: %s", stat["index"], stat["preview"])
    
     def create_openai_tool_definitions(self, tools_dict):
         """
@@ -157,6 +240,7 @@ class TechWriterReActAgent:
         
         Uses the OpenAI client with appropriate base_url for all models.
         """
+        self.log_memory_usage()
         try:
             response = self.client.chat.completions.create(
                 model=self.model_id,
@@ -250,7 +334,15 @@ class TechWriterReActAgent:
                         logger.debug(f"Executing tool: {tool_call.function.name} with args: {tool_call.function.arguments}")
                         # Execute the tool
                         observation = self.execute_tool(tool_call)
-                        logger.debug(f"Tool result length: {len(observation) if observation else 0} chars")
+                        observation_len = len(observation) if observation else 0
+                        if observation_len > 10000:
+                            logger.warning(
+                                "Tool %s returned %d chars; this will impact context size.",
+                                tool_call.function.name,
+                                observation_len
+                            )
+                        else:
+                            logger.debug(f"Tool result length: {observation_len} chars")
                         
                         # Add the observation to memory
                         self.memory.append({
@@ -265,6 +357,7 @@ class TechWriterReActAgent:
             
             logger.info(f"Memory length: {len(self.memory)} messages")
             logger.debug(f"Current memory content size: {sum(len(str(msg)) for msg in self.memory)} chars")
+            self.log_memory_usage(step)
         
         if self.final_answer is None:
             logger.warning(f"Failed to complete analysis within {max_steps} steps")

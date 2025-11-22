@@ -345,6 +345,7 @@ def configure_code_base_source(repo_arg: str, directory_arg: str, cache_dir: str
 
 def get_command_line_args():
     """Get command line arguments."""
+    global OPENAI_API_KEY
     parser = argparse.ArgumentParser(description="Analyse a codebase using an LLM agent.")
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("directory", nargs='?', help="Directory containing the codebase to analyse")
@@ -370,25 +371,35 @@ def get_command_line_args():
     parser.add_argument("--eval-prompt", default=None,
                       help="Path to file containing prompt to evaluate the tech writer results")
     
-    # Define available models based on which API keys are set
-    available_models = []
-    if OPENAI_API_KEY:
-        available_models.extend(OPENAI_MODELS)
-    if GEMINI_API_KEY:
-        available_models.extend(GEMINI_MODELS)
-    
     parser.add_argument("--model",
                       help="Model to use for analysis (format: vendor/model, e.g., openai/gpt-4o)")
     parser.add_argument("--base-url", default=None,
                       help="Base URL for the API (automatically set based on model if not provided)")
+    parser.add_argument("--openai-api-key", dest="openai_api_key", default=None,
+                      help="Optional OpenAI API key to override the OPENAI_API_KEY environment variable for this run")
     
     args = parser.parse_args()
+
+    # Update API key availability now that CLI overrides are known
+    openai_key = args.openai_api_key or os.environ.get("OPENAI_API_KEY")
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+
+    if args.openai_api_key:
+        os.environ["OPENAI_API_KEY"] = args.openai_api_key
+        global OPENAI_API_KEY
+        OPENAI_API_KEY = args.openai_api_key
     
     # Validate that we need either directory or repo
     if not args.directory and not args.repo:
         parser.error("Either directory or --repo is required.")
     
     # Validate that we have a model available
+    available_models = []
+    if openai_key:
+        available_models.extend(OPENAI_MODELS)
+    if gemini_key:
+        available_models.extend(GEMINI_MODELS)
+
     if not available_models:
         parser.error("No API keys set. Please set OPENAI_API_KEY or GEMINI_API_KEY environment variables.")
     
@@ -475,4 +486,3 @@ def create_metadata(output_file: Path, model_name: str, repo_url: str, repo_name
     except Exception as e:
         logger.error(f"Error creating metadata: {str(e)}")
         raise
-
