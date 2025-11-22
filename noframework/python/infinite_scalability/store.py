@@ -43,8 +43,8 @@ class Store:
     # --- insert helpers ---
     def add_file(self, record: FileRecord) -> int:
         cur = self.conn.execute(
-            "INSERT INTO files(path, hash, lang, size, mtime) VALUES (?, ?, ?, ?, ?)",
-            (record.path, record.hash, record.lang, record.size, record.mtime.isoformat()),
+            "INSERT INTO files(path, hash, lang, size, mtime, parsed) VALUES (?, ?, ?, ?, ?, ?)",
+            (record.path, record.hash, record.lang, record.size, record.mtime.isoformat(), int(record.parsed)),
         )
         self.conn.commit()
         return cur.lastrowid
@@ -191,7 +191,7 @@ class Store:
 
     def get_file_by_path(self, path: str) -> Optional[FileRecord]:
         cur = self.conn.execute(
-            "SELECT id, path, hash, lang, size, mtime FROM files WHERE path = ?", (path,)
+            "SELECT id, path, hash, lang, size, mtime, parsed FROM files WHERE path = ?", (path,)
         )
         row = cur.fetchone()
         if not row:
@@ -203,11 +203,12 @@ class Store:
             lang=row[3],
             size=row[4],
             mtime=row[5],  # pydantic will parse
+            parsed=bool(row[6]),
         )
 
     def get_file_by_id(self, file_id: int) -> Optional[FileRecord]:
         cur = self.conn.execute(
-            "SELECT id, path, hash, lang, size, mtime FROM files WHERE id = ?", (file_id,)
+            "SELECT id, path, hash, lang, size, mtime, parsed FROM files WHERE id = ?", (file_id,)
         )
         row = cur.fetchone()
         if not row:
@@ -219,13 +220,14 @@ class Store:
             lang=row[3],
             size=row[4],
             mtime=row[5],
+            parsed=bool(row[6]),
         )
 
     def get_all_files(self) -> List[FileRecord]:
-        cur = self.conn.execute("SELECT id, path, hash, lang, size, mtime FROM files ORDER BY path")
+        cur = self.conn.execute("SELECT id, path, hash, lang, size, mtime, parsed FROM files ORDER BY path")
         rows = cur.fetchall()
         return [
-            FileRecord(id=r[0], path=r[1], hash=r[2], lang=r[3], size=r[4], mtime=r[5])
+            FileRecord(id=r[0], path=r[1], hash=r[2], lang=r[3], size=r[4], mtime=r[5], parsed=bool(r[6]))
             for r in rows
         ]
 

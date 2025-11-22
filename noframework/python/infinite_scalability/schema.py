@@ -25,7 +25,8 @@ def init_db(conn: sqlite3.Connection) -> None:
             hash TEXT NOT NULL,
             lang TEXT NOT NULL,
             size INTEGER NOT NULL,
-            mtime TEXT NOT NULL
+            mtime TEXT NOT NULL,
+            parsed INTEGER NOT NULL DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS chunks (

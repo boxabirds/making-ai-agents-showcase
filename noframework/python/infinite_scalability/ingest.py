@@ -109,12 +109,14 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
         content_bytes = path.read_bytes()
         digest = file_hash(content_bytes)
         stat = path.stat()
+        lang = detect_lang(path)
         file_rec = FileRecord(
             path=str(path),
             hash=digest,
-            lang=detect_lang(path),
+            lang=lang,
             size=stat.st_size,
             mtime=datetime.fromtimestamp(stat.st_mtime),
+            parsed=supports_lang(lang),
         )
         file_id = store.add_file(file_rec)
 

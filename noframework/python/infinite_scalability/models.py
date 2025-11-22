@@ -25,6 +25,7 @@ class FileRecord(BaseModel):
     lang: str
     size: int
     mtime: datetime
+    parsed: bool = True
 
 
 class ChunkRecord(BaseModel):
