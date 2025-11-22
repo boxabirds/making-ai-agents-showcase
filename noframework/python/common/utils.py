@@ -371,7 +371,7 @@ def get_command_line_args():
     parser.add_argument("--eval-prompt", default=None,
                       help="Path to file containing prompt to evaluate the tech writer results")
     
-    parser.add_argument("--model",
+    parser.add_argument("--model", required=True,
                       help="Model to use for analysis (format: vendor/model, e.g., openai/gpt-4o)")
     parser.add_argument("--base-url", default=None,
                       help="Base URL for the API (automatically set based on model if not provided)")
@@ -392,7 +392,13 @@ def get_command_line_args():
     # Validate that we need either directory or repo
     if not args.directory and not args.repo:
         parser.error("Either directory or --repo is required.")
-    
+
+    # Normalize and validate model name
+    if ":" in args.model and "/" not in args.model:
+        args.model = args.model.replace(":", "/", 1)
+    if "/" not in args.model:
+        parser.error("Model must be in vendor/model format (e.g., openai/gpt-4o).")
+
     # Validate that we have a model available
     available_models = []
     if openai_key:
