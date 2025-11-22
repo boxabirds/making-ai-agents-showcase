@@ -17,3 +17,11 @@ Cross-cutting rule: the agent must honor arbitrary user prompts (from `--prompt`
 | 9 | Persisted-store tooling for audits/evals | DONE | Audit CLI extended (summaries, neighbors, export); ready for persisted stores | 8 |
 | 10 | BDD end-to-end & regression harness | DONE | Stubbed deterministic BDD/regression test added; E2E coverage expanded | 8,9 |
 | 11 | Eval harness & citation verification | DONE | Eval metrics include citation veracity; runner emits metrics; tests updated | 5,6,9 |
+| 12 | Ingestion/graph completeness | TODO | Fallback chunking or explicit skips for unsupported langs; real symbol/edge extraction; keep skipped files in coverage | 2 |
+| 13 | Multi-level summaries with validation | TODO | Add chunk/package summaries, real module/package ids, propagate citations, validate before insert | 3 |
+| 14 | Retrieval fidelity | TODO | Add FTS5 on summaries, integrate symbols/edges in scoring, replace hash embeddings with optional real vectors re-ranked lex/graph | 4 |
+| 15 | Drafting & citation repair | TODO | Repair missing citations via retrieved chunks; ensure drafts only use evidence citations while preserving prompt sections | 5 |
+| 16 | Claim loop & revision | TODO | Structured claim grading tied to cited chunks; compute citation_score/support_rate; add ReviseReport using issues until gates pass | 6,7,8 |
+| 17 | Coverage modeling | TODO | Expected surface from symbols + endpoints/routes/config/build; include skipped/unparsed files; remove string-contains coverage heuristic | 7 |
+| 18 | Schema/index hardening | TODO | Index symbols/edges/summaries/claims, FTS on summaries, add FKs for summaries targets and embeddings | 1,2 |
+| 19 | Evaluation & tests | TODO | Eval runner reruns retrieval/claim checks; add regression/property/golden tests for iteration, citation enforcement, retrieval rerank, gating | 10,11 |
