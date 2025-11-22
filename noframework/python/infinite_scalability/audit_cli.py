@@ -26,12 +26,18 @@ def parse_args():
     symbol_neighbors = sub.add_parser("symbol-neighbors")
     symbol_neighbors.add_argument("--symbol-id", type=int, required=True)
     symbol_neighbors.add_argument("--edge-type", required=False)
+    list_retrievals = sub.add_parser("list-retrieval-events")
+    list_retrievals.add_argument("--report-id", type=int, required=False)
+    list_iterations = sub.add_parser("list-iteration-status")
+    list_iterations.add_argument("--report-id", type=int, required=False)
+    list_iteration_issues = sub.add_parser("list-iteration-issues")
+    list_iteration_issues.add_argument("--report-id", type=int, required=False)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    store = Store(db_path=Path(args.store), persist=True)
+    store = Store(db_path=Path(args.store), persist=True, allow_existing=True)
     try:
         if args.command == "list-files":
             for f in store.get_all_files():
@@ -90,6 +96,44 @@ def main():
                 if args.edge_type and e.edge_type != args.edge_type:
                     continue
                 print(f"{e.src_symbol_id} -[{e.edge_type}]-> {e.dst_symbol_id}")
+        elif args.command == "list-retrieval-events":
+            cur = store.conn.execute(
+                "SELECT id, report_version, iteration, created_at FROM retrieval_events WHERE (? IS NULL OR report_version=?) ORDER BY report_version, iteration",
+                (args.report_id, args.report_id),
+            )
+            for row in cur.fetchall():
+                print(f"id={row[0]} report={row[1]} iter={row[2]} created={row[3]}")
+        elif args.command == "list-iteration-status":
+            cur = store.conn.execute(
+                """
+                SELECT id, report_version, iteration, coverage, support_rate, citation_rate, issues_high, issues_med, issues_low, missing_citations, created_at
+                FROM iteration_status
+                WHERE (? IS NULL OR report_version=?)
+                ORDER BY report_version, iteration
+                """,
+                (args.report_id, args.report_id),
+            )
+            for row in cur.fetchall():
+                print(
+                    f"id={row[0]} report={row[1]} iter={row[2]} "
+                    f"cov={row[3]:.2f} support={row[4]:.2f} cite={row[5]:.2f} "
+                    f"issues(high/med/low)={row[6]}/{row[7]}/{row[8]} missing_citations={row[9]} created={row[10]}"
+                )
+        elif args.command == "list-iteration-issues":
+            cur = store.conn.execute(
+                """
+                SELECT id, report_version, iteration, severity, description, fix_hint, created_at
+                FROM iteration_issues
+                WHERE (? IS NULL OR report_version=?)
+                ORDER BY report_version, iteration, id
+                """,
+                (args.report_id, args.report_id),
+            )
+            for row in cur.fetchall():
+                hint = f" hint={row[5]}" if row[5] else ""
+                print(
+                    f"id={row[0]} report={row[1]} iter={row[2]} severity={row[3]} desc={row[4]}{hint} created={row[6]}"
+                )
     finally:
         store.close()
 

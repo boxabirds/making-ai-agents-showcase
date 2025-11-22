@@ -2,7 +2,7 @@ import hashlib
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Callable, Optional
 
 from binaryornot.check import is_binary
 
@@ -112,11 +112,17 @@ def walk_files(root: Path, respect_gitignore: bool = True) -> Iterable[Path]:
         yield path
 
 
-def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> None:
+def ingest_repo(
+    root: Path,
+    store: Store,
+    respect_gitignore: bool = True,
+    embedder: Optional[Callable[[str], "np.ndarray"]] = None,
+) -> None:
     """
     Minimal ingestion: walk files, hash, chunk text, and persist file/chunk records.
     """
-    max_files = int(os.environ.get("INGEST_FILE_LIMIT", "0"))
+    max_files = int(os.environ.get("INGEST_FILE_LIMIT", "10000"))
+    embeddings_mode = os.environ.get("INGEST_EMBEDDINGS", "hash")
     processed = 0
     import_symbol_index: List[Tuple[str, int]] = []  # (import_name, symbol_id)
     for path in walk_files(root, respect_gitignore=respect_gitignore):
@@ -151,8 +157,12 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
             _, chunk_specs = chunk_text_lines(text)
             symbol_specs = []
         else:
-            logger.warning("Unsupported language for tree-sitter parsing; skipping: %s (%s)", file_rec.lang, path)
-            continue
+            logger.warning("Unsupported language for tree-sitter parsing; storing raw chunk: %s (%s)", file_rec.lang, path)
+            chunk_specs = [(1, total_lines or 1, text, "block")]
+            symbol_specs = []
+            file_rec.parsed = False
+            store.conn.execute("UPDATE files SET parsed=? WHERE id=?", (0, file_id))
+            store.conn.commit()
 
         if not chunk_specs and total_lines == 0:
             continue
@@ -170,16 +180,20 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
                     hash=file_hash(chunk_text.encode("utf-8")),
                 )
             )
-            # deterministic embedding: hash to 8-d float vector
-            h = hashlib.sha256(chunk_text.encode("utf-8")).digest()
-            vec = []
-            for i in range(8):
-                seg = h[i * 4 : (i + 1) * 4]
-                val = int.from_bytes(seg, "little", signed=False) / 2**32
-                vec.append(val)
-            import numpy as np
-            vec_arr = np.array(vec, dtype=np.float32)
-            embeddings_payload.append((None, vec_arr.tobytes(), vec_arr.shape[0]))
+            if embeddings_mode != "none":
+                import numpy as np
+
+                if embedder:
+                    vec_arr = embedder(chunk_text)
+                else:
+                    h = hashlib.sha256(chunk_text.encode("utf-8")).digest()
+                    vec = []
+                    for i in range(8):
+                        seg = h[i * 4 : (i + 1) * 4]
+                        val = int.from_bytes(seg, "little", signed=False) / 2**32
+                        vec.append(val)
+                    vec_arr = np.array(vec, dtype=np.float32)
+                embeddings_payload.append((None, vec_arr.tobytes(), vec_arr.shape[0]))
         chunk_ids = store.add_chunks(chunk_records)
         # store embeddings aligned by chunk ids
         if embeddings_payload and chunk_ids:
@@ -226,6 +240,38 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
             for rec, sid in zip(symbol_records + import_symbols, ids):
                 rec.id = sid
                 name_to_id.setdefault(rec.name, sid)
+            if embeddings_mode != "none" and embedder:
+                sym_embeddings = []
+                for rec in symbol_records:
+                    if rec.id is None:
+                        continue
+                    vec_arr = embedder(rec.name)
+                    sym_embeddings.append((rec.id, vec_arr.tobytes(), vec_arr.shape[0]))
+                if sym_embeddings:
+                    store.add_symbol_embeddings(sym_embeddings)
+            # attach parent relationships (nested spans) within this file
+            if symbol_records:
+                for rec in symbol_records:
+                    parent = None
+                    for candidate in symbol_records:
+                        if candidate is rec:
+                            continue
+                        if candidate.start_line <= rec.start_line and candidate.end_line >= rec.end_line:
+                            if parent is None or (
+                                candidate.end_line - candidate.start_line
+                                < parent.end_line - parent.start_line
+                            ):
+                                parent = candidate
+                    if parent and parent.id:
+                        rec.parent_symbol_id = parent.id
+                # update parents in DB
+                for rec in symbol_records:
+                    if rec.id and rec.parent_symbol_id:
+                        store.conn.execute(
+                            "UPDATE symbols SET parent_symbol_id=? WHERE id=?",
+                            (rec.parent_symbol_id, rec.id),
+                        )
+                store.conn.commit()
             edges: List[EdgeRecord] = []
             if supports_lang(file_rec.lang):
                 edge_specs = extract_edges(

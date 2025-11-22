@@ -21,7 +21,7 @@ def _client():
 
 def summarize_text(text: str, instructions: str = "") -> SummaryOutput:
     """
-    Summarize text using OpenAI. Raises if no API key is available.
+    Summarize text using OpenAI.
     """
     client = _client()
     prompt = f"{instructions}\n\n{text[:6000]}"
@@ -36,7 +36,7 @@ def summarize_text(text: str, instructions: str = "") -> SummaryOutput:
 
 def draft_report(prompt: str, evidences: List[str]) -> str:
     """
-    Draft report using OpenAI. Raises if no API key is available.
+    Draft report using OpenAI.
     """
     if not evidences:
         raise RuntimeError("No evidence provided to draft report.")

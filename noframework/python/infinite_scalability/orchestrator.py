@@ -62,6 +62,15 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
     )
     rv_id = store.add_report_version(rv)
     rv.id = rv_id
+    store.log_retrieval_event(
+        report_version=rv_id,
+        iteration=0,
+        prompt=prompt,
+        chunks=ctx.chunks,
+        summaries=ctx.summaries,
+        symbols=ctx.symbols,
+        edges=ctx.edges,
+    )
 
     last_metrics = {}
     for attempt in range(max_iters):
@@ -78,6 +87,7 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
         rv.coverage_score = coverage.score
         support_rate = sum(1 for c in claims if c.status == c.status.SUPPORTED) / (len(claims) or 1)
         citation_rate = sum(1 for c in claims if c.citation_refs) / (len(claims) or 1)
+        missing_citations = sum(1 for c in claims if not c.citation_refs)
         rv.citation_score = citation_rate
         rv.issues_high = sum(1 for c in claims if c.severity == Severity.HIGH)
         rv.issues_med = sum(1 for c in claims if c.severity == Severity.MEDIUM)
@@ -87,6 +97,19 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
             (rv.coverage_score, rv.citation_score, rv.issues_high, rv.issues_med, rv.issues_low, rv_id),
         )
         store.conn.commit()
+        issues = plan_issues(coverage, claims)
+        store.log_iteration_status(
+            report_version=rv_id,
+            iteration=attempt,
+            coverage=coverage.score,
+            support_rate=support_rate,
+            citation_rate=citation_rate,
+            issues_high=rv.issues_high,
+            issues_med=rv.issues_med,
+            issues_low=rv.issues_low,
+            missing_citations=missing_citations,
+        )
+        store.log_iteration_issues(rv_id, attempt, issues)
 
         if gate is None:
             break
@@ -94,13 +117,10 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
             "coverage": coverage.score,
             "support_rate": support_rate,
             "citation_rate": citation_rate,
-            "missing_citations": sum(1 for c in claims if not c.citation_refs),
+            "missing_citations": missing_citations,
             "issues_high": rv.issues_high,
             "issues_med": rv.issues_med,
         }
-
-        # Plan issues for potential revision (future step)
-        issues = plan_issues(coverage, claims)
 
         if not gate_should_continue(gate, coverage, claims):
             break

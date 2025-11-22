@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -12,6 +13,7 @@ from .models import (
     SummaryRecord,
     ClaimRecord,
     ReportVersionRecord,
+    Issue,
 )
 from .schema import connect, init_db
 
@@ -21,7 +23,7 @@ class Store:
     Thin wrapper around SQLite with Pydantic validation and lifecycle control.
     """
 
-    def __init__(self, db_path: Optional[Path] = None, persist: bool = False):
+    def __init__(self, db_path: Optional[Path] = None, persist: bool = False, allow_existing: bool = False):
         self.persist = persist
         if db_path is None:
             fd, path_str = tempfile.mkstemp(prefix="tech-writer-", suffix=".db")
@@ -29,6 +31,10 @@ class Store:
             self.db_path = Path(path_str)
         else:
             self.db_path = Path(db_path)
+        if self.db_path.exists() and not allow_existing:
+            raise FileExistsError(
+                f"Refusing to reuse existing store at {self.db_path}. Pass allow_existing=True to override."
+            )
         self.conn = connect(self.db_path)
         init_db(self.conn)
 
@@ -82,7 +88,7 @@ class Store:
 
     def add_edges(self, records: Iterable[EdgeRecord]) -> None:
         self.conn.executemany(
-            "INSERT INTO edges(src_symbol_id, dst_symbol_id, edge_type) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO edges(src_symbol_id, dst_symbol_id, edge_type) VALUES (?, ?, ?)",
             [(r.src_symbol_id, r.dst_symbol_id, r.edge_type) for r in records],
         )
         self.conn.commit()
@@ -133,6 +139,13 @@ class Store:
         self.conn.executemany(
             "INSERT OR REPLACE INTO chunk_embeddings(chunk_id, vector, dim) VALUES (?, ?, ?)",
             [(cid, vec, dim) for cid, vec, dim in embeddings],
+        )
+        self.conn.commit()
+
+    def add_symbol_embeddings(self, embeddings: Iterable[tuple[int, bytes, int]]) -> None:
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO symbol_embeddings(symbol_id, vector, dim) VALUES (?, ?, ?)",
+            [(sid, vec, dim) for sid, vec, dim in embeddings],
         )
         self.conn.commit()
 
@@ -256,6 +269,13 @@ class Store:
         row = cur.fetchone()
         return row[0]
 
+    def link_file_to_module(self, module_id: int, file_id: int) -> None:
+        self.conn.execute(
+            "INSERT OR IGNORE INTO module_files(module_id, file_id) VALUES (?, ?)",
+            (module_id, file_id),
+        )
+        self.conn.commit()
+
     def get_chunks_for_file(self, file_id: int) -> List[ChunkRecord]:
         cur = self.conn.execute(
             "SELECT id, file_id, start_line, end_line, kind, text, hash, symbol_id FROM chunks WHERE file_id = ? ORDER BY start_line",
@@ -330,3 +350,97 @@ class Store:
             hash=row[6],
             symbol_id=row[7],
         )
+
+    # --- audit logging helpers ---
+    def log_retrieval_event(
+        self,
+        report_version: int,
+        iteration: int,
+        prompt: str,
+        chunks: List[ChunkRecord],
+        summaries: List[SummaryRecord],
+        symbols: List[SymbolRecord],
+        edges: List[EdgeRecord],
+    ) -> int:
+        payload_chunks = [
+            {"id": c.id, "file_id": c.file_id, "start": c.start_line, "end": c.end_line, "kind": c.kind} for c in chunks
+        ]
+        payload_summaries = [{"id": s.id, "level": s.level, "target_id": s.target_id} for s in summaries]
+        payload_symbols = [{"id": s.id, "file_id": s.file_id, "name": s.name, "kind": s.kind} for s in symbols]
+        payload_edges = [{"src": e.src_symbol_id, "dst": e.dst_symbol_id, "type": e.edge_type} for e in edges]
+        cur = self.conn.execute(
+            """
+            INSERT INTO retrieval_events(report_version, iteration, prompt, chunks, summaries, symbols, edges, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                report_version,
+                iteration,
+                prompt,
+                json.dumps(payload_chunks),
+                json.dumps(payload_summaries),
+                json.dumps(payload_symbols),
+                json.dumps(payload_edges),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def log_iteration_status(
+        self,
+        report_version: int,
+        iteration: int,
+        coverage: float,
+        support_rate: float,
+        citation_rate: float,
+        issues_high: int,
+        issues_med: int,
+        issues_low: int,
+        missing_citations: int,
+    ) -> int:
+        cur = self.conn.execute(
+            """
+            INSERT INTO iteration_status(
+                report_version, iteration, coverage, support_rate, citation_rate,
+                issues_high, issues_med, issues_low, missing_citations, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                report_version,
+                iteration,
+                coverage,
+                support_rate,
+                citation_rate,
+                issues_high,
+                issues_med,
+                issues_low,
+                missing_citations,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def log_iteration_issues(self, report_version: int, iteration: int, issues: List[Issue]) -> None:
+        rows = [
+            (
+                report_version,
+                iteration,
+                issue.severity.value,
+                issue.description,
+                issue.fix_hint,
+                datetime.now(timezone.utc).isoformat(),
+            )
+            for issue in issues
+        ]
+        if not rows:
+            return
+        self.conn.executemany(
+            """
+            INSERT INTO iteration_issues(report_version, iteration, severity, description, fix_hint, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        self.conn.commit()

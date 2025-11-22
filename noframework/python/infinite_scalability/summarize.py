@@ -43,6 +43,8 @@ def summarize_file(store: Store, file_id: int) -> SummaryRecord:
 def summarize_all_files(store: Store) -> List[SummaryRecord]:
     summaries: List[SummaryRecord] = []
     for file_rec in store.get_all_files():
+        if not file_rec.parsed:
+            continue
         summaries.append(summarize_file(store, file_rec.id))  # type: ignore
     return summaries
 
@@ -52,6 +54,8 @@ def summarize_project(store: Store, root_path: str) -> tuple[list[SummaryRecord]
     file_summaries: List[SummaryRecord] = []
     package_id = store.add_package(root_path, Path(root_path).name)
     for file_rec in store.get_all_files():
+        if not file_rec.parsed:
+            continue
         chunk_summaries.extend(summarize_chunks(store, file_rec.id))  # type: ignore
         file_summaries.append(summarize_file(store, file_rec.id))  # type: ignore
     module_summary = summarize_module(store, module_path=root_path, file_summaries=file_summaries, package_id=package_id)
@@ -108,6 +112,9 @@ def summarize_module(store: Store, module_path: str, file_summaries: List[Summar
         # include first few citations to ground module summary
         citation_suffix = f" [{' '.join(child_citations[:3])}]"
     module_target = store.add_module(module_path, Path(module_path).name, package_id)
+    for fs in file_summaries:
+        if fs.level == "file":
+            store.link_file_to_module(module_target, fs.target_id)
     summary = SummaryRecord(
         level="module",
         target_id=module_target,

@@ -45,8 +45,9 @@ def test_assess_coverage_counts_targets(tmp_path):
         )
     ]
     result = assess_coverage(store, claims)
-    assert result.expected == 1
-    assert result.covered == 1
+    # file target + symbol target
+    assert result.expected == 2
+    assert result.covered == 2
     assert result.score == 1.0
     store.close()
 

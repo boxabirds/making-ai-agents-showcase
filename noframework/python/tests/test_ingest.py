@@ -25,3 +25,20 @@ def test_ingest_basic(tmp_path: Path):
     chunks = store.search_chunks_fts("Paragraph")
     assert len(chunks) >= 1
     store.close()
+
+
+def test_ingest_records_unsupported(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "file.unknownext").write_text("some unsupported content")
+
+    store = Store(persist=False)
+    ingest_repo(repo, store)
+
+    files = store.get_all_files()
+    assert len(files) == 1
+    assert files[0].parsed is False
+    chunks = store.get_chunks_for_file(files[0].id)  # type: ignore[arg-type]
+    assert len(chunks) == 1
+    assert "unsupported content" in chunks[0].text
+    store.close()
