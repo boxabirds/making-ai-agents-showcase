@@ -5,6 +5,7 @@ from .citations import generate_citation_from_chunk, validate_citation
 from .dspy_pipeline import SummarizeFileModule, SummarizeModuleModule
 from .models import SummaryRecord
 from .store import Store
+from .validation import validate_summary
 
 
 def summarize_file(store: Store, file_id: int) -> SummaryRecord:
@@ -34,6 +35,7 @@ def summarize_file(store: Store, file_id: int) -> SummaryRecord:
     )
     summary_id = store.add_summary(summary)
     summary.id = summary_id
+    validate_summary(store, summary)
     return summary
 
 
@@ -73,4 +75,5 @@ def summarize_module(store: Store, module_path: str, file_summaries: List[Summar
     )
     summary_id = store.add_summary(summary)
     summary.id = summary_id
+    validate_summary(store, summary)
     return summary

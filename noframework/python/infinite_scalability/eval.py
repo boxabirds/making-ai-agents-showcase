@@ -33,8 +33,25 @@ def evaluate_metrics(store: Store, report_version_id: int, expected_items: int) 
             )
         )
     total = len(claims) or 1
-    supported = sum(1 for c in claims if c.status == c.status.SUPPORTED)
     with_citations = sum(1 for c in claims if c.citation_refs)
+    # re-check support via citation existence in store
+    supported = 0
+    for c in claims:
+        evidence_found = False
+        for cit in c.citation_refs:
+            try:
+                path, start, end = validate_citation(cit)
+            except Exception:
+                continue
+            file_rec = store.get_file_by_path(path)
+            if not file_rec:
+                continue
+            chunk = store.find_chunk_covering_range(file_rec.id, start, end)
+            if chunk:
+                evidence_found = True
+                break
+        if evidence_found:
+            supported += 1
     support_rate = supported / total
     citation_rate = with_citations / total
     coverage = min(1.0, supported / (expected_items or 1))

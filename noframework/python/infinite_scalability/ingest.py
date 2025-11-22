@@ -8,7 +8,7 @@ from binaryornot.check import is_binary
 
 from common.logging import logger
 from common.utils import get_gitignore_spec
-from .models import ChunkRecord, FileRecord, SymbolRecord
+from .models import ChunkRecord, FileRecord, SymbolRecord, EdgeRecord
 from .parser import extract_code_chunks, extract_symbols, supports_lang
 from .store import Store
 
@@ -116,13 +116,15 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
         total_lines = len(text.splitlines())
 
         chunk_specs: List[Tuple[int, int, str, str]] = []
+        symbol_specs: List[Tuple[str, str, int, int]] = []
         # Prefer tree-sitter chunks when available
         if supports_lang(file_rec.lang):
             chunk_specs = extract_code_chunks(text, file_rec.lang)
             symbol_specs = extract_symbols(text, file_rec.lang)
         else:
-            logger.warning("Skipping unsupported language for tree-sitter parsing: %s (%s)", file_rec.lang, path)
-            continue
+            # fallback to paragraph-based chunking so coverage sees the file
+            _, chunk_specs = chunk_text_lines(text)
+            logger.warning("Using fallback chunking for unsupported language: %s (%s)", file_rec.lang, path)
 
         if not chunk_specs and total_lines == 0:
             continue
@@ -176,29 +178,16 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
             )
         if symbol_records:
             ids = store.add_symbols(symbol_records)
-            # naive import edges for python
-            if file_rec.lang == "python":
+            # lightweight co-occurrence edges to seed graph connectivity
+            if len(ids) > 1:
                 edges = []
-                for sym_id, sym in zip(ids, symbol_records):
-                    for line in text.splitlines():
-                        if line.strip().startswith("import "):
-                            mod = line.split()[1].split(".")[0]
-                            edges.append(
-                                EdgeRecord(
-                                    src_symbol_id=sym_id,
-                                    dst_symbol_id=sym_id,  # self-edge placeholder
-                                    edge_type=f"imports:{mod}",
-                                )
-                            )
-                        elif line.strip().startswith("from "):
-                            mod = line.split()[1].split(".")[0]
-                            edges.append(
-                                EdgeRecord(
-                                    src_symbol_id=sym_id,
-                                    dst_symbol_id=sym_id,
-                                    edge_type=f"imports:{mod}",
-                                )
-                            )
-                if edges:
-                    store.add_edges(edges)
+                for prev, curr in zip(ids, ids[1:]):
+                    edges.append(
+                        EdgeRecord(
+                            src_symbol_id=prev,
+                            dst_symbol_id=curr,
+                            edge_type="co-occurs",
+                        )
+                    )
+                store.add_edges(edges)
 import os

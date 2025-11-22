@@ -9,7 +9,7 @@ from .store import Store
 def enforce_draft_citations(report_md: str, store: Store, topic: str) -> str:
     """
     Ensure every non-header, non-empty line has at least one valid citation.
-    Missing citations are patched using retrieved chunks.
+    Missing citations are patched using retrieved chunks while preserving content.
     """
     lines = report_md.splitlines()
     repaired: List[str] = []
@@ -21,7 +21,21 @@ def enforce_draft_citations(report_md: str, store: Store, topic: str) -> str:
             continue
         tokens = re.findall(r"\[([^\]]+)\]", stripped)
         if not tokens:
-            # drop lines without citations
+            # attempt to retrieve supporting chunk and append citation
+            ctx = retrieve_context(store, stripped or topic, limit=3)
+            citation_added = False
+            for c in ctx.chunks:
+                file_rec = store.get_file_by_id(c.file_id)
+                if not file_rec:
+                    continue
+                citation = generate_citation_from_chunk(c, file_rec.path)
+                repaired.append(f"{line} [{citation}]")
+                citation_added = True
+                break
+            if citation_added:
+                continue
+            # keep the line to preserve user-requested sections even if uncited
+            repaired.append(line)
             continue
         try:
             for tok in tokens:

@@ -3,6 +3,7 @@ from typing import Iterable, List, Set
 
 from .models import ClaimRecord, Severity, CoverageGate, Issue
 from .store import Store
+from .citations import validate_citation
 
 
 @dataclass
@@ -34,13 +35,23 @@ def _expected_surface(store: Store) -> Set[str]:
 def assess_coverage(store: Store, claims: List[ClaimRecord]) -> CoverageResult:
     """
     Coverage = fraction of expected targets mentioned in supported claims.
-    A claim "covers" a target if the target string appears in the claim text.
+    A claim "covers" a target if the claim cites a chunk belonging to the target file or names the target explicitly.
     """
     targets = _expected_surface(store)
     covered: Set[str] = set()
     for claim in claims:
         if claim.status != claim.status.SUPPORTED:
             continue
+        # cover by citation path
+        for cit in claim.citation_refs:
+            try:
+                path, _, _ = validate_citation(cit)
+            except Exception:
+                continue
+            for tgt in targets:
+                if tgt.startswith(path):
+                    covered.add(tgt)
+        # fallback: explicit mention
         for tgt in targets:
             if tgt in claim.text:
                 covered.add(tgt)

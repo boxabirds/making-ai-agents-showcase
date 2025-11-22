@@ -66,7 +66,9 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
 
         coverage = assess_coverage(store=store, claims=claims)
         rv.coverage_score = coverage.score
-        rv.citation_score = 0.0
+        support_rate = sum(1 for c in claims if c.status == c.status.SUPPORTED) / (len(claims) or 1)
+        citation_rate = sum(1 for c in claims if c.citation_refs) / (len(claims) or 1)
+        rv.citation_score = citation_rate
         rv.issues_high = sum(1 for c in claims if c.severity == Severity.HIGH)
         rv.issues_med = sum(1 for c in claims if c.severity == Severity.MEDIUM)
         rv.issues_low = sum(1 for c in claims if c.severity == Severity.LOW)
@@ -80,8 +82,8 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
             break
         last_metrics = {
             "coverage": coverage.score,
-            "support_rate": sum(1 for c in claims if c.status == c.status.SUPPORTED) / (len(claims) or 1),
-            "citation_rate": sum(1 for c in claims if c.citation_refs) / (len(claims) or 1),
+            "support_rate": support_rate,
+            "citation_rate": citation_rate,
             "missing_citations": sum(1 for c in claims if not c.citation_refs),
             "issues_high": rv.issues_high,
             "issues_med": rv.issues_med,
@@ -92,6 +94,9 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
 
         if not gate_should_continue(gate, coverage, claims):
             break
+        # simple revision step: re-run citation enforcement using planned issues context
+        report_md = enforce_draft_citations(report_md, store, prompt)
+        validate_report_citations(report_md, store)
         if attempt == max_iters - 1:
             raise RuntimeError(f"Gating failed after {max_iters} attempts: {last_metrics}, issues={len(issues)}")
 

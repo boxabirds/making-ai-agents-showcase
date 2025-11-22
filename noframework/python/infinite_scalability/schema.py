@@ -122,6 +122,31 @@ def init_db(conn: sqlite3.Connection) -> None:
             INSERT INTO chunks_fts(chunks_fts, rowid, text) VALUES('delete', old.id, old.text);
             INSERT INTO chunks_fts(rowid, text) VALUES (new.id, new.text);
         END;
+
+        CREATE VIRTUAL TABLE IF NOT EXISTS summaries_fts USING fts5(
+            text,
+            content='summaries',
+            content_rowid='id'
+        );
+
+        CREATE TRIGGER IF NOT EXISTS summaries_ai AFTER INSERT ON summaries BEGIN
+            INSERT INTO summaries_fts(rowid, text) VALUES (new.id, new.text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS summaries_ad AFTER DELETE ON summaries BEGIN
+            INSERT INTO summaries_fts(summaries_fts, rowid, text) VALUES('delete', old.id, old.text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS summaries_au AFTER UPDATE ON summaries BEGIN
+            INSERT INTO summaries_fts(summaries_fts, rowid, text) VALUES('delete', old.id, old.text);
+            INSERT INTO summaries_fts(rowid, text) VALUES (new.id, new.text);
+        END;
+
+        CREATE INDEX IF NOT EXISTS idx_symbols_name_kind ON symbols(name, kind);
+        CREATE INDEX IF NOT EXISTS idx_symbols_file ON symbols(file_id);
+        CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(src_symbol_id);
+        CREATE INDEX IF NOT EXISTS idx_edges_dst ON edges(dst_symbol_id);
+        CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(edge_type);
+        CREATE INDEX IF NOT EXISTS idx_summaries_target_level ON summaries(target_id, level);
+        CREATE INDEX IF NOT EXISTS idx_claims_report_version ON claims(report_version);
         """
     )
     conn.commit()

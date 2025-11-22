@@ -15,13 +15,26 @@ def retrieve_chunks(store: Store, query: str, limit: int = 20) -> List[ChunkReco
 
 def retrieve_summaries(store: Store, query: str, limit: int = 10) -> List[SummaryRecord]:
     """
-    Minimal summary retrieval: currently a full scan with naive filter.
+    Summary retrieval via FTS over summaries text with lexical filter fallback.
     """
-    cur = store.conn.execute(
-        "SELECT id, level, target_id, text, confidence, created_at FROM summaries ORDER BY confidence DESC LIMIT ?",
-        (limit,),
-    )
-    rows = cur.fetchall()
+    try:
+        cur = store.conn.execute(
+            """
+            SELECT s.id, s.level, s.target_id, s.text, s.confidence, s.created_at
+            FROM summaries_fts f
+            JOIN summaries s ON s.id = f.rowid
+            WHERE summaries_fts MATCH ?
+            LIMIT ?
+            """,
+            (query, limit),
+        )
+        rows = cur.fetchall()
+    except sqlite3.OperationalError:
+        cur = store.conn.execute(
+            "SELECT id, level, target_id, text, confidence, created_at FROM summaries WHERE text LIKE ? ORDER BY confidence DESC LIMIT ?",
+            (f"%{query}%", limit),
+        )
+        rows = cur.fetchall()
     return [
         SummaryRecord(
             id=r[0],
@@ -32,7 +45,6 @@ def retrieve_summaries(store: Store, query: str, limit: int = 10) -> List[Summar
             created_at=r[5],
         )
         for r in rows
-        if query.lower() in r[3].lower()
     ]
 
 
@@ -122,9 +134,21 @@ def retrieve_context(store: Store, topic: str, limit: int = 20, query_vec: np.nd
         emb_chunks = retrieve_embeddings(store, query_vec, limit=max(5, limit // 2))
         for c in emb_chunks:
             if c.id is not None:
-                scored[c.id] = scored.get(c.id, 0.0) + 0.5
+                scored[c.id] = scored.get(c.id, 0.0) + 0.2  # embeddings helper-only
         chunks.extend(emb_chunks)
     summaries = retrieve_summaries(store, topic, limit=max(5, limit // 2))
+    for s in summaries:
+        # boost chunks from summary target if available
+        related_file = None
+        if s.level == "file":
+            related_file = store.get_file_by_id(s.target_id)
+        if related_file:
+            file_chunks = store.get_chunks_for_file(related_file.id)  # type: ignore
+            if file_chunks:
+                top_chunk = file_chunks[0]
+                chunks.append(top_chunk)
+                if top_chunk.id is not None:
+                    scored[top_chunk.id] = scored.get(top_chunk.id, 0.0) + 0.5
     symbols = retrieve_symbols(store, topic, limit=max(5, limit // 2))
     edges = retrieve_edges(store, symbols)
     # Pull chunks from symbol files to improve recall
