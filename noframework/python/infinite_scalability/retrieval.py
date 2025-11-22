@@ -1,9 +1,10 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 import numpy as np
 from .models import ChunkRecord, RetrievedContext, SummaryRecord, SymbolRecord, EdgeRecord
 from .store import Store
 import sqlite3
+import re
 
 
 def retrieve_chunks(store: Store, query: str, limit: int = 20) -> List[ChunkRecord]:
@@ -48,11 +49,22 @@ def retrieve_summaries(store: Store, query: str, limit: int = 10) -> List[Summar
     ]
 
 
-def retrieve_symbols(store: Store, query: str, limit: int = 20) -> List[SymbolRecord]:
-    cur = store.conn.execute(
-        "SELECT id, file_id, name, kind, signature, start_line, end_line, doc, parent_symbol_id FROM symbols WHERE name LIKE ? LIMIT ?",
-        (f"%{query}%", limit),
-    )
+def retrieve_symbols(store: Store, query: str, limit: int = 20, exact: bool = False, regex: bool = False) -> List[SymbolRecord]:
+    sql = "SELECT id, file_id, name, kind, signature, start_line, end_line, doc, parent_symbol_id FROM symbols WHERE "
+    params: tuple = ()
+    if regex:
+        sql += "name REGEXP ?"
+        params = (query,)
+    elif exact:
+        sql += "name = ?"
+        params = (query,)
+    else:
+        sql += "name LIKE ?"
+        params = (f"%{query}%",)
+    sql += " LIMIT ?"
+    params = params + (limit,)
+    store.conn.create_function("REGEXP", 2, lambda expr, val: 1 if re.search(expr, val or "") else 0)
+    cur = store.conn.execute(sql, params)
     rows = cur.fetchall()
     return [
         SymbolRecord(
@@ -70,10 +82,24 @@ def retrieve_symbols(store: Store, query: str, limit: int = 20) -> List[SymbolRe
     ]
 
 
-def retrieve_edges(store: Store, symbols: List[SymbolRecord], limit: int = 50) -> List[EdgeRecord]:
+def retrieve_edges(store: Store, symbols: List[SymbolRecord], limit: int = 50, radius: int = 1) -> List[EdgeRecord]:
     edges: List[EdgeRecord] = []
-    for sym in symbols[:limit]:
-        edges.extend(store.get_edges_for_symbol(sym.id))  # type: ignore
+    frontier = list(symbols[:limit])
+    visited: set[int] = set()
+    for _ in range(radius):
+        next_frontier: list[SymbolRecord] = []
+        for sym in frontier:
+            if sym.id is None or sym.id in visited:
+                continue
+            visited.add(sym.id)
+            es = store.get_edges_for_symbol(sym.id)
+            edges.extend(es)
+            neighbor_ids = {e.src_symbol_id for e in es} | {e.dst_symbol_id for e in es}
+            for nid in neighbor_ids:
+                neigh = next((s for s in symbols if s.id == nid), None)
+                if neigh:
+                    next_frontier.append(neigh)
+        frontier = next_frontier
     return edges
 
 
@@ -120,11 +146,24 @@ def retrieve_embeddings(store: Store, query_vec: np.ndarray, limit: int = 20) ->
     ]
 
 
-def retrieve_context(store: Store, topic: str, limit: int = 20, query_vec: np.ndarray | None = None) -> RetrievedContext:
+def _tokenize(text: str) -> List[str]:
+    import re
+
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def retrieve_context(
+    store: Store,
+    topic: str,
+    limit: int = 20,
+    query_vec: np.ndarray | None = None,
+    edge_radius: int = 1,
+) -> RetrievedContext:
     """
     Minimal context retrieval placeholder. Expands topic to chunks, summaries, symbols, edges.
     """
     scored: Dict[int, float] = {}
+    tokens = _tokenize(topic)
     # base: FTS chunks
     chunks = retrieve_chunks(store, topic, limit=limit)
     for c in chunks:
@@ -150,7 +189,7 @@ def retrieve_context(store: Store, topic: str, limit: int = 20, query_vec: np.nd
                 if top_chunk.id is not None:
                     scored[top_chunk.id] = scored.get(top_chunk.id, 0.0) + 0.5
     symbols = retrieve_symbols(store, topic, limit=max(5, limit // 2))
-    edges = retrieve_edges(store, symbols)
+    edges = retrieve_edges(store, symbols, radius=edge_radius)
     # Pull chunks from symbol files to improve recall
     symbol_related_chunks: List[ChunkRecord] = []
     for sym in symbols:
@@ -172,14 +211,45 @@ def retrieve_context(store: Store, topic: str, limit: int = 20, query_vec: np.nd
                         scored[file_chunks[0].id] = scored.get(file_chunks[0].id, 0.0) + 0.25
     # simple re-rank: prioritize chunks that overlap topic tokens
     def score_chunk(c: ChunkRecord) -> int:
-        return sum(1 for tok in topic.lower().split() if tok in c.text.lower())
+        return sum(1 for tok in tokens if tok in c.text.lower())
+    # add path-based matches to avoid empty results on semantic prompts
+    for f in store.get_all_files():
+        file_tokens = _tokenize(f.path)
+        if any(t in file_tokens for t in tokens):
+            file_chunks = store.get_chunks_for_file(f.id)  # type: ignore[arg-type]
+            if file_chunks:
+                top_chunk = file_chunks[0]
+                chunks.append(top_chunk)
+                if top_chunk.id is not None:
+                    scored[top_chunk.id] = scored.get(top_chunk.id, 0.0) + 0.4
+    # heuristic: if tokens mention kinds (function/class/method), pull matching kinds
+    desired_kinds = set()
+    for tok in tokens:
+        if tok.rstrip("s") in {"function", "method"}:
+            desired_kinds.add("function")
+            desired_kinds.add("method")
+        if tok.rstrip("es") == "class":
+            desired_kinds.add("class")
+    if desired_kinds:
+        for f in store.get_all_files():
+            for ch in store.get_chunks_for_file(f.id):  # type: ignore[arg-type]
+                if ch.kind.lower() in desired_kinds:
+                    chunks.append(ch)
+                    if ch.id is not None:
+                        scored[ch.id] = scored.get(ch.id, 0.0) + 0.35
+                    if len(chunks) >= limit:
+                        break
+            if len(chunks) >= limit:
+                break
     deduped = []
     seen = set()
     for c in chunks:
         if c.id is None or c.id in seen:
             continue
         seen.add(c.id)
-        total_score = scored.get(c.id, 0.0) + score_chunk(c)
+        base = scored.get(c.id, 0.0)
+        token_score = score_chunk(c)
+        total_score = base + token_score
         deduped.append((total_score, c))
     deduped.sort(key=lambda x: x[0], reverse=True)
     chunks = [c for _, c in deduped[:limit]]

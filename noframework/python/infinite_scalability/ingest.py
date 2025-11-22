@@ -129,6 +129,7 @@ def ingest_repo(
         if is_binary(str(path)):
             continue
         if max_files and processed >= max_files:
+            logger.warning("Reached INGEST_FILE_LIMIT=%s; stopping ingest early.", max_files)
             break
         content_bytes = path.read_bytes()
         digest = file_hash(content_bytes)

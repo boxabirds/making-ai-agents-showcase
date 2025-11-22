@@ -9,7 +9,7 @@ def test_eval_runner_axios(tmp_path: Path):
     prompt.write_text("Produce a concise architecture overview.")
     metrics_out = tmp_path / "metrics.json"
     env = os.environ.copy()
-    env["INGEST_FILE_LIMIT"] = "4"
+    env["INGEST_FILE_LIMIT"] = "10000"
     cmd = [
         sys.executable,
         "-m",

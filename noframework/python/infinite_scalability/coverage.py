@@ -59,10 +59,6 @@ def assess_coverage(store: Store, claims: List[ClaimRecord]) -> CoverageResult:
             for tgt in targets:
                 if tgt.startswith(path):
                     covered.add(tgt)
-        # fallback: explicit mention
-        for tgt in targets:
-            if tgt in claim.text:
-                covered.add(tgt)
     missing = sorted(list(targets - covered))
     return CoverageResult(expected=len(targets), covered=len(covered), missing_items=missing)
 

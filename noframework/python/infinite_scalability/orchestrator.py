@@ -22,32 +22,38 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
     ingest_repo(root, store)
     chunk_summaries, file_summaries, module_summary, package_summary = summarize_project(store, root_path=str(root))
 
-    ctx = retrieve_context(store, prompt, limit=20)
-    evidence_blocks: list[str] = []
-    for chunk in ctx.chunks:
-        file_rec = store.get_file_by_id(chunk.file_id)
-        if not file_rec:
-            continue
-        citation = generate_citation_from_chunk(chunk, file_rec.path)
-        evidence_blocks.append(f"[{citation}] {chunk.text.strip()}")
-    for summary in chunk_summaries + file_summaries + [module_summary, package_summary]:
-        evidence_blocks.append(summary.text)
+    def build_evidence(topic: str):
+        ctx = retrieve_context(store, topic, limit=20)
+        blocks: list[str] = []
+        for chunk in ctx.chunks:
+            file_rec = store.get_file_by_id(chunk.file_id)
+            if not file_rec:
+                continue
+            citation = generate_citation_from_chunk(chunk, file_rec.path)
+            blocks.append(f"[{citation}] {chunk.text.strip()}")
+        return ctx, blocks
+
+    ctx, evidence_blocks = build_evidence(prompt)
 
     if not evidence_blocks:
         raise RuntimeError("No evidence collected for the prompt; cannot draft a report.")
 
     report_md = draft_report(prompt, evidence_blocks)
     # build allowed citations from evidence blocks
-    allowed_citations = set()
-    for block in evidence_blocks:
-        for token in block.split():
-            if token.startswith("[") and token.endswith("]"):
-                cit = token.strip("[]")
-                try:
-                    validate_citation(cit)
-                    allowed_citations.add(cit)
-                except Exception:
-                    continue
+    def allowed_from_blocks(blocks: list[str]) -> set[str]:
+        allowed = set()
+        for block in blocks:
+            for token in block.split():
+                if token.startswith("[") and token.endswith("]"):
+                    cit = token.strip("[]")
+                    try:
+                        validate_citation(cit)
+                        allowed.add(cit)
+                    except Exception:
+                        continue
+        return allowed
+
+    allowed_citations = allowed_from_blocks(evidence_blocks)
     report_md = enforce_draft_citations(report_md, store, prompt, allowed_citations=allowed_citations)
     validate_report_citations(report_md, store)
 
@@ -67,7 +73,7 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
         iteration=0,
         prompt=prompt,
         chunks=ctx.chunks,
-        summaries=ctx.summaries,
+        summaries=[],
         symbols=ctx.symbols,
         edges=ctx.edges,
     )
@@ -134,12 +140,23 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
                 issues_text or "- No issues provided; ensure citations are present and correct.",
             ]
         )
+        ctx, evidence_blocks = build_evidence(prompt)
+        allowed_citations = allowed_from_blocks(evidence_blocks)
         report_md = draft_report(guidance_prompt, evidence_blocks)
         report_md = enforce_draft_citations(report_md, store, prompt, allowed_citations=allowed_citations)
         validate_report_citations(report_md, store)
         rv.content = report_md
         store.conn.execute("UPDATE report_versions SET content=? WHERE id=?", (rv.content, rv_id))
         store.conn.commit()
+        store.log_retrieval_event(
+            report_version=rv_id,
+            iteration=attempt + 1,
+            prompt=prompt,
+            chunks=ctx.chunks,
+            summaries=[],
+            symbols=ctx.symbols,
+            edges=ctx.edges,
+        )
         if attempt == max_iters - 1:
             raise RuntimeError(f"Gating failed after {max_iters} attempts: {last_metrics}, issues={len(issues)}")
 
