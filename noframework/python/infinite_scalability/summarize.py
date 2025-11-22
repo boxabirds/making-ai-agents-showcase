@@ -9,7 +9,7 @@ from .store import Store
 
 def summarize_file(store: Store, file_id: int) -> SummaryRecord:
     """
-    Summarize a file using DSPy module (LLM-backed if available; deterministic if ALLOW_DETERMINISTIC_FALLBACKS=1).
+    Summarize a file using the DSPy module (LLM-backed, no deterministic fallbacks in production).
     """
     file_rec = store.get_file_by_id(file_id)
     if not file_rec:

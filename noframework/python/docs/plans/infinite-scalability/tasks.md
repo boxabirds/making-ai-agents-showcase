@@ -2,6 +2,8 @@
 
 Status legend: TODO | IN_PROGRESS | DONE
 
+Cross-cutting rule: the agent must honor arbitrary user prompts (from `--prompt`) with no hard-coded report templates or prompt-specific assumptions; every task should preserve that generality.
+
 | # | Task | Status | Notes | Depends on |
 |---|------|--------|-------|------------|
 | 1 | SQLite schema, lifecycle, Pydantic models | DONE | Working store defaults to ephemeral; `--persist-store` retains | - |

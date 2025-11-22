@@ -12,11 +12,14 @@ def test_bdd_full_pipeline(tmp_path: Path):
     prompt = "Describe the code."
     store = Store(persist=False)
     report, rv = run_pipeline(repo, prompt, store, gate=None)
-    assert "Citations" in report
+    assert report.strip()
     # ensure citations parse
-    lines = [l for l in report.splitlines() if l.startswith("- [") and "]" in l]
-    for line in lines:
-        cit = line.split("[", 1)[1].split("]", 1)[0]
+    tokens = []
+    for line in report.splitlines():
+        if "[" in line and "]" in line:
+            tokens.extend([seg.strip("[]") for seg in line.split() if seg.startswith("[") and seg.endswith("]")])
+    assert tokens, "Expected at least one citation token"
+    for cit in tokens:
         path, start, end = validate_citation(cit)
         assert path and start >= 1 and end >= start
     store.close()

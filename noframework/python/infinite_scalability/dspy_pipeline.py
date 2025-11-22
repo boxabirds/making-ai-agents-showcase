@@ -1,9 +1,8 @@
 """
 DSPy-based modules for summarization and drafting.
 
-These modules wrap our deterministic/LLM helper functions to keep DSPy in
-the loop for orchestration, while allowing deterministic fallbacks during tests
-via ALLOW_DETERMINISTIC_FALLBACKS.
+These modules wrap our LLM helper functions to keep DSPy in the loop for
+orchestration while enforcing citation-aware outputs.
 """
 
 import dspy
@@ -26,6 +25,6 @@ class SummarizeModuleModule(dspy.Module):
 
 
 class DraftModule(dspy.Module):
-    def forward(self, prompt: str, summaries: list[str]):
-        report = draft_report(prompt, summaries)
+    def forward(self, prompt: str, evidences: list[str]):
+        report = draft_report(prompt, evidences)
         return {"text": report}

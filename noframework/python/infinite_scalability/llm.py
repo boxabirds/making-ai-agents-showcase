@@ -6,8 +6,9 @@ from openai import OpenAI
 from .models import SummaryOutput
 
 REPORT_SYSTEM_PROMPT = (
-    "Write a concise technical report. Every claim or paragraph must include a citation in the format path:start-end. "
-    "Do not invent citations; only cite evidence you have."
+    "You are a meticulous technical writer. Follow the user prompt exactly, regardless of topic. "
+    "Use only the provided evidence. Every paragraph or bullet must include at least one citation "
+    "from the allowed list, in the format path:start-end. Do not invent citations or content."
 )
 
 
@@ -33,17 +34,32 @@ def summarize_text(text: str, instructions: str = "") -> SummaryOutput:
     return SummaryOutput(text=content or "", citations=[], confidence=0.7)
 
 
-def draft_report(prompt: str, summaries: List[str]) -> str:
+def draft_report(prompt: str, evidences: List[str]) -> str:
     """
     Draft report using OpenAI. Raises if no API key is available.
     """
+    if not evidences:
+        raise RuntimeError("No evidence provided to draft report.")
     client = _client()
-    content = "\n\n".join(["Summaries:"] + summaries)
+    evidence_text = "\n".join(evidences)
+    user_content = "\n".join(
+        [
+            f"User prompt:\n{prompt}",
+            "",
+            "Evidence (use these citations as-is; do not invent new ones):",
+            evidence_text,
+            "",
+            "Instructions:",
+            "- Satisfy the user prompt precisely; do not add template sections unless requested.",
+            "- Every paragraph or bullet must include at least one citation drawn from the evidence list.",
+            "- Do not emit citations that are not present in the evidence.",
+        ]
+    )
     resp = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": REPORT_SYSTEM_PROMPT},
-            {"role": "user", "content": f"{prompt}\n\n{content}"},
+            {"role": "user", "content": user_content},
         ],
         temperature=0,
     )

@@ -5,6 +5,7 @@
 - Produce citation-backed, high-coverage reports with measurable quality gates.
 - Iterate until thresholds are met; be auditable and rerunnable (all artifacts persisted).
 - Primary output is a single Markdown file matching the user’s tech-writing brief; the SQLite store is per-run working state only.
+- No prompt-specific templates: the agent consumes the user brief verbatim and responds generically, regardless of topic.
 
 ## Key Concepts (MECE)
 - **Source of Truth**: Parsed chunks with line ranges + raw text; persisted in SQLite.
@@ -189,7 +190,7 @@ sequenceDiagram
 ```
 
 ## Mermaid: Error/Alternate Flows
-- **Validation Fail (LLM output malformed)**: Pydantic rejects → retry with stricter prompt → if still fails, log and mark iteration failure; stop or fallback model.
+- **Validation Fail (LLM output malformed)**: Pydantic rejects → retry with stricter prompt → if still fails, log and mark iteration failure; surface the failure (no fallbacks).
 - **Retrieval returns insufficient evidence**: expand scope (wider FTS/graph radius); if still empty, flag coverage gap (medium/high).
 - **Coverage below gate after max iterations**: emit failure report + outstanding issues; no final publish.
 - **Changed files mid-run**: hash mismatch triggers re-ingest for affected files; invalidate dependent summaries; redo reduce layer before next iteration.

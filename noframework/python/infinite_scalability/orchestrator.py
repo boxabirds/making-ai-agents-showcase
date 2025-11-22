@@ -11,6 +11,7 @@ from .summarize import summarize_all_files, summarize_module
 from .citations import generate_citation_from_chunk
 from .repair import repair_report
 from .enforcement import enforce_draft_citations, validate_report_citations
+from .llm import draft_report
 
 
 def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | None = None, max_iters: int = 3) -> Tuple[str, ReportVersionRecord]:
@@ -23,24 +24,20 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
     module_summary = summarize_module(store, module_path=str(root), file_summaries=summaries)
 
     ctx = retrieve_context(store, prompt, limit=20)
-    report_lines = [f"# Tech Writer Report", f"Prompt: {prompt}", ""]
-    report_lines.append("## Summaries")
-    for s in summaries + [module_summary]:
-        report_lines.append(s.text)
-        report_lines.append("")
-    report_lines.append("## Retrieved Context")
-    citations = []
-    for c in ctx.chunks[:5]:
-        snippet = c.text.strip().splitlines()[0] if c.text.strip() else ""
-        citation = generate_citation_from_chunk(c, store.get_file_by_id(c.file_id).path)  # type: ignore
-        citations.append(citation)
-        report_lines.append(f"- {c.kind} [{citation}]: {snippet}")
-    if citations:
-        report_lines.append("")
-        report_lines.append("## Citations")
-        for cit in citations:
-            report_lines.append(f"- [{cit}]")
-    report_md = "\n".join(report_lines)
+    evidence_blocks: list[str] = []
+    for chunk in ctx.chunks:
+        file_rec = store.get_file_by_id(chunk.file_id)
+        if not file_rec:
+            continue
+        citation = generate_citation_from_chunk(chunk, file_rec.path)
+        evidence_blocks.append(f"[{citation}] {chunk.text.strip()}")
+    for summary in summaries + [module_summary]:
+        evidence_blocks.append(summary.text)
+
+    if not evidence_blocks:
+        raise RuntimeError("No evidence collected for the prompt; cannot draft a report.")
+
+    report_md = draft_report(prompt, evidence_blocks)
     report_md = enforce_draft_citations(report_md, store, prompt)
     validate_report_citations(report_md, store)
 

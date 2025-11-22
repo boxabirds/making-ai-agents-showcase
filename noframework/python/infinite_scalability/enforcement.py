@@ -16,7 +16,7 @@ def enforce_draft_citations(report_md: str, store: Store, topic: str) -> str:
 
     for line in lines:
         stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith("Prompt:") or stripped.startswith("##"):
+        if not stripped or stripped.startswith("#"):
             repaired.append(line)
             continue
         tokens = re.findall(r"\[([^\]]+)\]", stripped)
@@ -38,7 +38,7 @@ def validate_report_citations(report_md: str, store: Store) -> None:
     """
     for line in report_md.splitlines():
         stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith("Prompt:") or stripped.startswith("##"):
+        if not stripped or stripped.startswith("#"):
             continue
         tokens = re.findall(r"\[([^\]]+)\]", stripped)
         if not tokens:
