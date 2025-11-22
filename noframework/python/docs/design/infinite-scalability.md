@@ -14,7 +14,7 @@
 - **Retrieval**: Hybrid lexical + graph (embeddings optional, post-filtered); never embeddings-only.
 - **Claim Checking**: Structured fact verification against cited source chunks.
 - **Coverage**: Quantified completeness against expected surface (symbols/endpoints/config/build items).
-- **Iteration**: Generate → check → fix until thresholds met; issues tracked with severity.
+- **Iteration**: Generate → check → fix until thresholds met; issues tracked with severity. Gate uses thresholds on support_rate, coverage, citation_rate, and issue counts; loop until gate passes or max iterations are reached.
 - **Contracts**: Pydantic models define IO for tools, storage records, and LLM outputs.
 - **Orchestration**: DSPy modules encode pipeline stages and tool usage; DSPy compiler can tune prompts/policies.
 - **CLI**: `python -m infinite_scalability.cli --prompt <file> [--repo https://github.com/axios/axio|directory] [--persist-store] [--store-path <path>]` (skeleton end-to-end wiring; DSPy stages pending).

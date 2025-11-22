@@ -1,4 +1,5 @@
 import argparse
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from common.utils import configure_code_base_source, read_prompt_file, save_resu
 from .orchestrator import run_pipeline
 from .ingest import ingest_repo
 from .store import Store
-from .models import ReportVersionRecord
+from .models import ReportVersionRecord, CoverageGate
 from .summarize import summarize_all_files
 
 
@@ -21,6 +22,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", default="output", help="Directory to write the markdown report")
     parser.add_argument("--file-name", default=None, help="Override output file name")
     parser.add_argument("--model", default=None, help="Model name (placeholder, not yet used)")
+    parser.add_argument("--openai-api-key", default=None, help="OpenAI API key (if not set in env)")
+    parser.add_argument("--iterations", type=int, default=3, help="Max iterations for gating loop")
+    parser.add_argument("--disable-gate", action="store_true", help="Disable gating loop (single pass)")
+    parser.add_argument("--min-support-rate", type=float, default=0.8, help="Gate: minimum support rate")
+    parser.add_argument("--min-coverage", type=float, default=0.8, help="Gate: minimum coverage")
+    parser.add_argument("--min-citation-rate", type=float, default=0.8, help="Gate: minimum citation rate")
+    parser.add_argument("--max-high-issues", type=int, default=0, help="Gate: max high-severity issues")
+    parser.add_argument("--max-medium-issues", type=int, default=5, help="Gate: max medium-severity issues")
     return parser.parse_args()
 
 
@@ -44,6 +53,8 @@ def generate_skeleton_report(root: Path, file_count: int, chunk_count: int, prom
 
 def main():
     args = parse_args()
+    if args.openai_api_key:
+        os.environ["OPENAI_API_KEY"] = args.openai_api_key
     repo_url, directory_path = configure_code_base_source(args.repo, args.directory, cache_dir="~/.cache/github")
     root = Path(directory_path)
     prompt_text = read_prompt_file(args.prompt)
@@ -52,8 +63,16 @@ def main():
     store = Store(db_path=store_path, persist=args.persist_store)
 
     try:
-        # Run minimal pipeline (placeholder for full DSPy/LLM flow)
-        report_md, rv = run_pipeline(root, prompt_text, store)
+        gate = None
+        if not args.disable_gate:
+            gate = CoverageGate(
+                min_support_rate=args.min_support_rate,
+                min_coverage=args.min_coverage,
+                min_citation_rate=args.min_citation_rate,
+                max_high_issues=args.max_high_issues,
+                max_medium_issues=args.max_medium_issues,
+            )
+        report_md, rv = run_pipeline(root, prompt_text, store, gate=gate, max_iters=args.iterations)
         output_file = save_results(
             analysis_result=report_md,
             model_name=args.model or "skeleton",

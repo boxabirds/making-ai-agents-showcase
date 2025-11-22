@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Tuple
 
 from .claims import check_claims, extract_claims
-from .coverage import assess_coverage
+from .coverage import assess_coverage, plan_issues, gate_should_continue
 from .ingest import ingest_repo
 from .models import ReportVersionRecord, Severity, CoverageGate
 from .retrieval import retrieve_context
@@ -64,12 +64,7 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
             claims = [c for c in claims if c.status]  # ensure valid
         store.add_claims(claims)
 
-        # expected surface = symbols per file (rough proxy)
-        expected_items = 0
-        for f in store.get_all_files():
-            expected_items += len(store.get_symbols_for_file(f.id))
-        expected_items = max(expected_items, len(summaries))
-        coverage = assess_coverage(expected_items=expected_items, claims=claims)
+        coverage = assess_coverage(store=store, claims=claims)
         rv.coverage_score = coverage.score
         rv.citation_score = 0.0
         rv.issues_high = sum(1 for c in claims if c.severity == Severity.HIGH)
@@ -83,28 +78,21 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
 
         if gate is None:
             break
-        total_claims = len(claims) or 1
-        support_rate = sum(1 for c in claims if c.status == c.status.SUPPORTED) / total_claims
-        citation_rate = sum(1 for c in claims if c.citation_refs) / total_claims
-        missing_citations = sum(1 for c in claims if not c.citation_refs)
         last_metrics = {
             "coverage": coverage.score,
-            "support_rate": support_rate,
-            "citation_rate": citation_rate,
-            "missing_citations": missing_citations,
+            "support_rate": sum(1 for c in claims if c.status == c.status.SUPPORTED) / (len(claims) or 1),
+            "citation_rate": sum(1 for c in claims if c.citation_refs) / (len(claims) or 1),
+            "missing_citations": sum(1 for c in claims if not c.citation_refs),
             "issues_high": rv.issues_high,
             "issues_med": rv.issues_med,
         }
-        if (
-            rv.issues_high <= gate.max_high_issues
-            and rv.issues_med <= gate.max_medium_issues
-            and coverage.score >= gate.min_coverage
-            and support_rate >= gate.min_support_rate
-            and citation_rate >= gate.min_citation_rate
-            and missing_citations == 0
-        ):
+
+        # Plan issues for potential revision (future step)
+        issues = plan_issues(coverage, claims)
+
+        if not gate_should_continue(gate, coverage, claims):
             break
         if attempt == max_iters - 1:
-            raise RuntimeError(f"Gating failed after {max_iters} attempts: {last_metrics}")
+            raise RuntimeError(f"Gating failed after {max_iters} attempts: {last_metrics}, issues={len(issues)}")
 
     return report_md, rv

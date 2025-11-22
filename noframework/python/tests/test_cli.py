@@ -18,6 +18,9 @@ def run_cli(tmp_path: Path, persist: bool):
         str(prompt),
         "--store-path",
         str(store_path),
+        "--iterations",
+        "1",
+        "--disable-gate",
     ]
     if persist:
         cmd.append("--persist-store")

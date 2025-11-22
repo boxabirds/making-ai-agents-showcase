@@ -15,4 +15,5 @@ def test_evaluate_metrics(tmp_path: Path):
     metrics = evaluate_metrics(store, rv.id, expected_items=1)  # type: ignore
     assert "support_rate" in metrics
     assert metrics["coverage"] >= 0.0
+    assert "citation_veracity_rate" in metrics
     store.close()

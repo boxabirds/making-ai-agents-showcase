@@ -1,4 +1,7 @@
-from typing import List
+import re
+from typing import Callable, List
+
+from .citations import validate_citation
 
 from .models import ClaimRecord, ClaimStatus, Severity
 from .retrieval import retrieve_context
@@ -6,21 +9,30 @@ from .llm import summarize_text
 from .store import Store
 
 
+def _parse_citations(text: str) -> List[str]:
+    tokens = re.findall(r"\[([^\]]+)\]", text)
+    valid: List[str] = []
+    for tok in tokens:
+        try:
+            validate_citation(tok)
+            valid.append(tok)
+        except Exception:
+            continue
+    return valid
+
+
 def extract_claims(report_text: str, report_version: int) -> List[ClaimRecord]:
     """
-    Extract claims: bullet lines and paragraphs with optional citation markers [path:start-end].
+    Extract claims generically: bullets or paragraphs with optional citations.
+    Headers/blank lines are ignored. Only valid citations are retained.
     """
     claims: List[ClaimRecord] = []
     for line in report_text.splitlines():
         text = line.strip()
         if not text or text.startswith("#"):
             continue
-        if text.startswith("- ") or len(text.split()) > 5:
-            citations = []
-            if "[" in text and "]" in text:
-                # crude extraction of citation blocks like [path:start-end]
-                parts = [seg for seg in text.split() if seg.startswith("[") and seg.endswith("]")]
-                citations = [p.strip("[]") for p in parts]
+        if text.startswith("- ") or len(text.split()) >= 5:
+            citations = _parse_citations(text)
             claims.append(
                 ClaimRecord(
                     report_version=report_version,
@@ -34,66 +46,97 @@ def extract_claims(report_text: str, report_version: int) -> List[ClaimRecord]:
     return claims
 
 
-def check_claims(store: Store, claims: List[ClaimRecord]) -> List[ClaimRecord]:
+def _grade_claim(
+    claim_text: str, evidence: str, grader: Callable[[str, str], str] | None = None
+) -> str:
     """
-    Claim verification: validate citations and grade support; repair citations if needed.
+    Grade whether evidence supports the claim using an LLM-backed grader.
+    Returns free-form rationale text containing 'supported' or 'contradicted' keywords.
+    """
+    if grader:
+        return grader(claim_text, evidence)
+    result = summarize_text(
+        f"Claim: {claim_text}\n\nEvidence:\n{evidence}",
+        instructions="State if the evidence supports the claim. Respond with 'supported' or 'contradicted' and a short rationale.",
+    )
+    return result.text
+
+
+def _severity_from_status(status: ClaimStatus) -> Severity:
+    if status == ClaimStatus.SUPPORTED:
+        return Severity.LOW
+    if status == ClaimStatus.UNCERTAIN:
+        return Severity.MEDIUM
+    return Severity.HIGH
+
+
+def check_claims(store: Store, claims: List[ClaimRecord], grader: Callable[[str, str], str] | None = None) -> List[ClaimRecord]:
+    """
+    Claim verification: validate citations, grade support, and attempt repair via retrieval.
     """
     checked: List[ClaimRecord] = []
     for claim in claims:
         supported = False
+        contradicted = False
         rationale = "No supporting chunk found"
         graded_text = None
         repaired_citations = []
-        # validate/repair citations
+
+        # Validate citations against store
         for cit in claim.citation_refs:
-            if ":" in cit and "-" in cit:
-                path, span = cit.split(":", 1)
-                start_str, end_str = span.split("-")
-                try:
-                    start, end = int(start_str), int(end_str)
-                    file_rec = store.get_file_by_path(path)
-                    if file_rec:
-                        chunk = store.find_chunk_covering_range(file_rec.id, start, end)
-                        if chunk:
-                            repaired_citations.append(cit)
-                            # check semantic support via LLM
-                            grade = summarize_text(
-                                f"Claim: {claim.text}\n\nEvidence:\n{chunk.text}",
-                                instructions="State if the evidence supports the claim. Respond with 'supported' or 'contradicted' and a short rationale.",
-                            )
-                            graded_text = grade.text
-                            if "supported" in grade.text.lower():
-                                supported = True
-                                rationale = f"LLM graded supported for {path}:{chunk.start_line}-{chunk.end_line}"
-                                break
-                except ValueError:
-                    continue
+            try:
+                path, start, end = validate_citation(cit)
+            except Exception:
+                continue
+            file_rec = store.get_file_by_path(path)
+            if not file_rec:
+                continue
+            chunk = store.find_chunk_covering_range(file_rec.id, start, end)
+            if not chunk:
+                continue
+            repaired_citations.append(cit)
+            graded = _grade_claim(claim.text, chunk.text, grader)
+            graded_text = graded
+            low = graded.lower()
+            if "contradicted" in low:
+                contradicted = True
+                rationale = f"Contradicted by {cit}"
+                break
+            if "supported" in low:
+                supported = True
+                rationale = f"Supported by {cit}"
+                break
+
         claim.citation_refs = repaired_citations
 
-        if not supported:
-            # try to find better citations via retrieval
+        # Try to find supporting evidence if none validated
+        if not supported and not contradicted:
             ctx = retrieve_context(store, claim.text, limit=5)
             for c in ctx.chunks:
-                grade = summarize_text(
-                    f"Claim: {claim.text}\n\nEvidence:\n{c.text}",
-                    instructions="State if the evidence supports the claim. Respond with 'supported' or 'contradicted' and a short rationale.",
-                )
-                if "supported" in grade.text.lower():
+                graded = _grade_claim(claim.text, c.text, grader)
+                graded_text = graded
+                low = graded.lower()
+                fpath = store.get_file_by_id(c.file_id).path  # type: ignore
+                citation = f"{fpath}:{c.start_line}-{c.end_line}"
+                if "contradicted" in low:
+                    contradicted = True
+                    rationale = f"Contradicted by {citation}"
+                    repaired_citations.append(citation)
+                    break
+                if "supported" in low:
                     supported = True
-                    graded_text = grade.text
-                    fpath = store.get_file_by_id(c.file_id).path  # type: ignore
-                    citation = f"{fpath}:{c.start_line}-{c.end_line}"
-                    claim.citation_refs.append(citation)
-                    rationale = f"LLM graded supported via retrieval chunk {citation}"
+                    rationale = f"Supported by {citation}"
+                    repaired_citations.append(citation)
                     break
 
-        if supported:
+        if contradicted:
+            claim.status = ClaimStatus.CONTRADICTED
+        elif supported:
             claim.status = ClaimStatus.SUPPORTED
-            claim.severity = Severity.LOW
-            claim.rationale = graded_text or rationale
         else:
             claim.status = ClaimStatus.MISSING
-            claim.severity = Severity.HIGH
-            claim.rationale = "No supporting chunk found after repair"
+
+        claim.severity = _severity_from_status(claim.status)
+        claim.rationale = graded_text or rationale
         checked.append(claim)
     return checked
