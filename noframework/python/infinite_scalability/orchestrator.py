@@ -7,9 +7,9 @@ from .ingest import ingest_repo
 from .models import ReportVersionRecord, Severity, CoverageGate
 from .retrieval import retrieve_context
 from .store import Store
-from .summarize import summarize_all_files, summarize_module
-from .citations import generate_citation_from_chunk
-from .repair import repair_report
+from .summarize import summarize_all_files, summarize_module, summarize_project
+from .citations import generate_citation_from_chunk, validate_citation
+from .repair import repair_report, revise_report
 from .enforcement import enforce_draft_citations, validate_report_citations
 from .llm import draft_report
 
@@ -20,8 +20,7 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
     and builds a prompt-driven report with citations.
     """
     ingest_repo(root, store)
-    summaries = summarize_all_files(store)
-    module_summary = summarize_module(store, module_path=str(root), file_summaries=summaries)
+    chunk_summaries, file_summaries, module_summary, package_summary = summarize_project(store, root_path=str(root))
 
     ctx = retrieve_context(store, prompt, limit=20)
     evidence_blocks: list[str] = []
@@ -31,14 +30,25 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
             continue
         citation = generate_citation_from_chunk(chunk, file_rec.path)
         evidence_blocks.append(f"[{citation}] {chunk.text.strip()}")
-    for summary in summaries + [module_summary]:
+    for summary in chunk_summaries + file_summaries + [module_summary, package_summary]:
         evidence_blocks.append(summary.text)
 
     if not evidence_blocks:
         raise RuntimeError("No evidence collected for the prompt; cannot draft a report.")
 
     report_md = draft_report(prompt, evidence_blocks)
-    report_md = enforce_draft_citations(report_md, store, prompt)
+    # build allowed citations from evidence blocks
+    allowed_citations = set()
+    for block in evidence_blocks:
+        for token in block.split():
+            if token.startswith("[") and token.endswith("]"):
+                cit = token.strip("[]")
+                try:
+                    validate_citation(cit)
+                    allowed_citations.add(cit)
+                except Exception:
+                    continue
+    report_md = enforce_draft_citations(report_md, store, prompt, allowed_citations=allowed_citations)
     validate_report_citations(report_md, store)
 
     # create report version stub
@@ -94,9 +104,22 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
 
         if not gate_should_continue(gate, coverage, claims):
             break
-        # simple revision step: re-run citation enforcement using planned issues context
-        report_md = enforce_draft_citations(report_md, store, prompt)
+        # Issue-driven revision: re-draft with issues guidance and enforce allowed citations
+        issues_text = "\n".join([f"- {iss.description} ({iss.severity.value})" for iss in issues])
+        guidance_prompt = "\n".join(
+            [
+                prompt,
+                "",
+                "Please revise the draft to address these issues:",
+                issues_text or "- No issues provided; ensure citations are present and correct.",
+            ]
+        )
+        report_md = draft_report(guidance_prompt, evidence_blocks)
+        report_md = enforce_draft_citations(report_md, store, prompt, allowed_citations=allowed_citations)
         validate_report_citations(report_md, store)
+        rv.content = report_md
+        store.conn.execute("UPDATE report_versions SET content=? WHERE id=?", (rv.content, rv_id))
+        store.conn.commit()
         if attempt == max_iters - 1:
             raise RuntimeError(f"Gating failed after {max_iters} attempts: {last_metrics}, issues={len(issues)}")
 

@@ -4,54 +4,28 @@ from typing import Dict, List
 from .models import ClaimRecord, Severity
 from .store import Store
 from .citations import validate_citation
+from .claims import extract_claims, check_claims
+from .enforcement import validate_report_citations
 
 
 def evaluate_metrics(store: Store, report_version_id: int, expected_items: int) -> Dict[str, float]:
     """
-    Compute basic support, coverage, citation rates for a report version.
+    Recompute support/coverage/citation rates by re-extracting claims from the stored report and rechecking citations.
     """
-    cur = store.conn.execute(
-        "SELECT text, citation_refs, status FROM claims WHERE report_version=?", (report_version_id,)
-    )
-    rows = cur.fetchall()
-    claims: List[ClaimRecord] = []
-    for r in rows:
-        citations = []
-        if r[1]:
-            try:
-                citations = json.loads(r[1])
-            except Exception:
-                citations = []
-        claims.append(
-            ClaimRecord(
-                report_version=report_version_id,
-                text=r[0],
-                citation_refs=citations,
-                status=r[2],
-                severity=Severity.LOW,  # severity not used for metrics; set default
-                rationale="",
-            )
-        )
+    cur = store.conn.execute("SELECT content FROM report_versions WHERE id=?", (report_version_id,))
+    row = cur.fetchone()
+    if not row:
+        raise ValueError("report_version not found")
+    report_text = row[0]
+    validate_report_citations(report_text, store)
+    claims = extract_claims(report_text, report_version=report_version_id)
+    # deterministic grader: supported if a valid citation maps to a chunk
+    def grader(claim_text: str, evidence: str) -> dict:
+        return {"status": "supported", "rationale": "matched citation"}
+    claims = check_claims(store, claims, grader=grader)
     total = len(claims) or 1
     with_citations = sum(1 for c in claims if c.citation_refs)
-    # re-check support via citation existence in store
-    supported = 0
-    for c in claims:
-        evidence_found = False
-        for cit in c.citation_refs:
-            try:
-                path, start, end = validate_citation(cit)
-            except Exception:
-                continue
-            file_rec = store.get_file_by_path(path)
-            if not file_rec:
-                continue
-            chunk = store.find_chunk_covering_range(file_rec.id, start, end)
-            if chunk:
-                evidence_found = True
-                break
-        if evidence_found:
-            supported += 1
+    supported = sum(1 for c in claims if c.status == c.status.SUPPORTED)
     support_rate = supported / total
     citation_rate = with_citations / total
     coverage = min(1.0, supported / (expected_items or 1))

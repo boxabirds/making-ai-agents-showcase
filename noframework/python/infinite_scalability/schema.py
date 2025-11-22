@@ -37,7 +37,9 @@ def init_db(conn: sqlite3.Connection) -> None:
             kind TEXT NOT NULL,
             text TEXT NOT NULL,
             hash TEXT NOT NULL,
-            FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
+            symbol_id INTEGER,
+            FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE,
+            FOREIGN KEY(symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS symbols (
@@ -52,6 +54,19 @@ def init_db(conn: sqlite3.Connection) -> None:
             parent_symbol_id INTEGER,
             FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE,
             FOREIGN KEY(parent_symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS modules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            package_id INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS packages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS edges (
@@ -143,11 +158,14 @@ def init_db(conn: sqlite3.Connection) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_symbols_name_kind ON symbols(name, kind);
         CREATE INDEX IF NOT EXISTS idx_symbols_file ON symbols(file_id);
+        CREATE INDEX IF NOT EXISTS idx_chunks_symbol ON chunks(symbol_id);
         CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(src_symbol_id);
         CREATE INDEX IF NOT EXISTS idx_edges_dst ON edges(dst_symbol_id);
         CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(edge_type);
         CREATE INDEX IF NOT EXISTS idx_summaries_target_level ON summaries(target_id, level);
         CREATE INDEX IF NOT EXISTS idx_claims_report_version ON claims(report_version);
+        CREATE INDEX IF NOT EXISTS idx_modules_path ON modules(path);
+        CREATE INDEX IF NOT EXISTS idx_packages_path ON packages(path);
         """
     )
     conn.commit()

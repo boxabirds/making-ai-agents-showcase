@@ -47,19 +47,39 @@ def extract_claims(report_text: str, report_version: int) -> List[ClaimRecord]:
 
 
 def _grade_claim(
-    claim_text: str, evidence: str, grader: Callable[[str, str], str] | None = None
-) -> str:
+    claim_text: str, evidence: str, grader: Callable[[str, str], dict | str] | None = None
+) -> dict:
     """
     Grade whether evidence supports the claim using an LLM-backed grader.
-    Returns free-form rationale text containing 'supported' or 'contradicted' keywords.
+    Returns structured dict: {status: supported|contradicted|uncertain, rationale: str}.
     """
     if grader:
-        return grader(claim_text, evidence)
+        res = grader(claim_text, evidence)
+        if isinstance(res, dict):
+            return res
+        low = str(res).lower()
+        status = "uncertain"
+        if "supported" in low:
+            status = "supported"
+        elif "contradicted" in low:
+            status = "contradicted"
+        return {"status": status, "rationale": str(res)}
     result = summarize_text(
         f"Claim: {claim_text}\n\nEvidence:\n{evidence}",
-        instructions="State if the evidence supports the claim. Respond with 'supported' or 'contradicted' and a short rationale.",
+        instructions="State if the evidence supports the claim. Respond with JSON: {\"status\": \"supported|contradicted|uncertain\", \"rationale\": \"...\"}.",
     )
-    return result.text
+    try:
+        data = result.model_dump()  # type: ignore[attr-defined]
+    except Exception:
+        # fallback: parse keywords
+        low = result.text.lower()
+        status = "uncertain"
+        if "supported" in low:
+            status = "supported"
+        elif "contradicted" in low:
+            status = "contradicted"
+        data = {"status": status, "rationale": result.text}
+    return data
 
 
 def _severity_from_status(status: ClaimStatus) -> Severity:
@@ -96,13 +116,13 @@ def check_claims(store: Store, claims: List[ClaimRecord], grader: Callable[[str,
                 continue
             repaired_citations.append(cit)
             graded = _grade_claim(claim.text, chunk.text, grader)
-            graded_text = graded
-            low = graded.lower()
-            if "contradicted" in low:
+            graded_text = graded.get("rationale", "")
+            status_val = graded.get("status", "").lower()
+            if "contradicted" in status_val:
                 contradicted = True
                 rationale = f"Contradicted by {cit}"
                 break
-            if "supported" in low:
+            if "supported" in status_val:
                 supported = True
                 rationale = f"Supported by {cit}"
                 break
@@ -114,16 +134,16 @@ def check_claims(store: Store, claims: List[ClaimRecord], grader: Callable[[str,
             ctx = retrieve_context(store, claim.text, limit=5)
             for c in ctx.chunks:
                 graded = _grade_claim(claim.text, c.text, grader)
-                graded_text = graded
-                low = graded.lower()
+                graded_text = graded.get("rationale", "")
+                status_val = graded.get("status", "").lower()
                 fpath = store.get_file_by_id(c.file_id).path  # type: ignore
                 citation = f"{fpath}:{c.start_line}-{c.end_line}"
-                if "contradicted" in low:
+                if "contradicted" in status_val:
                     contradicted = True
                     rationale = f"Contradicted by {citation}"
                     repaired_citations.append(citation)
                     break
-                if "supported" in low:
+                if "supported" in status_val:
                     supported = True
                     rationale = f"Supported by {citation}"
                     repaired_citations.append(citation)

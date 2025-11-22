@@ -53,8 +53,8 @@ class Store:
         ids = []
         for rec in records:
             cur = self.conn.execute(
-                "INSERT INTO chunks(file_id, start_line, end_line, kind, text, hash) VALUES (?, ?, ?, ?, ?, ?)",
-                (rec.file_id, rec.start_line, rec.end_line, rec.kind, rec.text, rec.hash),
+                "INSERT INTO chunks(file_id, start_line, end_line, kind, text, hash, symbol_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (rec.file_id, rec.start_line, rec.end_line, rec.kind, rec.text, rec.hash, rec.symbol_id),
             )
             ids.append(cur.lastrowid)
         self.conn.commit()
@@ -155,7 +155,7 @@ class Store:
         try:
             cur = self.conn.execute(
                 """
-                SELECT c.id, c.file_id, c.start_line, c.end_line, c.kind, c.text, c.hash
+                SELECT c.id, c.file_id, c.start_line, c.end_line, c.kind, c.text, c.hash, c.symbol_id
                 FROM chunks_fts f
                 JOIN chunks c ON c.id = f.rowid
                 WHERE chunks_fts MATCH ?
@@ -168,7 +168,7 @@ class Store:
             # Fallback to LIKE search if MATCH fails on special chars
             cur = self.conn.execute(
                 """
-                SELECT id, file_id, start_line, end_line, kind, text, hash
+                SELECT id, file_id, start_line, end_line, kind, text, hash, symbol_id
                 FROM chunks
                 WHERE text LIKE ?
                 LIMIT ?
@@ -185,6 +185,7 @@ class Store:
                 kind=row[4],
                 text=row[5],
                 hash=row[6],
+                symbol_id=row[7],
             )
             for row in rows
         ]
@@ -231,9 +232,33 @@ class Store:
             for r in rows
         ]
 
+    def add_package(self, path: str, name: str) -> int:
+        cur = self.conn.execute(
+            "INSERT OR IGNORE INTO packages(path, name) VALUES (?, ?)",
+            (path, name),
+        )
+        if cur.lastrowid:
+            self.conn.commit()
+            return cur.lastrowid
+        cur = self.conn.execute("SELECT id FROM packages WHERE path=?", (path,))
+        row = cur.fetchone()
+        return row[0]
+
+    def add_module(self, path: str, name: str, package_id: int | None) -> int:
+        cur = self.conn.execute(
+            "INSERT OR IGNORE INTO modules(path, name, package_id) VALUES (?, ?, ?)",
+            (path, name, package_id),
+        )
+        if cur.lastrowid:
+            self.conn.commit()
+            return cur.lastrowid
+        cur = self.conn.execute("SELECT id FROM modules WHERE path=?", (path,))
+        row = cur.fetchone()
+        return row[0]
+
     def get_chunks_for_file(self, file_id: int) -> List[ChunkRecord]:
         cur = self.conn.execute(
-            "SELECT id, file_id, start_line, end_line, kind, text, hash FROM chunks WHERE file_id = ? ORDER BY start_line",
+            "SELECT id, file_id, start_line, end_line, kind, text, hash, symbol_id FROM chunks WHERE file_id = ? ORDER BY start_line",
             (file_id,),
         )
         rows = cur.fetchall()
@@ -246,6 +271,7 @@ class Store:
                 kind=row[4],
                 text=row[5],
                 hash=row[6],
+                symbol_id=row[7],
             )
             for row in rows
         ]
@@ -282,7 +308,7 @@ class Store:
     def find_chunk_covering_range(self, file_id: int, start: int, end: int) -> Optional[ChunkRecord]:
         cur = self.conn.execute(
             """
-            SELECT id, file_id, start_line, end_line, kind, text, hash
+            SELECT id, file_id, start_line, end_line, kind, text, hash, symbol_id
             FROM chunks
             WHERE file_id = ?
               AND start_line <= ?
@@ -302,4 +328,5 @@ class Store:
             kind=row[4],
             text=row[5],
             hash=row[6],
+            symbol_id=row[7],
         )

@@ -19,14 +19,16 @@ def file_hash(content: bytes) -> str:
 
 def detect_lang(path: Path) -> str:
     """
-    Map extensions to tree-sitter language keys and prefer only supported languages.
+    Determine language by extension first; verify support via tree-sitter parser availability.
     """
     from .parser import TS_LANGS
-
     ext = path.suffix.lower()
     ext_map = {
         ".py": "python",
+        ".pyw": "python",
         ".js": "javascript",
+        ".mjs": "javascript",
+        ".cjs": "javascript",
         ".jsx": "javascript",
         ".ts": "typescript",
         ".tsx": "tsx",
@@ -39,12 +41,27 @@ def detect_lang(path: Path) -> str:
         ".cc": "cpp",
         ".cpp": "cpp",
         ".c": "c",
+        ".h": "cpp",
+        ".hpp": "cpp",
+        ".hh": "cpp",
         ".cs": "c_sharp",
         ".rb": "ruby",
         ".php": "php",
+        ".xml": "xml",
+        ".yml": "yaml",
+        ".yaml": "yaml",
+        ".toml": "toml",
+        ".txt": "txt",
     }
     lang = ext_map.get(ext, ext.lstrip(".") or "unknown")
-    return lang if lang in TS_LANGS else "unknown"
+    if lang in TS_LANGS:
+        try:
+            from tree_sitter_languages import get_parser
+            get_parser(TS_LANGS[lang])
+            return lang
+        except Exception:
+            return "unknown"
+    return lang
 
 
 def chunk_text_lines(text: str) -> Tuple[int, List[Tuple[int, int, str, str]]]:
@@ -101,6 +118,7 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
     """
     max_files = int(os.environ.get("INGEST_FILE_LIMIT", "0"))
     processed = 0
+    import_symbol_index: List[Tuple[str, int]] = []  # (import_name, symbol_id)
     for path in walk_files(root, respect_gitignore=respect_gitignore):
         if is_binary(str(path)):
             continue
@@ -110,13 +128,14 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
         digest = file_hash(content_bytes)
         stat = path.stat()
         lang = detect_lang(path)
+        text_chunk_only = lang in {"txt", "yaml", "yml"}
         file_rec = FileRecord(
             path=str(path),
             hash=digest,
             lang=lang,
             size=stat.st_size,
             mtime=datetime.fromtimestamp(stat.st_mtime),
-            parsed=supports_lang(lang),
+            parsed=supports_lang(lang) or text_chunk_only,
         )
         file_id = store.add_file(file_rec)
 
@@ -128,6 +147,9 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
         if supports_lang(file_rec.lang):
             chunk_specs = extract_code_chunks(text, file_rec.lang)
             symbol_specs = extract_symbols(text, file_rec.lang)
+        elif text_chunk_only:
+            _, chunk_specs = chunk_text_lines(text)
+            symbol_specs = []
         else:
             logger.warning("Unsupported language for tree-sitter parsing; skipping: %s (%s)", file_rec.lang, path)
             continue
@@ -230,6 +252,37 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
                             edge_type=f"imports:{imp.name}",
                         )
                     )
+                    import_symbol_index.append((imp.name, imp.id))
             if edges:
                 store.add_edges(edges)
+            # attach symbol_id to chunks in DB using span overlap
+            if symbol_records and chunk_specs and chunk_ids:
+                for cid, (start, end, *_rest) in zip(chunk_ids, chunk_specs):
+                    best = None
+                    best_overlap = -1
+                    for sym in symbol_records:
+                        overlap = min(end, sym.end_line) - max(start, sym.start_line) + 1
+                        if overlap > best_overlap and overlap > 0:
+                            best_overlap = overlap
+                            best = sym
+                    if best and best.id:
+                        store.conn.execute("UPDATE chunks SET symbol_id=? WHERE id=?", (best.id, cid))
+                store.conn.commit()
+
+    # Resolve import symbols to declared symbols across files (cross-file graph)
+    all_symbols = []
+    for f in store.get_all_files():
+        all_symbols.extend(store.get_symbols_for_file(f.id))
+    target_index = {}
+    for sym in all_symbols:
+        if sym.kind == "import":
+            continue
+        target_index.setdefault(sym.name, []).append(sym.id)
+    resolved_edges = []
+    for name, import_id in import_symbol_index:
+        targets = target_index.get(name, [])
+        for tid in targets:
+            resolved_edges.append(EdgeRecord(src_symbol_id=import_id, dst_symbol_id=tid, edge_type="imports-resolved"))
+    if resolved_edges:
+        store.add_edges(resolved_edges)
 import os

@@ -160,7 +160,7 @@ def retrieve_context(store: Store, topic: str, limit: int = 20, query_vec: np.nd
             if sym_chunks[0].id is not None:
                 scored[sym_chunks[0].id] = scored.get(sym_chunks[0].id, 0.0) + 0.3
     chunks.extend(symbol_related_chunks)
-    # expand via edges
+    # expand via edges: include both endpoints' chunks
     for edge in edges:
         for sym_id in (edge.src_symbol_id, edge.dst_symbol_id):
             sym = next((s for s in symbols if s.id == sym_id), None)
@@ -169,7 +169,7 @@ def retrieve_context(store: Store, topic: str, limit: int = 20, query_vec: np.nd
                 if file_chunks:
                     chunks.append(file_chunks[0])
                     if file_chunks[0].id is not None:
-                        scored[file_chunks[0].id] = scored.get(file_chunks[0].id, 0.0) + 0.2
+                        scored[file_chunks[0].id] = scored.get(file_chunks[0].id, 0.0) + 0.25
     # simple re-rank: prioritize chunks that overlap topic tokens
     def score_chunk(c: ChunkRecord) -> int:
         return sum(1 for tok in topic.lower().split() if tok in c.text.lower())

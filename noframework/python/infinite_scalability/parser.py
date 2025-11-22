@@ -19,6 +19,9 @@ TS_LANGS = {
     "c_sharp": "c_sharp",
     "ruby": "ruby",
     "php": "php",
+    "yaml": "yaml",
+    "toml": "toml",
+    "xml": "xml",
 }
 
 # Node types we care about for chunking per language
@@ -37,6 +40,9 @@ NODE_TYPES = {
     "php": {"function_definition", "method_declaration", "class_declaration"},
     "markdown": {"section"},
     "json": {"object"},
+    "yaml": {"block_node", "flow_node", "block_mapping", "block_sequence"},
+    "toml": {"table", "inline_table", "array_table", "key_value_pair"},
+    "xml": {"element", "start_tag"},
 }
 
 IDENTIFIER_TYPES = {
@@ -52,6 +58,9 @@ IDENTIFIER_TYPES = {
     "c_sharp": {"identifier"},
     "ruby": {"identifier"},
     "php": {"name", "identifier"},
+    "yaml": {"plain_scalar", "tag", "block_scalar", "flow_scalar"},
+    "toml": {"bare_key", "quoted_key"},
+    "xml": {"start_tag_name", "attribute_name"},
 }
 
 IMPORT_NODE_TYPES = {
@@ -67,6 +76,9 @@ IMPORT_NODE_TYPES = {
     "c_sharp": {"using_directive"},
     "ruby": {"method_call"},  # treat `require` calls via call edges, not imports
     "php": {"namespace_use_declaration"},
+    "toml": {"key_value_pair"},
+    "yaml": {"block_mapping_pair", "flow_pair"},
+    "xml": {"attribute"},
 }
 
 CALL_NODE_TYPES = {
@@ -82,6 +94,9 @@ CALL_NODE_TYPES = {
     "c_sharp": {"invocation_expression"},
     "ruby": {"method_call"},
     "php": {"function_call_expression", "method_call_expression"},
+    "yaml": {"block_node", "flow_node"},
+    "toml": {"inline_table", "table", "array_table"},
+    "xml": {"element"},
 }
 
 INHERIT_NODE_TYPES = {
@@ -93,6 +108,9 @@ INHERIT_NODE_TYPES = {
     "cpp": {"class_specifier", "struct_specifier"},
     "c_sharp": {"class_declaration"},
     "php": {"class_declaration"},
+    "yaml": set(),
+    "toml": set(),
+    "xml": set(),
 }
 
 MEMBER_NODE_TYPES = {
@@ -102,8 +120,24 @@ MEMBER_NODE_TYPES = {
     "java": {"method_declaration"},
     "c_sharp": {"method_declaration"},
     "php": {"method_declaration"},
+    "yaml": {"block_mapping_pair", "flow_pair"},
+    "toml": {"key_value_pair"},
+    "xml": {"attribute"},
 }
 
+IMPLEMENTS_NODE_TYPES = {
+    "java": {"class_declaration"},
+    "typescript": {"class_declaration"},
+    "tsx": {"class_declaration"},
+    "c_sharp": {"class_declaration"},
+    "php": {"class_declaration"},
+}
+
+EXPORT_NODE_TYPES = {
+    "javascript": {"export_statement", "export_clause"},
+    "typescript": {"export_statement", "export_clause"},
+    "tsx": {"export_statement", "export_clause"},
+}
 
 def supports_lang(lang: str) -> bool:
     return lang in TS_LANGS
@@ -198,6 +232,9 @@ def extract_imports(text: str, lang: str) -> List[Tuple[str, int]]:
                 cleaned = n.split(".")[0]
                 if cleaned:
                     imports.append((cleaned, line_no))
+            if not names and node.type in {"attribute"} and lang == "xml":
+                # treat attribute names as potential imports/refs
+                imports.append((text[node.start_byte : node.end_byte], line_no))
         for child in node.children:
             walk(child)
 
@@ -217,6 +254,8 @@ def extract_edges(text: str, lang: str, symbols: List[Tuple[str, str, int, int]]
     call_types = CALL_NODE_TYPES.get(lang, set())
     inherit_types = INHERIT_NODE_TYPES.get(lang, set())
     member_types = MEMBER_NODE_TYPES.get(lang, set())
+    implements_types = IMPLEMENTS_NODE_TYPES.get(lang, set())
+    export_types = EXPORT_NODE_TYPES.get(lang, set())
     symbol_ranges = []
     for name, kind, start, end in symbols:
         symbol_ranges.append((start, end, name))
@@ -247,6 +286,16 @@ def extract_edges(text: str, lang: str, symbols: List[Tuple[str, str, int, int]]
             member = _find_identifier(node, text, lang)
             if parent and member:
                 edges.append((parent, member, "member-of"))
+        if node.type in implements_types and current_symbol:
+            for child in node.children:
+                if child.type in {"interface_type_list", "type_identifier", "identifier"}:
+                    impl = text[child.start_byte : child.end_byte]
+                    if impl:
+                        edges.append((current_symbol, impl, "implements"))
+        if node.type in export_types and current_symbol:
+            target = _find_identifier(node, text, lang)
+            if target:
+                edges.append((current_symbol, target, "exports"))
         for child in node.children:
             child_symbol = current_symbol
             line_no = child.start_point[0] + 1

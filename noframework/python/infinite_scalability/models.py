@@ -36,6 +36,7 @@ class ChunkRecord(BaseModel):
     kind: str
     text: str
     hash: str
+    symbol_id: Optional[int] = None
 
     @field_validator("start_line", "end_line")
     @classmethod
@@ -73,8 +74,8 @@ class EdgeRecord(BaseModel):
 
 class SummaryRecord(BaseModel):
     id: Optional[int] = None
-    level: Literal["file", "module", "package"]
-    target_id: int
+    level: Literal["chunk", "file", "module", "package"]
+    target_id: int  # chunk_id for chunk level; file_id for file; module/package identifiers
     text: str
     confidence: float = Field(ge=0.0, le=1.0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -21,14 +21,22 @@ class CoverageResult:
 
 def _expected_surface(store: Store) -> Set[str]:
     """
-    Build the expected surface from symbols; each symbol name is a target.
+    Build the expected surface from symbols and key files; each symbol name is a target.
     """
     targets: Set[str] = set()
-    for f in store.get_all_files():
-        for sym in store.get_symbols_for_file(f.id):
-            targets.add(f"{f.path}::{sym.name}")
-    if not targets:
-        targets = {f.path for f in store.get_all_files()}
+    files = store.get_all_files()
+    for f in files:
+        syms = store.get_symbols_for_file(f.id)
+        if syms:
+            for sym in syms:
+                targets.add(f"{f.path}::{sym.name}")
+        # ensure every file (including unparsed) is a target
+        targets.add(f.path)
+        # config/build endpoints heuristic
+        if f.path.endswith((".yaml", ".yml", ".json", ".toml")):
+            targets.add(f"{f.path}::config")
+        if f.path.endswith(("Makefile", "Dockerfile", ".sh", ".ps1")):
+            targets.add(f"{f.path}::build")
     return targets
 
 
