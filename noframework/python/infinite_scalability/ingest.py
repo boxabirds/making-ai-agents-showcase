@@ -9,7 +9,7 @@ from binaryornot.check import is_binary
 from common.logging import logger
 from common.utils import get_gitignore_spec
 from .models import ChunkRecord, FileRecord, SymbolRecord, EdgeRecord
-from .parser import extract_code_chunks, extract_symbols, supports_lang
+from .parser import extract_code_chunks, extract_symbols, extract_imports, extract_edges, supports_lang
 from .store import Store
 
 
@@ -18,9 +18,13 @@ def file_hash(content: bytes) -> str:
 
 
 def detect_lang(path: Path) -> str:
-    # Simple heuristic based on suffix
-    suffix = path.suffix.lower()
-    return {
+    """
+    Map extensions to tree-sitter language keys and prefer only supported languages.
+    """
+    from .parser import TS_LANGS
+
+    ext = path.suffix.lower()
+    ext_map = {
         ".py": "python",
         ".js": "javascript",
         ".jsx": "javascript",
@@ -38,7 +42,9 @@ def detect_lang(path: Path) -> str:
         ".cs": "c_sharp",
         ".rb": "ruby",
         ".php": "php",
-    }.get(suffix, suffix.lstrip(".") or "unknown")
+    }
+    lang = ext_map.get(ext, ext.lstrip(".") or "unknown")
+    return lang if lang in TS_LANGS else "unknown"
 
 
 def chunk_text_lines(text: str) -> Tuple[int, List[Tuple[int, int, str, str]]]:
@@ -117,14 +123,12 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
 
         chunk_specs: List[Tuple[int, int, str, str]] = []
         symbol_specs: List[Tuple[str, str, int, int]] = []
-        # Prefer tree-sitter chunks when available
         if supports_lang(file_rec.lang):
             chunk_specs = extract_code_chunks(text, file_rec.lang)
             symbol_specs = extract_symbols(text, file_rec.lang)
         else:
-            # fallback to paragraph-based chunking so coverage sees the file
-            _, chunk_specs = chunk_text_lines(text)
-            logger.warning("Using fallback chunking for unsupported language: %s (%s)", file_rec.lang, path)
+            logger.warning("Unsupported language for tree-sitter parsing; skipping: %s (%s)", file_rec.lang, path)
+            continue
 
         if not chunk_specs and total_lines == 0:
             continue
@@ -176,18 +180,54 @@ def ingest_repo(root: Path, store: Store, respect_gitignore: bool = True) -> Non
                     parent_symbol_id=None,
                 )
             )
-        if symbol_records:
-            ids = store.add_symbols(symbol_records)
-            # lightweight co-occurrence edges to seed graph connectivity
-            if len(ids) > 1:
-                edges = []
-                for prev, curr in zip(ids, ids[1:]):
+        # import symbols via tree-sitter
+        import_symbols: List[SymbolRecord] = []
+        if supports_lang(file_rec.lang):
+            for mod, line_no in extract_imports(text, file_rec.lang):
+                import_symbols.append(
+                    SymbolRecord(
+                        file_id=file_id,
+                        name=mod,
+                        kind="import",
+                        signature=None,
+                        start_line=line_no,
+                        end_line=line_no,
+                        doc=None,
+                        parent_symbol_id=None,
+                    )
+                )
+        if symbol_records or import_symbols:
+            ids = store.add_symbols(symbol_records + import_symbols)
+            name_to_id = {}
+            for rec, sid in zip(symbol_records + import_symbols, ids):
+                rec.id = sid
+                name_to_id.setdefault(rec.name, sid)
+            edges: List[EdgeRecord] = []
+            if supports_lang(file_rec.lang):
+                edge_specs = extract_edges(
+                    text,
+                    file_rec.lang,
+                    [(s.name, s.kind, s.start_line, s.end_line) for s in symbol_records],
+                )
+                for src_name, dst_name, edge_type in edge_specs:
+                    src_id = name_to_id.get(src_name)
+                    dst_id = name_to_id.get(dst_name)
+                    if src_id and dst_id:
+                        edges.append(EdgeRecord(src_symbol_id=src_id, dst_symbol_id=dst_id, edge_type=edge_type))
+            # import edges from defs/classes to imports
+            for sym in symbol_records:
+                if sym.id is None:
+                    continue
+                for imp in import_symbols:
+                    if imp.id is None:
+                        continue
                     edges.append(
                         EdgeRecord(
-                            src_symbol_id=prev,
-                            dst_symbol_id=curr,
-                            edge_type="co-occurs",
+                            src_symbol_id=sym.id,
+                            dst_symbol_id=imp.id,
+                            edge_type=f"imports:{imp.name}",
                         )
                     )
+            if edges:
                 store.add_edges(edges)
 import os
