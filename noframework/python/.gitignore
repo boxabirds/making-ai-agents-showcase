@@ -12,6 +12,7 @@ venv/
 ENV/
 env/
 .env
+.env.test
 .pyc
 
 # IDE

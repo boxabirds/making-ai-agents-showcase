@@ -422,28 +422,49 @@ sequenceDiagram
     Pipeline-->>CLI: report, store, cost_summary
 ```
 
-## 9. JSON Output
+## 9. Metadata Integration (Feature 2)
 
-### 9.1 Output Structure
+Cost data is written to the metadata JSON file (see Feature 2: V1-Compatible Metadata Output).
+
+### 9.1 Extended Metadata Schema
+
+Feature 1 extends `RunMetadata` with a `cost` field:
 
 ```python
 @dataclass
-class ReportOutput:
-    """JSON output structure."""
-    report: str
-    citations: Optional[CitationResults]
-    cost: Optional[CostSummary]
+class RunMetadata:
+    # ... base fields from Feature 2 ...
+    cost: Optional[CostSummary] = None  # Added by Feature 1
 ```
 
-### 9.2 Example Output
+### 9.2 Extended create_metadata Signature
+
+```python
+def create_metadata(
+    output_file: Path,
+    model: str,
+    repo_path: str,
+    prompt_file: str,
+    citations: Optional[CitationStats] = None,
+    cost: Optional[CostSummary] = None,  # Added by Feature 1
+) -> Path:
+```
+
+### 9.3 Example Metadata with Cost
 
 ```json
 {
-  "report": "# Architecture Overview\n...",
+  "version": "1.1",
+  "model": "openai/gpt-5.1",
+  "repo_path": "/path/to/repo",
+  "prompt_file": "prompts/architecture.txt",
+  "timestamp": "2025-01-15T10:30:00.000Z",
+  "output_file": "report.md",
   "citations": {
     "total": 45,
     "valid": 42,
-    "invalid": 3
+    "invalid": 3,
+    "invalid_citations": []
   },
   "cost": {
     "total_cost_usd": 0.0234,
@@ -453,6 +474,22 @@ class ReportOutput:
     "model": "openai/gpt-5.1"
   }
 }
+```
+
+### 9.4 CLI Integration
+
+```python
+# In cli.py, after getting cost_summary from pipeline
+
+if args.metadata:
+    metadata_path = create_metadata(
+        output_file=Path(args.output),
+        model=args.model,
+        repo_path=args.repo,
+        prompt_file=args.prompt,
+        citations=citation_stats,
+        cost=cost_summary if args.provider == "openrouter" else None,
+    )
 ```
 
 ## 10. Error Handling

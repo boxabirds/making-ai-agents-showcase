@@ -17,6 +17,7 @@ Implementation tasks for OpenRouter integration with cost tracking.
 | 1-7 | Add unit tests | pending | 1-4 |
 | 1-8 | Add integration tests | pending | 1-6 |
 | 1-9 | Add BDD feature tests | pending | 1-8 |
+| 1-10 | Extend metadata output with cost | pending | 1-6, Feature 2 |
 
 ## Task Details
 
@@ -103,12 +104,10 @@ Implementation tasks for OpenRouter integration with cost tracking.
 - Add `provider` and `track_cost` parameters to `run_pipeline()`
 - Pass parameters to `LLMClient` constructor
 - Return `CostSummary` as third element of return tuple
-- Include cost in JSON output when `--eval-json` is used
 
 **Acceptance Criteria:**
 - Pipeline returns cost summary
-- JSON output includes `cost` field when provider is openrouter
-- Cost is `null` when tracking disabled or provider is openai
+- Cost summary available to CLI for metadata output
 
 ---
 
@@ -154,3 +153,18 @@ Implementation tasks for OpenRouter integration with cost tracking.
 **Acceptance Criteria:**
 - Feature file follows Gherkin syntax
 - All scenarios pass
+
+---
+
+### 1-10: Extend metadata output with cost
+
+**Requirements:**
+- Add `cost: Optional[CostSummary]` field to `RunMetadata` dataclass (Feature 2)
+- Add `cost` parameter to `create_metadata()` function
+- Pass `cost_summary` to `create_metadata()` in CLI when provider is openrouter
+- Update metadata version to `"1.1"` when cost field is present
+
+**Acceptance Criteria:**
+- Metadata JSON includes `cost` field when OpenRouter is used
+- Cost field is `null`/absent when tracking disabled or provider is openai
+- Schema version reflects cost capability

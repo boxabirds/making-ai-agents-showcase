@@ -37,7 +37,7 @@ Integrate OpenRouter as an LLM API gateway:
 - [ ] Users can specify `--provider openrouter` to use OpenRouter
 - [ ] Users can specify any OpenRouter model (e.g., `anthropic/claude-sonnet-4`)
 - [ ] Cost tracking is enabled by default for OpenRouter
-- [ ] JSON output includes total cost in USD
+- [ ] Metadata output (Feature 2) includes cost summary when OpenRouter is used
 - [ ] Cost is logged during execution for real-time visibility
 
 ## Out of Scope
@@ -50,6 +50,7 @@ Integrate OpenRouter as an LLM API gateway:
 
 - OpenRouter API key (user-provided)
 - Network access to `https://openrouter.ai/api/v1`
+- Feature 2: V1-Compatible Metadata Output (cost is written to metadata JSON)
 
 ## Risks
 
