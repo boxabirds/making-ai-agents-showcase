@@ -7,36 +7,36 @@ Reference prompt: `prompts/architecture-overview-lite.prompt.txt`
 
 | # | Task | Status | Dependencies |
 |---|------|--------|--------------|
-| 1 | Project scaffolding | pending | - |
-| 2 | SQLite cache store | pending | 1 |
-| 3 | list_files tool | pending | 2 |
-| 4 | read_file tool (basic) | pending | 3 |
-| 5 | Tree-sitter parser setup | pending | 4 |
-| 6 | Symbol extraction | pending | 5 |
-| 7 | Import extraction | pending | 6 |
-| 8 | get_symbols tool | pending | 6 |
-| 9 | get_imports tool | pending | 7 |
-| 10 | get_definition tool | pending | 8 |
-| 11 | get_references tool | pending | 8 |
-| 12 | get_structure tool | pending | 8, 9 |
-| 13 | search_text tool (FTS) | pending | 2 |
-| 14 | Tool registration (OpenAI format) | pending | 3, 4, 8-13 |
-| 15 | Exploration orchestration | pending | 14 |
-| 16 | finish_exploration handling | pending | 15 |
-| 17 | Outline generation | pending | 16 |
-| 18 | Section generation (agentic) | pending | 17 |
-| 19 | Citation parsing | pending | 4 |
-| 20 | Citation verification | pending | 19 |
-| 21 | Report assembly | pending | 18, 20 |
-| 22 | CLI implementation | pending | 21 |
-| 23 | Remote repo cloning | pending | 22 |
-| 24 | BDD test framework setup | pending | 1 |
-| 25 | Feature: exploration tools | pending | 24, 14 |
-| 26 | Feature: semantic queries | pending | 25 |
-| 27 | Feature: outline generation | pending | 26 |
-| 28 | Feature: section generation | pending | 27 |
-| 29 | Feature: citation verification | pending | 28 |
-| 30 | E2E: axios + architecture-overview-lite | pending | 29, 23 |
+| 1 | Project scaffolding | ✅ done | - |
+| 2 | SQLite cache store | ✅ done | 1 |
+| 3 | list_files tool | ✅ done | 2 |
+| 4 | read_file tool (basic) | ✅ done | 3 |
+| 5 | Tree-sitter parser setup | ✅ done | 4 |
+| 6 | Symbol extraction | ✅ done | 5 |
+| 7 | Import extraction | ✅ done | 6 |
+| 8 | get_symbols tool | ✅ done | 6 |
+| 9 | get_imports tool | ✅ done | 7 |
+| 10 | get_definition tool | ✅ done | 8 |
+| 11 | get_references tool | ✅ done | 8 |
+| 12 | get_structure tool | ✅ done | 8, 9 |
+| 13 | search_text tool (FTS) | ✅ done | 2 |
+| 14 | Tool registration (OpenAI format) | ✅ done | 3, 4, 8-13 |
+| 15 | Exploration orchestration | ✅ done | 14 |
+| 16 | finish_exploration handling | ✅ done | 15 |
+| 17 | Outline generation | ✅ done | 16 |
+| 18 | Section generation (agentic) | ✅ done | 17 |
+| 19 | Citation parsing | ✅ done | 4 |
+| 20 | Citation verification | ✅ done | 19 |
+| 21 | Report assembly | ✅ done | 18, 20 |
+| 22 | CLI implementation | ✅ done | 21 |
+| 23 | Remote repo cloning | ✅ done | 22 |
+| 24 | BDD test framework setup | ✅ done | 1 |
+| 25 | Feature: exploration tools | ✅ done | 24, 14 |
+| 26 | Feature: semantic queries | ✅ done | 25 |
+| 27 | Feature: outline generation | ✅ done | 26 |
+| 28 | Feature: section generation | ✅ done | 27 |
+| 29 | Feature: citation verification | ✅ done | 28 |
+| 30 | E2E: axios + architecture-overview-lite | ✅ done | 29, 23 |
 
 ## Phases
 
