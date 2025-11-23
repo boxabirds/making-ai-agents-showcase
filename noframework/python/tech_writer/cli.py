@@ -9,9 +9,8 @@ import argparse
 import sys
 from pathlib import Path
 
-# Default values (must match orchestrator.py constants)
-DEFAULT_MAX_EXPLORATION = 50
-DEFAULT_MAX_SECTIONS = 20
+from tech_writer.orchestrator import DEFAULT_MAX_STEPS, DEFAULT_MAX_SECTIONS
+
 DEFAULT_CACHE_FILENAME = ".tech_writer_cache.db"
 
 
@@ -69,8 +68,8 @@ def main():
     parser.add_argument(
         "--max-exploration",
         type=int,
-        default=DEFAULT_MAX_EXPLORATION,
-        help=f"Maximum exploration steps during Phase 1 (default: {DEFAULT_MAX_EXPLORATION})",
+        default=DEFAULT_MAX_STEPS,
+        help=f"Maximum exploration steps during Phase 1 (default: {DEFAULT_MAX_STEPS})",
     )
     parser.add_argument(
         "--max-sections",

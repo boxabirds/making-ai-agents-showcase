@@ -526,9 +526,9 @@ class LLMClient:
         messages: list[dict],
         tools: list[dict],
         tool_handlers: dict[str, ToolFunction],
-        max_steps: int = 200,
+        max_steps: int = 500,
         phase: Optional[str] = None,
-    ) -> tuple[str, list[dict], int]:
+    ) -> tuple[str, list[dict], int, bool]:
         """
         Run tool calling loop until completion.
 
@@ -540,7 +540,8 @@ class LLMClient:
             phase: Current pipeline phase (for logging)
 
         Returns:
-            Tuple of (final_response, updated_messages, steps_taken)
+            Tuple of (final_response, updated_messages, steps_taken, hit_limit)
+            hit_limit is True if the loop terminated due to reaching max_steps
         """
         messages = list(messages)  # Copy
 
@@ -550,7 +551,7 @@ class LLMClient:
             # No tool calls - we're done
             if not response["tool_calls"]:
                 logger.info(f"[{phase}] Completed after {step + 1} steps (no more tool calls)")
-                return response["content"] or "", messages, step + 1
+                return response["content"] or "", messages, step + 1, False
 
             # Add assistant message with tool calls
             assistant_msg = {"role": "assistant", "content": response["content"]}
@@ -585,7 +586,7 @@ class LLMClient:
                         "content": "Exploration complete.",
                     })
                     logger.info(f"[{phase}] Finished after {step + 1} steps via finish_exploration")
-                    return understanding, messages, step + 1
+                    return understanding, messages, step + 1, False
 
                 # Execute tool
                 handler = tool_handlers.get(tool_name)
@@ -610,4 +611,4 @@ class LLMClient:
                 })
 
         logger.warning(f"[{phase}] Hit max steps limit ({max_steps})")
-        return "Max steps reached", messages, max_steps
+        return "Max steps reached", messages, max_steps, True

@@ -35,7 +35,8 @@ from tech_writer.tools.semantic import (
 )
 
 # Constants
-DEFAULT_MAX_EXPLORATION_STEPS = 50
+DEFAULT_MAX_STEPS = 500  # Maximum tool-calling steps per phase
+DEFAULT_SECTION_MAX_STEPS = 10  # Maximum steps for section generation (smaller scope)
 DEFAULT_MAX_SECTIONS = 20
 MAX_CITATION_FIX_ATTEMPTS = 2
 
@@ -193,7 +194,7 @@ def run_pipeline(
     provider: str = "openai",
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
-    max_exploration: int = DEFAULT_MAX_EXPLORATION_STEPS,
+    max_exploration: int = DEFAULT_MAX_STEPS,
     max_sections: int = DEFAULT_MAX_SECTIONS,
     db_path: Optional[str] = None,
     log_level: Optional[str] = None,
@@ -241,9 +242,14 @@ def run_pipeline(
         track_cost=track_cost,
     )
 
+    # Track phases that hit step limits
+    limit_warnings: list[str] = []
+
     # Phase 1: Exploration
     log_phase_start("EXPLORATION", f"max_steps={max_exploration}")
-    understanding, steps_taken = explore_codebase(prompt, repo_path, store, llm, max_steps=max_exploration)
+    understanding, steps_taken, exploration_hit_limit = explore_codebase(
+        prompt, repo_path, store, llm, max_steps=max_exploration
+    )
     cached_files = store.list_cached_files()
     log_exploration_summary(
         files_cached=len(cached_files),
@@ -252,6 +258,12 @@ def run_pipeline(
         understanding_preview=understanding[:200] if understanding else "",
     )
     log_phase_end("EXPLORATION", f"{len(cached_files)} files cached in {steps_taken} steps")
+
+    if exploration_hit_limit:
+        limit_warnings.append(
+            f"Exploration phase hit the {max_exploration}-step limit. "
+            "Some parts of the codebase may not have been fully explored."
+        )
 
     # Phase 2: Outline
     log_phase_start("OUTLINE")
@@ -272,15 +284,24 @@ def run_pipeline(
     )
 
     sections_content = []
+    sections_hit_limit = []
     for i, section in enumerate(outline):
         logger.info(f"Generating section {i+1}/{len(outline)}: {section.title}")
-        content = generator.generate(
+        content, hit_limit = generator.generate(
             section=section,
             prompt=prompt,
             previous_sections=sections_content,
         )
         sections_content.append(content)
+        if hit_limit:
+            sections_hit_limit.append(section.title)
     log_phase_end("SECTIONS")
+
+    if sections_hit_limit:
+        limit_warnings.append(
+            f"The following sections hit the step limit and may be incomplete: "
+            f"{', '.join(sections_hit_limit)}"
+        )
 
     # Phase 3.5: Citation verification and re-generation
     log_phase_start("CITATION_FIX")
@@ -295,8 +316,12 @@ def run_pipeline(
 
     # Phase 4: Assembly
     log_phase_start("ASSEMBLY")
-    report = assemble_report(prompt, outline, sections_content)
+    report = assemble_report(prompt, outline, sections_content, limit_warnings)
     log_phase_end("ASSEMBLY", f"{len(report)} chars")
+
+    # Log warnings if any
+    for warning in limit_warnings:
+        logger.warning(warning)
 
     # Get cost summary
     cost_summary = llm.get_cost_summary() if track_cost else None
@@ -358,8 +383,8 @@ def explore_codebase(
     repo_root: Path,
     store: CacheStore,
     llm_client: LLMClient,
-    max_steps: int = 200,
-) -> tuple[str, int]:
+    max_steps: int = DEFAULT_MAX_STEPS,
+) -> tuple[str, int, bool]:
     """
     Agentic exploration phase.
 
@@ -371,7 +396,7 @@ def explore_codebase(
         max_steps: Maximum exploration steps
 
     Returns:
-        Tuple of (understanding_summary, steps_taken)
+        Tuple of (understanding_summary, steps_taken, hit_limit)
     """
     # Create tool handlers with bound parameters
     tool_handlers = {
@@ -399,7 +424,7 @@ Begin by using list_files to discover the codebase structure, then use get_struc
 Start exploring now."""},
     ]
 
-    understanding, _, steps_taken = llm_client.run_tool_loop(
+    understanding, _, steps_taken, hit_limit = llm_client.run_tool_loop(
         messages=messages,
         tools=get_tool_definitions(),
         tool_handlers=tool_handlers,
@@ -407,7 +432,7 @@ Start exploring now."""},
         phase="EXPLORATION",
     )
 
-    return understanding, steps_taken
+    return understanding, steps_taken, hit_limit
 
 
 def generate_outline(
@@ -481,7 +506,7 @@ class SectionGenerator:
         store: CacheStore,
         repo_root: Path,
         llm_client: LLMClient,
-        max_exploration_steps: int = 5,
+        max_exploration_steps: int = DEFAULT_SECTION_MAX_STEPS,
     ):
         self.store = store
         self.repo_root = repo_root
@@ -565,8 +590,12 @@ Write this section with citations in [path:line-line] format."""
         section: Section,
         prompt: str,
         previous_sections: list[str],
-    ) -> str:
-        """Generate content for a section using agentic exploration."""
+    ) -> tuple[str, bool]:
+        """Generate content for a section using agentic exploration.
+
+        Returns:
+            Tuple of (content, hit_limit) where hit_limit is True if max steps was reached
+        """
         context = self._build_context(section)
         prev_summary = self._build_previous_summary(previous_sections)
 
@@ -576,7 +605,7 @@ Write this section with citations in [path:line-line] format."""
         ]
 
         # Run agentic loop with limited steps
-        content, _, _ = self.llm_client.run_tool_loop(
+        content, _, _, hit_limit = self.llm_client.run_tool_loop(
             messages=messages,
             tools=self._get_section_tools(),
             tool_handlers=self._get_tool_handlers(),
@@ -584,7 +613,7 @@ Write this section with citations in [path:line-line] format."""
             phase=f"SECTION:{section.title[:20]}",
         )
 
-        return content or ""
+        return content or "", hit_limit
 
     def generate_with_citation_fix(
         self,
@@ -592,8 +621,12 @@ Write this section with citations in [path:line-line] format."""
         prompt: str,
         previous_sections: list[str],
         invalid_citations: list,
-    ) -> str:
-        """Generate section with explicit instructions to fix citation errors."""
+    ) -> tuple[str, bool]:
+        """Generate section with explicit instructions to fix citation errors.
+
+        Returns:
+            Tuple of (content, hit_limit) where hit_limit is True if max steps was reached
+        """
         # Build list of invalid citations for the prompt
         invalid_list = "\n".join(
             f"- [{r.citation.path}:{r.citation.start_line}-{r.citation.end_line}]: {r.error}"
@@ -614,7 +647,7 @@ Write this section with citations in [path:line-line] format."""
         ]
 
         # Run agentic generation with extra steps for verification
-        content, _, _ = self.llm_client.run_tool_loop(
+        content, _, _, hit_limit = self.llm_client.run_tool_loop(
             messages=messages,
             tools=self._get_section_tools(),
             tool_handlers=self._get_tool_handlers(),
@@ -622,13 +655,14 @@ Write this section with citations in [path:line-line] format."""
             phase=f"CITATION_FIX:{section.title[:20]}",
         )
 
-        return content or ""
+        return content or "", hit_limit
 
 
 def assemble_report(
     prompt: str,
     outline: list[Section],
     sections_content: list[str],
+    warnings: Optional[list[str]] = None,
 ) -> str:
     """
     Assemble final report from sections.
@@ -637,6 +671,7 @@ def assemble_report(
         prompt: Original prompt (for title extraction)
         outline: Report outline
         sections_content: Generated content for each section
+        warnings: Optional list of warnings to include in the report
 
     Returns:
         Complete markdown report
@@ -649,6 +684,13 @@ def assemble_report(
     if title.startswith("#"):
         title = title.lstrip("#").strip()
     parts.append(f"# {title}\n\n")
+
+    # Add warnings section if any limits were hit
+    if warnings:
+        parts.append("> **Note:** The following issues occurred during generation:\n")
+        for warning in warnings:
+            parts.append(f"> - {warning}\n")
+        parts.append("\n")
 
     # Add each section
     for section, content in zip(outline, sections_content):
