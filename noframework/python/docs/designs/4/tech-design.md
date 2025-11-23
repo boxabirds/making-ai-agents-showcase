@@ -42,6 +42,53 @@ graph TB
 | File Watcher | Detect external file changes |
 | Index Updater | Incrementally update index on changes |
 
+### 1.3 Index Storage Location
+
+Indexes are stored in the user's cache directory, **not** in the project directory:
+
+```
+~/.cache/tech_writer/
+├── a1b2c3d4e5f6g7h8/          # SHA256 hash of project path (first 16 chars)
+│   ├── index.db               # SQLite database
+│   ├── project_path.txt       # Breadcrumb: original project path
+│   └── watcher.pid            # File watcher PID (if running)
+├── i9j0k1l2m3n4o5p6/          # Another project
+│   ├── index.db
+│   └── project_path.txt
+```
+
+**Rationale**:
+- Indexes are caches, not source artifacts - don't belong in git
+- No `.gitignore` modifications required
+- Persists across repository clones
+- XDG-compliant cache location
+
+### 1.4 Multi-Repository Workspace Handling
+
+Claude Code's `cwd` may be a workspace root containing multiple git repositories. The system detects and indexes each repository separately.
+
+```mermaid
+graph TB
+    subgraph "Workspace: ~/projects/myapp"
+        W[Workspace Root]
+        W --> R1[frontend/]
+        W --> R2[backend/]
+        W --> R3[shared/]
+    end
+
+    subgraph "Cache: ~/.cache/tech_writer"
+        R1 --> I1["abc123/ (frontend index)"]
+        R2 --> I2["def456/ (backend index)"]
+        R3 --> I3["ghi789/ (shared index)"]
+    end
+```
+
+**Discovery algorithm**:
+1. Check if `cwd` itself is a git repository
+2. Scan up to 3 levels deep for `.git` directories
+3. Index each discovered repository separately
+4. Query all relevant indexes and merge results
+
 ---
 
 ## 2. Data Model
@@ -189,6 +236,7 @@ class IndexStats:
 tech_writer/index/
 ├── __init__.py
 ├── types.py          # Dataclasses defined above
+├── paths.py          # Index path resolution and multi-repo discovery
 ├── schema.py         # SQL schema and migrations
 ├── builder.py        # Index construction
 ├── parser.py         # Tree-sitter parsing
@@ -196,6 +244,57 @@ tech_writer/index/
 ├── updater.py        # Incremental updates
 ├── search.py         # Query engine
 └── watcher.py        # File system monitoring
+```
+
+#### 3.1.2 Path Resolution
+
+```python
+# tech_writer/index/paths.py
+
+# Constants
+CACHE_BASE: Path  # ~/.cache/tech_writer
+MAX_GIT_SEARCH_DEPTH: int = 3
+
+# Functions
+def get_cache_dir() -> Path:
+    """Get the base cache directory, creating if needed."""
+
+def get_index_dir(project_root: Path) -> Path:
+    """
+    Get the index directory for a project.
+
+    Creates ~/.cache/tech_writer/<hash>/ where hash is SHA256(project_path)[:16].
+    Writes project_path.txt breadcrumb on first access.
+    """
+
+def get_index_db_path(project_root: Path) -> Path:
+    """Get the SQLite database path for a project."""
+
+def get_watcher_pid_path(project_root: Path) -> Path:
+    """Get the watcher PID file path for a project."""
+
+def discover_repos(workspace_root: Path) -> list[Path]:
+    """
+    Discover git repositories under a workspace root.
+
+    Algorithm:
+    1. Check if workspace_root itself has .git
+    2. Glob for .git up to MAX_GIT_SEARCH_DEPTH levels
+    3. Filter out nested repos (repos inside other repos)
+    4. Fallback to [workspace_root] if no repos found
+    """
+
+def get_all_index_paths(workspace_root: Path) -> list[Path]:
+    """Get all index.db paths for all repos in workspace."""
+
+def cleanup_stale_indexes(max_age_days: int = 30) -> int:
+    """
+    Remove indexes for projects that no longer exist or are stale.
+
+    Removes if:
+    - project_path.txt points to non-existent directory
+    - index.db not modified in max_age_days
+    """
 ```
 
 #### 3.1.2 Builder Interface
@@ -510,62 +609,28 @@ Input (stdin JSON):
 {
     "session_id": "...",
     "hook_event_name": "SessionStart",
-    "cwd": "/path/to/project"
+    "cwd": "/path/to/workspace"
 }
 
 Output: None (stderr for logging)
 Exit codes: 0=success, 1=warning, 2=block
 """
 
-import json
-import sys
-import os
-from pathlib import Path
-
-from tech_writer.index.builder import IndexBuilder
-from tech_writer.index.watcher import start_watcher
-
-# Index location relative to project root
-INDEX_DIR = ".tech_writer"
-INDEX_DB = "index.db"
-WATCHER_PID_FILE = "watcher.pid"
-
-
 def main() -> int:
-    """Main hook entry point."""
-    input_data = json.load(sys.stdin)
-    project_dir = Path(input_data.get("cwd", os.getcwd()))
+    """
+    Main hook entry point.
 
-    index_dir = project_dir / INDEX_DIR
-    index_dir.mkdir(exist_ok=True)
-    db_path = index_dir / INDEX_DB
-
-    builder = IndexBuilder(db_path)
-
-    # Check if index exists and is fresh
-    if db_path.exists():
-        stats = builder.get_stats()
-        print(f"Index loaded: {stats.total_files} files, {stats.total_symbols} symbols",
-              file=sys.stderr)
-    else:
-        # Build initial index
-        print("Building index...", file=sys.stderr)
-        stats = builder.build_full(project_dir)
-        print(f"Index built: {stats.total_files} files, {stats.total_symbols} symbols",
-              file=sys.stderr)
-
-    # Start file watcher
-    pid = start_watcher(project_dir, db_path)
-    if pid:
-        pid_file = index_dir / WATCHER_PID_FILE
-        pid_file.write_text(str(pid))
-        print(f"File watcher started (PID {pid})", file=sys.stderr)
-
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+    Algorithm:
+    1. Parse cwd from stdin JSON
+    2. discover_repos(cwd) to find all git repos
+    3. For each repo:
+       a. get_index_db_path(repo) for cache location
+       b. If index exists, load stats
+       c. Else build_full(repo)
+       d. start_watcher(repo, db_path)
+       e. Write PID to get_watcher_pid_path(repo)
+    4. Log totals to stderr
+    """
 ```
 
 #### 3.3.4 UserPromptSubmit Hook
@@ -581,7 +646,7 @@ Input (stdin JSON):
     "session_id": "...",
     "hook_event_name": "UserPromptSubmit",
     "user_prompt": "How does authentication work?",
-    "cwd": "/path/to/project"
+    "cwd": "/path/to/workspace"
 }
 
 Output (stdout JSON):
@@ -592,89 +657,36 @@ Output (stdout JSON):
 Exit codes: 0=success (with or without context)
 """
 
-import json
-import sys
-import os
-from pathlib import Path
-
-from tech_writer.index.search import QueryEngine, MAX_RESULTS
-
-# Maximum characters of context to inject
-MAX_CONTEXT_CHARS = 2000
-
+# Constants
+MAX_CONTEXT_CHARS: int = 2000
+MAX_SEARCH_TERMS: int = 5
+RESULTS_PER_INDEX: int = 10
 
 def main() -> int:
-    """Main hook entry point."""
-    input_data = json.load(sys.stdin)
-    user_prompt = input_data.get("user_prompt", "")
-    project_dir = Path(input_data.get("cwd", os.getcwd()))
+    """
+    Main hook entry point.
 
-    db_path = project_dir / ".tech_writer" / "index.db"
-    if not db_path.exists():
-        # No index, skip enrichment
-        return 0
+    Algorithm:
+    1. Parse user_prompt and cwd from stdin JSON
+    2. get_all_index_paths(cwd) to find all indexes
+    3. Filter to existing indexes only
+    4. expand_query(user_prompt) to extract search terms
+    5. For each index, search_symbols() for each term
+    6. Merge results, deduplicate by (file_path, symbol.name)
+    7. Sort by score descending
+    8. Format top results up to MAX_CONTEXT_CHARS
+    9. Output {"additionalContext": ...} to stdout
+    """
 
-    engine = QueryEngine(db_path)
+def format_result(result: SearchResult) -> str:
+    """
+    Format a search result for context injection.
 
-    # Extract search terms from prompt
-    terms = engine.expand_query(user_prompt)
-    if not terms:
-        return 0
-
-    # Search for relevant symbols
-    results = []
-    for term in terms[:5]:  # Limit terms to avoid over-fetching
-        results.extend(engine.search_symbols(term, limit=5))
-
-    # Deduplicate and sort by relevance
-    seen = set()
-    unique_results = []
-    for r in sorted(results, key=lambda x: x.score, reverse=True):
-        key = (r.symbol.file_id, r.symbol.name)
-        if key not in seen:
-            seen.add(key)
-            unique_results.append(r)
-
-    if not unique_results:
-        return 0
-
-    # Format context
-    context_parts = ["## Pre-indexed Relevant Code\n"]
-    char_count = len(context_parts[0])
-
-    for result in unique_results[:MAX_RESULTS]:
-        line = format_result(result)
-        if char_count + len(line) > MAX_CONTEXT_CHARS:
-            break
-        context_parts.append(line)
-        char_count += len(line)
-
-    if len(context_parts) > 1:
-        output = {"additionalContext": "\n".join(context_parts)}
-        print(json.dumps(output))
-
-    return 0
-
-
-def format_result(result) -> str:
-    """Format a search result for context injection."""
-    sym = result.symbol
-    kind = sym.kind.value if hasattr(sym.kind, 'value') else sym.kind
-    location = f"[{result.file_path}:{sym.line}]"
-
-    line = f"- {kind} `{sym.name}` {location}"
-    if sym.signature:
-        line += f"\n  `{sym.signature}`"
-    if sym.doc:
-        doc_preview = sym.doc[:100].replace('\n', ' ')
-        if len(sym.doc) > 100:
-            doc_preview += "..."
-        line += f"\n  {doc_preview}"
-    return line + "\n"
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+    Output format:
+    - {kind} `{name}` [{file_path}:{line}]
+      `{signature}`
+      {doc_preview}
+    """
 ```
 
 #### 3.3.5 PostToolUse Hook
@@ -691,58 +703,29 @@ Input (stdin JSON):
     "hook_event_name": "PostToolUse",
     "tool_name": "Write",
     "tool_input": {"file_path": "/path/to/file.py", "content": "..."},
-    "cwd": "/path/to/project"
+    "cwd": "/path/to/workspace"
 }
 
 Exit codes: 0=success
 """
 
-import json
-import sys
-import os
-from pathlib import Path
-
-from tech_writer.index.builder import IndexBuilder
-
+def find_repo_for_file(file_path: Path, workspace_dir: Path) -> Path | None:
+    """Find which repo a file belongs to by checking relative_to()."""
 
 def main() -> int:
-    """Main hook entry point."""
-    input_data = json.load(sys.stdin)
-    tool_name = input_data.get("tool_name", "")
-    tool_input = input_data.get("tool_input", {})
-    project_dir = Path(input_data.get("cwd", os.getcwd()))
+    """
+    Main hook entry point.
 
-    # Only handle file-modifying tools
-    if tool_name not in ("Write", "Edit"):
-        return 0
-
-    # Extract file path
-    file_path = tool_input.get("file_path") or tool_input.get("path")
-    if not file_path:
-        return 0
-
-    db_path = project_dir / ".tech_writer" / "index.db"
-    if not db_path.exists():
-        return 0
-
-    builder = IndexBuilder(db_path)
-    file_path = Path(file_path)
-
-    if file_path.exists():
-        updated = builder.update_file(file_path)
-        if updated:
-            print(f"Index updated: {file_path}", file=sys.stderr)
-    else:
-        # File was deleted
-        removed = builder.remove_file(file_path)
-        if removed:
-            print(f"Index removed: {file_path}", file=sys.stderr)
-
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+    Algorithm:
+    1. Parse tool_name, tool_input, cwd from stdin JSON
+    2. If tool_name not in ("Write", "Edit"), return 0
+    3. Extract file_path from tool_input
+    4. find_repo_for_file() to determine which repo
+    5. get_index_db_path(repo) for cache location
+    6. If file exists: builder.update_file()
+    7. If file deleted: builder.remove_file()
+    8. Log to stderr
+    """
 ```
 
 ### 3.4 File Watcher
@@ -750,146 +733,68 @@ if __name__ == "__main__":
 ```python
 # tech_writer/index/watcher.py
 
-"""File system watcher for external changes."""
+"""File system watcher for external changes using watchdog library."""
 
-import os
-import sys
-import time
-from pathlib import Path
-from typing import Optional
-
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileModifiedEvent
-
-from .builder import IndexBuilder
-
-# Debounce interval in seconds
-DEBOUNCE_INTERVAL = 0.5
+# Constants
+DEBOUNCE_INTERVAL: float = 0.5  # seconds
 
 
 class IndexUpdateHandler(FileSystemEventHandler):
-    """Handles file system events and updates the index."""
+    """
+    Handles file system events and updates the index.
 
-    def __init__(self, project_root: Path, db_path: Path):
-        self.project_root = project_root
-        self.builder = IndexBuilder(db_path)
-        self.debounce: dict[str, float] = {}
+    Attributes:
+        project_root: Path - Directory being watched
+        builder: IndexBuilder - For updating the index
+        debounce: dict[str, float] - Last update time per path
+    """
 
     def on_modified(self, event: FileModifiedEvent) -> None:
-        if event.is_directory:
-            return
-        self._handle_change(event.src_path)
+        """Handle file modification (debounced)."""
 
     def on_created(self, event) -> None:
-        if event.is_directory:
-            return
-        self._handle_change(event.src_path)
+        """Handle file creation (debounced)."""
 
     def on_deleted(self, event) -> None:
-        if event.is_directory:
-            return
-        self._handle_deletion(event.src_path)
+        """Handle file deletion."""
 
     def _handle_change(self, abs_path: str) -> None:
-        # Debounce rapid changes
-        now = time.time()
-        if abs_path in self.debounce:
-            if now - self.debounce[abs_path] < DEBOUNCE_INTERVAL:
-                return
-        self.debounce[abs_path] = now
+        """
+        Process file change with debouncing.
 
-        path = Path(abs_path)
-        if self._should_index(path):
-            self.builder.update_file(path)
-
-    def _handle_deletion(self, abs_path: str) -> None:
-        path = Path(abs_path)
-        self.builder.remove_file(path)
+        Algorithm:
+        1. Check debounce dict, skip if < DEBOUNCE_INTERVAL
+        2. Update debounce timestamp
+        3. If _should_index(path), call builder.update_file()
+        """
 
     def _should_index(self, path: Path) -> bool:
-        """Check if file should be indexed."""
-        # Skip hidden and build directories
-        for part in path.parts:
-            if part.startswith('.') or part in IndexBuilder.SKIP_DIRS:
-                return False
-
-        # Check extension
-        lang = self.builder._detect_language(path)
-        return lang is not None
+        """Check if file should be indexed (not hidden, not in SKIP_DIRS, valid extension)."""
 
 
 def start_watcher(project_root: Path, db_path: Path) -> Optional[int]:
     """
     Start file watcher as a background process.
 
-    Args:
-        project_root: Directory to watch
-        db_path: Path to index database
-
-    Returns:
-        PID of watcher process, or None if failed
+    Spawns: python -m tech_writer.index.watcher <project_root> <db_path>
+    Returns: PID of spawned process
     """
-    import subprocess
-
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "tech_writer.index.watcher",
-         str(project_root), str(db_path)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-    )
-    return proc.pid
-
 
 def stop_watcher(pid_file: Path) -> bool:
     """
-    Stop file watcher by PID.
+    Stop file watcher by PID file.
 
-    Args:
-        pid_file: Path to file containing watcher PID
-
-    Returns:
-        True if stopped, False otherwise
+    Sends SIGTERM to process, removes PID file.
     """
-    import signal
-
-    if not pid_file.exists():
-        return False
-
-    try:
-        pid = int(pid_file.read_text().strip())
-        os.kill(pid, signal.SIGTERM)
-        pid_file.unlink()
-        return True
-    except (ValueError, ProcessLookupError, OSError):
-        return False
-
 
 def main() -> None:
-    """Main entry point for watcher process."""
-    if len(sys.argv) != 3:
-        print("Usage: python -m tech_writer.index.watcher <project_root> <db_path>",
-              file=sys.stderr)
-        sys.exit(1)
+    """
+    Main entry point for watcher process.
 
-    project_root = Path(sys.argv[1])
-    db_path = Path(sys.argv[2])
+    Usage: python -m tech_writer.index.watcher <project_root> <db_path>
 
-    handler = IndexUpdateHandler(project_root, db_path)
-    observer = Observer()
-    observer.schedule(handler, str(project_root), recursive=True)
-    observer.start()
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
-
-
-if __name__ == "__main__":
-    main()
+    Creates IndexUpdateHandler and Observer, runs until SIGTERM/SIGINT.
+    """
 ```
 
 ---
@@ -1132,302 +1037,87 @@ sequenceDiagram
 
 ### 6.1 Unit Tests
 
-#### 6.1.1 Builder Tests
+#### 6.1.1 Builder Tests (`tests/tech_writer/index/test_builder.py`)
 
-```python
-# tests/tech_writer/index/test_builder.py
+| Test | Description |
+|------|-------------|
+| `test_detect_language_python` | `.py` and `.pyi` → "python" |
+| `test_detect_language_unknown` | `.xyz` → None |
+| `test_compute_hash_deterministic` | Same content → same hash |
+| `test_compute_hash_different` | Different content → different hash |
+| `test_skip_dirs_excluded` | node_modules, .git not discovered |
+| `test_build_full_populates_tables` | Files, symbols, imports tables populated |
+| `test_update_file_detects_changes` | Changed hash triggers re-parse |
+| `test_remove_file_cascades` | Symbols deleted with file |
 
-class TestIndexBuilder:
-    """Unit tests for IndexBuilder."""
+#### 6.1.2 Parser Tests (`tests/tech_writer/index/test_parser.py`)
 
-    def test_detect_language_python(self, builder):
-        """Detects Python files correctly."""
-        assert builder._detect_language(Path("foo.py")) == "python"
-        assert builder._detect_language(Path("foo.pyi")) == "python"
+| Test | Description |
+|------|-------------|
+| `test_parse_python_function` | Extracts name, line, signature |
+| `test_parse_python_class` | Extracts class and nested methods |
+| `test_parse_python_imports` | Handles import, from...import, aliases |
+| `test_parse_syntax_error` | Graceful handling, returns partial |
+| `test_parse_javascript_function` | Function declarations and arrow functions |
+| `test_parse_javascript_imports` | ES6 imports, default and named |
 
-    def test_detect_language_unknown(self, builder):
-        """Returns None for unknown extensions."""
-        assert builder._detect_language(Path("foo.xyz")) is None
+#### 6.1.3 Query Engine Tests (`tests/tech_writer/index/test_search.py`)
 
-    def test_compute_hash_deterministic(self, builder):
-        """Hash is deterministic for same content."""
-        h1 = builder._compute_hash("hello world")
-        h2 = builder._compute_hash("hello world")
-        assert h1 == h2
+| Test | Description |
+|------|-------------|
+| `test_expand_query_camel_case` | "UserService" extracted |
+| `test_expand_query_snake_case` | "get_user_by_id" extracted |
+| `test_expand_query_backticks` | `` `authenticate` `` extracted |
+| `test_search_symbols_by_name` | LIKE match, returns scores |
+| `test_search_symbols_by_kind` | Filter by function/class/method |
+| `test_search_content_fts5` | Full-text search works |
+| `test_find_definition_exact` | Exact name match |
+| `test_find_importers` | Finds files importing module |
 
-    def test_compute_hash_different(self, builder):
-        """Hash differs for different content."""
-        h1 = builder._compute_hash("hello")
-        h2 = builder._compute_hash("world")
-        assert h1 != h2
+#### 6.1.4 Paths Tests (`tests/tech_writer/index/test_paths.py`)
 
-    def test_skip_dirs_excluded(self, builder, tmp_path):
-        """Skip directories are excluded from discovery."""
-        (tmp_path / "node_modules" / "foo.js").parent.mkdir()
-        (tmp_path / "node_modules" / "foo.js").write_text("x")
-        (tmp_path / "src" / "app.js").parent.mkdir()
-        (tmp_path / "src" / "app.js").write_text("y")
-
-        files = list(builder._discover_files(tmp_path))
-        paths = [f.name for f in files]
-
-        assert "app.js" in paths
-        assert "foo.js" not in paths
-```
-
-#### 6.1.2 Parser Tests
-
-```python
-# tests/tech_writer/index/test_parser.py
-
-class TestCodeParser:
-    """Unit tests for CodeParser."""
-
-    def test_parse_python_function(self, parser):
-        """Parses Python function definitions."""
-        code = '''
-def hello(name: str) -> str:
-    """Say hello."""
-    return f"Hello, {name}"
-'''
-        symbols, imports = parser.parse_file(Path("test.py"), code, "python")
-
-        assert len(symbols) == 1
-        assert symbols[0].name == "hello"
-        assert symbols[0].kind == SymbolKind.FUNCTION
-        assert symbols[0].line == 2
-        assert "name: str" in symbols[0].signature
-
-    def test_parse_python_class(self, parser):
-        """Parses Python class definitions."""
-        code = '''
-class UserService:
-    """Handles user operations."""
-
-    def get_user(self, id: int):
-        pass
-'''
-        symbols, imports = parser.parse_file(Path("test.py"), code, "python")
-
-        names = [s.name for s in symbols]
-        assert "UserService" in names
-        assert "get_user" in names
-
-    def test_parse_python_imports(self, parser):
-        """Parses Python import statements."""
-        code = '''
-import os
-from pathlib import Path
-from typing import Optional as Opt
-'''
-        symbols, imports = parser.parse_file(Path("test.py"), code, "python")
-
-        assert len(imports) == 3
-        assert any(i.imported_name == "os" for i in imports)
-        assert any(i.imported_from == "pathlib" and i.imported_name == "Path" for i in imports)
-        assert any(i.alias == "Opt" for i in imports)
-```
-
-#### 6.1.3 Query Engine Tests
-
-```python
-# tests/tech_writer/index/test_search.py
-
-class TestQueryEngine:
-    """Unit tests for QueryEngine."""
-
-    def test_expand_query_camel_case(self, engine):
-        """Extracts CamelCase identifiers."""
-        terms = engine.expand_query("How does UserService work?")
-        assert "UserService" in terms
-
-    def test_expand_query_snake_case(self, engine):
-        """Extracts snake_case identifiers."""
-        terms = engine.expand_query("What is get_user_by_id?")
-        assert "get_user_by_id" in terms
-
-    def test_expand_query_backticks(self, engine):
-        """Extracts backtick-quoted code."""
-        terms = engine.expand_query("Where is `authenticate` defined?")
-        assert "authenticate" in terms
-
-    def test_search_symbols_by_name(self, engine_with_data):
-        """Searches symbols by name."""
-        results = engine_with_data.search_symbols("auth")
-        assert len(results) > 0
-        assert all("auth" in r.symbol.name.lower() for r in results)
-
-    def test_search_symbols_by_kind(self, engine_with_data):
-        """Filters symbols by kind."""
-        results = engine_with_data.search_symbols("", kinds=["class"])
-        assert all(r.symbol.kind == SymbolKind.CLASS for r in results)
-```
+| Test | Description |
+|------|-------------|
+| `test_get_index_dir_creates_cache` | Creates ~/.cache/tech_writer/<hash>/ |
+| `test_get_index_dir_writes_breadcrumb` | project_path.txt written |
+| `test_discover_repos_single` | Single git repo detected |
+| `test_discover_repos_nested` | Multiple nested repos detected |
+| `test_discover_repos_fallback` | No .git → returns workspace root |
+| `test_cleanup_stale_indexes` | Removes orphaned/old indexes |
 
 ### 6.2 Integration Tests
 
-```python
-# tests/tech_writer/index/test_integration.py
+#### 6.2.1 Index Integration (`tests/tech_writer/index/test_integration.py`)
 
-class TestIndexIntegration:
-    """Integration tests for the index system."""
+**Fixture**: `sample_project` - Creates tmp_path with:
+- `src/auth.py`: AuthService class with login/logout methods
+- `src/api.py`: Imports AuthService, has handle_login function
 
-    @pytest.fixture
-    def sample_project(self, tmp_path):
-        """Create a sample project structure."""
-        (tmp_path / "src").mkdir()
-        (tmp_path / "src" / "auth.py").write_text('''
-class AuthService:
-    def login(self, username: str, password: str) -> bool:
-        """Authenticate a user."""
-        pass
+| Test | Description |
+|------|-------------|
+| `test_full_index_build` | Builds index, verifies file and symbol counts |
+| `test_incremental_update` | Modify file → update_file() → new symbol found |
+| `test_import_tracking` | find_importers() returns dependent files |
+| `test_multi_repo_workspace` | Multiple repos indexed separately |
+| `test_cache_location` | Index stored in ~/.cache/tech_writer/<hash>/ |
 
-    def logout(self, session_id: str) -> None:
-        pass
-''')
-        (tmp_path / "src" / "api.py").write_text('''
-from src.auth import AuthService
+### 6.3 BDD Feature Tests (`tests/features/test_prompt_enrichment_bdd.py`)
 
-def handle_login(request):
-    auth = AuthService()
-    return auth.login(request.user, request.password)
-''')
-        return tmp_path
-
-    def test_full_index_build(self, sample_project):
-        """Builds complete index for a project."""
-        db_path = sample_project / ".tech_writer" / "index.db"
-        db_path.parent.mkdir()
-
-        builder = IndexBuilder(db_path)
-        stats = builder.build_full(sample_project)
-
-        assert stats.total_files == 2
-        assert stats.total_symbols >= 3  # AuthService, login, logout, handle_login
-
-    def test_incremental_update(self, sample_project):
-        """Updates index when file changes."""
-        db_path = sample_project / ".tech_writer" / "index.db"
-        db_path.parent.mkdir()
-
-        builder = IndexBuilder(db_path)
-        builder.build_full(sample_project)
-
-        # Modify file
-        auth_file = sample_project / "src" / "auth.py"
-        auth_file.write_text(auth_file.read_text() + "\ndef new_func(): pass\n")
-
-        updated = builder.update_file(auth_file)
-        assert updated is True
-
-        # Verify new symbol exists
-        engine = QueryEngine(db_path)
-        results = engine.search_symbols("new_func")
-        assert len(results) == 1
-
-    def test_import_tracking(self, sample_project):
-        """Tracks imports between files."""
-        db_path = sample_project / ".tech_writer" / "index.db"
-        db_path.parent.mkdir()
-
-        builder = IndexBuilder(db_path)
-        builder.build_full(sample_project)
-
-        engine = QueryEngine(db_path)
-        importers = engine.find_importers("src.auth")
-
-        assert "src/api.py" in importers or "src\\api.py" in importers
+```gherkin
+Feature: Claude Code Prompt Enrichment
+  As a developer using Claude Code
+  I want my prompts enriched with relevant code context
+  So that I get faster, more accurate responses
 ```
 
-### 6.3 BDD Feature Tests
-
-```python
-# tests/features/test_prompt_enrichment_bdd.py
-
-class TestPromptEnrichmentFeature:
-    """
-    Feature: Claude Code Prompt Enrichment
-      As a developer using Claude Code
-      I want my prompts enriched with relevant code context
-      So that I get faster, more accurate responses
-    """
-
-    def test_symbol_injection_on_query(self, indexed_project, mock_stdin):
-        """
-        Scenario: User asks about a symbol
-          Given an indexed project with AuthService class
-          When user asks "How does authentication work?"
-          Then the hook injects AuthService location into context
-        """
-        # Given
-        mock_stdin.return_value = json.dumps({
-            "hook_event_name": "UserPromptSubmit",
-            "user_prompt": "How does authentication work?",
-            "cwd": str(indexed_project)
-        })
-
-        # When
-        from tech_writer.hooks.user_prompt_submit import main
-        with capture_stdout() as output:
-            exit_code = main()
-
-        # Then
-        assert exit_code == 0
-        response = json.loads(output.getvalue())
-        assert "additionalContext" in response
-        assert "AuthService" in response["additionalContext"]
-
-    def test_no_injection_when_no_matches(self, indexed_project, mock_stdin):
-        """
-        Scenario: User asks unrelated question
-          Given an indexed project
-          When user asks "What's the weather like?"
-          Then no context is injected
-        """
-        mock_stdin.return_value = json.dumps({
-            "hook_event_name": "UserPromptSubmit",
-            "user_prompt": "What's the weather like?",
-            "cwd": str(indexed_project)
-        })
-
-        from tech_writer.hooks.user_prompt_submit import main
-        with capture_stdout() as output:
-            exit_code = main()
-
-        assert exit_code == 0
-        assert output.getvalue() == ""  # No output = no injection
-
-    def test_index_updates_on_file_write(self, indexed_project, mock_stdin):
-        """
-        Scenario: Index updates after file modification
-          Given an indexed project
-          When a file is modified via Write tool
-          Then the index reflects the new content
-        """
-        # Add new function to file
-        new_content = (indexed_project / "src" / "auth.py").read_text()
-        new_content += "\ndef brand_new_function(): pass\n"
-
-        mock_stdin.return_value = json.dumps({
-            "hook_event_name": "PostToolUse",
-            "tool_name": "Write",
-            "tool_input": {
-                "file_path": str(indexed_project / "src" / "auth.py"),
-                "content": new_content
-            },
-            "cwd": str(indexed_project)
-        })
-
-        # Simulate the write happening
-        (indexed_project / "src" / "auth.py").write_text(new_content)
-
-        from tech_writer.hooks.post_tool_use import main
-        main()
-
-        # Verify index was updated
-        engine = QueryEngine(indexed_project / ".tech_writer" / "index.db")
-        results = engine.search_symbols("brand_new_function")
-        assert len(results) == 1
-```
+| Scenario | Given | When | Then |
+|----------|-------|------|------|
+| Symbol injection on query | Indexed project with AuthService | User asks "How does authentication work?" | Hook injects AuthService location |
+| No injection when no matches | Indexed project | User asks "What's the weather?" | No additionalContext in output |
+| Index updates on file write | Indexed project | File modified via Write tool | New symbol searchable |
+| Multi-repo query merging | Workspace with 2 repos indexed | User asks about symbol in both | Results from both repos merged |
+| Session lifecycle | Fresh workspace | SessionStart → queries → SessionEnd | Index built, queries work, watchers stopped |
+| Graceful degradation | No index exists | UserPromptSubmit triggered | Returns 0, no injection |
 
 ---
 
@@ -1492,10 +1182,33 @@ echo "Start a new Claude Code session to activate."
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `TECH_WRITER_INDEX_DIR` | Directory for index files | `.tech_writer` |
-| `TECH_WRITER_MAX_FILES` | Maximum files to index | `10000` |
+| `TECH_WRITER_CACHE_DIR` | Override cache directory | `~/.cache/tech_writer` |
+| `TECH_WRITER_MAX_FILES` | Maximum files to index per repo | `10000` |
 | `TECH_WRITER_SKIP_WATCHER` | Disable file watcher | `false` |
 | `TECH_WRITER_DEBUG` | Enable debug logging | `false` |
+
+### 7.3 Cache Management
+
+**Location**: `~/.cache/tech_writer/`
+
+**List indexed projects**:
+```bash
+for dir in ~/.cache/tech_writer/*/; do
+    if [ -f "$dir/project_path.txt" ]; then
+        echo "$(cat "$dir/project_path.txt")"
+    fi
+done
+```
+
+**Clear all indexes**:
+```bash
+rm -rf ~/.cache/tech_writer/*
+```
+
+**Cleanup stale indexes** (projects that no longer exist):
+```bash
+python -m tech_writer.index.paths --cleanup
+```
 
 ---
 

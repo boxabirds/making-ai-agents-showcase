@@ -9,20 +9,21 @@ Implementation tasks for pre-indexed code context injection via Claude Code hook
 | ID | Task | Status | Dependencies |
 |----|------|--------|--------------|
 | 4-1 | Create index module structure and types | pending | - |
-| 4-2 | Implement SQLite schema and migrations | pending | 4-1 |
-| 4-3 | Implement tree-sitter parser with Python queries | pending | 4-1 |
-| 4-4 | Add tree-sitter queries for remaining languages | pending | 4-3 |
-| 4-5 | Implement IndexBuilder | pending | 4-2, 4-3 |
-| 4-6 | Implement QueryEngine | pending | 4-2 |
-| 4-7 | Add unit tests for index module | pending | 4-5, 4-6 |
-| 4-8 | Implement SessionStart hook | pending | 4-5 |
-| 4-9 | Implement UserPromptSubmit hook | pending | 4-6 |
-| 4-10 | Implement PostToolUse hook | pending | 4-5 |
-| 4-11 | Implement file watcher | pending | 4-5 |
-| 4-12 | Implement SessionEnd hook | pending | 4-11 |
-| 4-13 | Add integration tests | pending | 4-8, 4-9, 4-10 |
-| 4-14 | Add BDD feature tests | pending | 4-13 |
-| 4-15 | Create installation script and documentation | pending | 4-14 |
+| 4-2 | Implement path resolution and multi-repo discovery | pending | 4-1 |
+| 4-3 | Implement SQLite schema and migrations | pending | 4-1 |
+| 4-4 | Implement tree-sitter parser with Python queries | pending | 4-1 |
+| 4-5 | Add tree-sitter queries for remaining languages | pending | 4-4 |
+| 4-6 | Implement IndexBuilder | pending | 4-2, 4-3, 4-4 |
+| 4-7 | Implement QueryEngine | pending | 4-3 |
+| 4-8 | Add unit tests for index module | pending | 4-6, 4-7 |
+| 4-9 | Implement SessionStart hook | pending | 4-2, 4-6 |
+| 4-10 | Implement UserPromptSubmit hook | pending | 4-2, 4-7 |
+| 4-11 | Implement PostToolUse hook | pending | 4-2, 4-6 |
+| 4-12 | Implement file watcher | pending | 4-6 |
+| 4-13 | Implement SessionEnd hook | pending | 4-12 |
+| 4-14 | Add integration tests | pending | 4-9, 4-10, 4-11 |
+| 4-15 | Add BDD feature tests | pending | 4-14 |
+| 4-16 | Create installation script and documentation | pending | 4-15 |
 
 ## Task Details
 
@@ -40,7 +41,26 @@ See: `docs/designs/4/tech-design.md` §2.2 Python Types
 
 ---
 
-### 4-2: Implement SQLite schema and migrations
+### 4-2: Implement path resolution and multi-repo discovery
+
+Create cache directory management and multi-repository detection.
+
+**Files to create**:
+- `tech_writer/index/paths.py`
+
+See: `docs/designs/4/tech-design.md` §1.3 Index Storage Location, §1.4 Multi-Repository Workspace Handling, §3.1.2 Path Resolution
+
+**Tests**:
+- `get_index_dir()` creates cache directory with hash
+- `get_index_dir()` writes breadcrumb file
+- `discover_repos()` finds git repositories
+- `discover_repos()` handles nested repos
+- `discover_repos()` falls back to workspace root
+- `cleanup_stale_indexes()` removes orphaned indexes
+
+---
+
+### 4-3: Implement SQLite schema and migrations
 
 Create schema management with table creation and indexes.
 
@@ -56,7 +76,7 @@ See: `docs/designs/4/tech-design.md` §2.1 SQLite Schema
 
 ---
 
-### 4-3: Implement tree-sitter parser with Python queries
+### 4-4: Implement tree-sitter parser with Python queries
 
 Implement CodeParser class with Python language support.
 
@@ -75,7 +95,7 @@ See: `docs/designs/4/tech-design.md` §3.1.3 Parser Interface, §4.2 Python Quer
 
 ---
 
-### 4-4: Add tree-sitter queries for remaining languages
+### 4-5: Add tree-sitter queries for remaining languages
 
 Add query files for JavaScript, TypeScript, Go, Rust, Ruby, Java, PHP, C++.
 
@@ -98,14 +118,14 @@ See: `docs/designs/4/tech-design.md` §4.3 JavaScript/TypeScript Queries
 
 ---
 
-### 4-5: Implement IndexBuilder
+### 4-6: Implement IndexBuilder
 
 Implement the IndexBuilder class for full and incremental indexing.
 
 **Files to create**:
 - `tech_writer/index/builder.py`
 
-See: `docs/designs/4/tech-design.md` §3.1.2 Builder Interface
+See: `docs/designs/4/tech-design.md` §3.1.3 Builder Interface
 
 **Tests**:
 - `_detect_language()` identifies all supported extensions
@@ -117,7 +137,7 @@ See: `docs/designs/4/tech-design.md` §3.1.2 Builder Interface
 
 ---
 
-### 4-6: Implement QueryEngine
+### 4-7: Implement QueryEngine
 
 Implement the QueryEngine class for searching the index.
 
@@ -138,7 +158,7 @@ See: `docs/designs/4/tech-design.md` §3.2.1 Search Interface
 
 ---
 
-### 4-7: Add unit tests for index module
+### 4-8: Add unit tests for index module
 
 Create comprehensive unit test suite for all index components.
 
@@ -148,6 +168,7 @@ Create comprehensive unit test suite for all index components.
 - `tests/tech_writer/index/test_parser.py`
 - `tests/tech_writer/index/test_search.py`
 - `tests/tech_writer/index/test_schema.py`
+- `tests/tech_writer/index/test_paths.py`
 
 See: `docs/designs/4/tech-design.md` §6.1 Unit Tests
 
@@ -155,7 +176,7 @@ See: `docs/designs/4/tech-design.md` §6.1 Unit Tests
 
 ---
 
-### 4-8: Implement SessionStart hook
+### 4-9: Implement SessionStart hook
 
 Implement hook to initialize index and start file watcher on session start.
 
@@ -167,15 +188,15 @@ Implement hook to initialize index and start file watcher on session start.
 See: `docs/designs/4/tech-design.md` §3.3.3 SessionStart Hook
 
 **Tests**:
+- Discovers repos in workspace
 - Creates index if not exists
-- Loads existing index
-- Starts file watcher
-- Writes PID file
-- Handles missing project directory
+- Loads existing index from cache
+- Starts file watcher per repo
+- Writes PID file to cache directory
 
 ---
 
-### 4-9: Implement UserPromptSubmit hook
+### 4-10: Implement UserPromptSubmit hook
 
 Implement hook to inject relevant code context into user prompts.
 
@@ -186,6 +207,7 @@ See: `docs/designs/4/tech-design.md` §3.3.4 UserPromptSubmit Hook
 
 **Tests**:
 - Extracts search terms from prompt
+- Queries all indexes in workspace
 - Injects context for matching symbols
 - Returns empty when no matches
 - Respects MAX_CONTEXT_CHARS limit
@@ -193,7 +215,7 @@ See: `docs/designs/4/tech-design.md` §3.3.4 UserPromptSubmit Hook
 
 ---
 
-### 4-10: Implement PostToolUse hook
+### 4-11: Implement PostToolUse hook
 
 Implement hook to update index when files are modified.
 
@@ -203,6 +225,7 @@ Implement hook to update index when files are modified.
 See: `docs/designs/4/tech-design.md` §3.3.5 PostToolUse Hook
 
 **Tests**:
+- Finds correct repo for modified file
 - Updates index on Write tool
 - Updates index on Edit tool
 - Ignores non-file-modifying tools
@@ -211,7 +234,7 @@ See: `docs/designs/4/tech-design.md` §3.3.5 PostToolUse Hook
 
 ---
 
-### 4-11: Implement file watcher
+### 4-12: Implement file watcher
 
 Implement background file watcher for external changes.
 
@@ -230,7 +253,7 @@ See: `docs/designs/4/tech-design.md` §3.4 File Watcher
 
 ---
 
-### 4-12: Implement SessionEnd hook
+### 4-13: Implement SessionEnd hook
 
 Implement hook to cleanup file watcher on session end.
 
@@ -240,13 +263,13 @@ Implement hook to cleanup file watcher on session end.
 See: `docs/designs/4/tech-design.md` §3.3 Hook Scripts
 
 **Tests**:
-- Stops file watcher by PID
-- Removes PID file
+- Stops all file watchers by PID
+- Removes PID files from cache
 - Handles missing PID file gracefully
 
 ---
 
-### 4-13: Add integration tests
+### 4-14: Add integration tests
 
 Create integration tests for the complete hook workflow.
 
@@ -260,11 +283,12 @@ See: `docs/designs/4/tech-design.md` §6.2 Integration Tests
 - Full index build on sample project
 - Incremental update workflow
 - Import tracking across files
+- Multi-repo workspace indexing
 - Hook stdin/stdout protocol compliance
 
 ---
 
-### 4-14: Add BDD feature tests
+### 4-15: Add BDD feature tests
 
 Create BDD-style tests covering user scenarios.
 
@@ -277,11 +301,12 @@ See: `docs/designs/4/tech-design.md` §6.3 BDD Feature Tests
 - Symbol injection on query
 - No injection when no matches
 - Index updates on file write
+- Multi-repo query merging
 - Session lifecycle (start → work → end)
 
 ---
 
-### 4-15: Create installation script and documentation
+### 4-16: Create installation script and documentation
 
 Create installation script and usage documentation.
 
@@ -295,3 +320,4 @@ See: `docs/designs/4/tech-design.md` §7 Configuration
 - Installation script works on macOS/Linux
 - README updated with feature description
 - Usage guide with examples
+- Cache management instructions
