@@ -24,31 +24,36 @@ def enforce_draft_citations(report_md: str, store: Store, topic: str, allowed_ci
             continue
         tokens = re.findall(r"\[([^\]]+)\]", stripped)
         if not tokens:
-            # attempt to retrieve supporting chunk and append citation
-            ctx = retrieve_context(store, stripped or topic, limit=3)
-            if ctx.chunks:
-                c = ctx.chunks[0]
+            # attempt to retrieve supporting chunk aligned to the line/topic
+            ctx = retrieve_context(store, stripped or topic, limit=5)
+            added = False
+            for c in ctx.chunks:
                 file_rec = store.get_file_by_id(c.file_id)
-                if file_rec:
-                    citation = generate_citation_from_chunk(c, file_rec.path)
-                    if not allowed or citation in allowed:
-                        repaired.append(f"{line} [{citation}]")
-                    elif allowed:
-                        repaired.append(f"{line} [{next(iter(allowed))}]")
+                if not file_rec:
                     continue
-            # fallback: use first available chunk in store to preserve citation requirement
+                citation = generate_citation_from_chunk(c, file_rec.path)
+                if allowed and citation not in allowed:
+                    continue
+                repaired.append(f"{line} [{citation}]")
+                added = True
+                break
+            if added:
+                continue
+            # keep the line uncited if no aligned evidence was found
+            # as a last resort, attach the first available chunk to avoid dropping content
             files = store.get_all_files()
-            if files:
-                chunks = store.get_chunks_for_file(files[0].id)  # type: ignore
-                if chunks:
-                    citation = generate_citation_from_chunk(chunks[0], files[0].path)
-                    if not allowed or citation in allowed:
-                        repaired.append(f"{line} [{citation}]")
-                    elif allowed:
-                        repaired.append(f"{line} [{next(iter(allowed))}]")
+            for f in files:
+                chunks = store.get_chunks_for_file(f.id)  # type: ignore[arg-type]
+                if not chunks:
                     continue
-            # keep the line to preserve user-requested sections even if uncited
-            repaired.append(line)
+                citation = generate_citation_from_chunk(chunks[0], f.path)
+                if allowed and citation not in allowed:
+                    continue
+                repaired.append(f"{line} [{citation}]")
+                added = True
+                break
+            if not added:
+                repaired.append(line)
             continue
         try:
             valid_tokens = []

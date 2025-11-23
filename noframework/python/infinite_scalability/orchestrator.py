@@ -82,7 +82,7 @@ def run_pipeline(root: Path, prompt: str, store: Store, gate: CoverageGate | Non
     for attempt in range(max_iters):
         store.conn.execute("DELETE FROM claims WHERE report_version=?", (rv_id,))
         claims = extract_claims(report_md, report_version=rv_id)
-        claims = check_claims(store, claims)
+        claims = check_claims(store, claims, allowed_citations=allowed_citations)
         # Attempt repair of missing citations if still missing
         if any(not c.citation_refs for c in claims):
             report_md, claims = repair_report(report_md, store, rv_id)

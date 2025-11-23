@@ -1,5 +1,5 @@
 import re
-from typing import Callable, List
+from typing import Callable, List, Optional, Set
 
 from .citations import validate_citation
 
@@ -90,7 +90,12 @@ def _severity_from_status(status: ClaimStatus) -> Severity:
     return Severity.HIGH
 
 
-def check_claims(store: Store, claims: List[ClaimRecord], grader: Callable[[str, str], str] | None = None) -> List[ClaimRecord]:
+def check_claims(
+    store: Store,
+    claims: List[ClaimRecord],
+    grader: Callable[[str, str], str] | None = None,
+    allowed_citations: Optional[Set[str]] = None,
+) -> List[ClaimRecord]:
     """
     Claim verification: validate citations, grade support, and attempt repair via retrieval.
     """
@@ -104,6 +109,8 @@ def check_claims(store: Store, claims: List[ClaimRecord], grader: Callable[[str,
 
         # Validate citations against store
         for cit in claim.citation_refs:
+            if allowed_citations and cit not in allowed_citations:
+                continue
             try:
                 path, start, end = validate_citation(cit)
             except Exception:
@@ -138,6 +145,8 @@ def check_claims(store: Store, claims: List[ClaimRecord], grader: Callable[[str,
                 status_val = graded.get("status", "").lower()
                 fpath = store.get_file_by_id(c.file_id).path  # type: ignore
                 citation = f"{fpath}:{c.start_line}-{c.end_line}"
+                if allowed_citations and citation not in allowed_citations:
+                    continue
                 if "contradicted" in status_val:
                     contradicted = True
                     rationale = f"Contradicted by {citation}"
