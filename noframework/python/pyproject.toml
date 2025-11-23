@@ -8,4 +8,9 @@ dependencies = [
     "pathspec>=0.11.0",
     "binaryornot>=0.4.4",
     "openai>=1.0.0",
+    "tree-sitter-languages>=1.10.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
