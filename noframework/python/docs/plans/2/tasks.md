@@ -8,12 +8,12 @@ Implementation tasks for metadata JSON output.
 
 | ID | Task | Status | Dependencies |
 |----|------|--------|--------------|
-| 2-1 | Create metadata.py with dataclasses | pending | - |
-| 2-2 | Implement create_metadata function | pending | 2-1 |
-| 2-3 | Add --metadata CLI argument | pending | - |
-| 2-4 | Integrate metadata generation in CLI | pending | 2-2, 2-3 |
-| 2-5 | Add unit tests | pending | 2-2 |
-| 2-6 | Add BDD feature tests | pending | 2-4 |
+| 2-1 | Create metadata.py with dataclasses | done | - |
+| 2-2 | Implement create_metadata function | done | 2-1 |
+| 2-3 | Add --metadata CLI argument | done | - |
+| 2-4 | Integrate metadata generation in CLI | done | 2-2, 2-3 |
+| 2-5 | Add unit tests | done | 2-2 |
+| 2-6 | Add BDD feature tests | done | 2-4 |
 
 ## Task Details
 

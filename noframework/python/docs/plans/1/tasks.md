@@ -17,7 +17,7 @@ Implementation tasks for OpenRouter integration with cost tracking.
 | 1-7 | Add unit tests | done | 1-4 |
 | 1-8 | Add integration tests | done | 1-6 |
 | 1-9 | Add BDD feature tests | done | 1-8 |
-| 1-10 | Extend metadata output with cost | pending | 1-6, Feature 2 |
+| 1-10 | Extend metadata output with cost | done | 1-6, Feature 2 |
 
 ## Task Details
 

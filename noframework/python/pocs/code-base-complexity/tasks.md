@@ -1,7 +1,9 @@
 # Tasks: Codebase Complexity Analyzer POC
 
-> **Note**: The Rust implementation has been promoted to `tools/complexity-analyzer/`.
-> The Python implementation remains here for reference and as a fallback.
+> **Note**: This POC has been promoted to Feature 3: Proportional Complexity.
+> - Feature docs: `docs/features/3/`
+> - Rust analyzer: `tools/complexity-analyzer/`
+> - Python implementation remains here as reference/fallback.
 
 ## Phase 1: Python Implementation
 

@@ -92,8 +92,17 @@ def main():
         default="INFO",
         help="Logging level (default: INFO). Logs go to stderr and ~/.tech_writer/logs/",
     )
+    parser.add_argument(
+        "--metadata",
+        action="store_true",
+        help="Generate metadata JSON file alongside output (requires --output)",
+    )
 
     args = parser.parse_args()
+
+    # Validate --metadata requires --output
+    if args.metadata and not args.output:
+        parser.error("--metadata requires --output")
 
     # Read prompt file
     prompt_path = Path(args.prompt)
@@ -139,18 +148,21 @@ def main():
             print(f"  API calls: {cost_summary.total_calls}", file=sys.stderr)
 
         # Verify citations if requested
+        citation_results = None
+        citation_valid = 0
+        citation_invalid = 0
         if args.verify_citations:
             from tech_writer.citations import verify_all_citations
 
-            results, valid, invalid = verify_all_citations(report, store)
-            total = valid + invalid
+            citation_results, citation_valid, citation_invalid = verify_all_citations(report, store)
+            total = citation_valid + citation_invalid
             if total > 0:
-                pct = valid / total * 100
+                pct = citation_valid / total * 100
                 print(f"\nCitation verification:", file=sys.stderr)
-                print(f"  Valid: {valid}/{total} ({pct:.0f}%)", file=sys.stderr)
-                if invalid > 0:
+                print(f"  Valid: {citation_valid}/{total} ({pct:.0f}%)", file=sys.stderr)
+                if citation_invalid > 0:
                     print(f"  Invalid citations:", file=sys.stderr)
-                    for r in results:
+                    for r in citation_results:
                         if not r.valid:
                             print(f"    - [{r.citation.path}:{r.citation.start_line}-{r.citation.end_line}]: {r.error}", file=sys.stderr)
 
@@ -160,6 +172,55 @@ def main():
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(report)
             print(f"Report written to: {args.output}", file=sys.stderr)
+
+            # Generate metadata if requested
+            if args.metadata:
+                from tech_writer.metadata import (
+                    create_metadata,
+                    CitationStats,
+                    InvalidCitation,
+                    CostInfo,
+                )
+
+                # Build citation stats if verification was run
+                citation_stats = None
+                if args.verify_citations and citation_results is not None:
+                    citation_stats = CitationStats(
+                        total=citation_valid + citation_invalid,
+                        valid=citation_valid,
+                        invalid=citation_invalid,
+                        invalid_citations=[
+                            InvalidCitation(
+                                path=r.citation.path,
+                                start_line=r.citation.start_line,
+                                end_line=r.citation.end_line,
+                                error=r.error,
+                            )
+                            for r in citation_results
+                            if not r.valid
+                        ],
+                    )
+
+                # Build cost info if available
+                cost_info = None
+                if cost_summary and cost_summary.total_cost_usd > 0:
+                    cost_info = CostInfo(
+                        total_cost_usd=cost_summary.total_cost_usd,
+                        total_tokens=cost_summary.total_tokens,
+                        total_calls=cost_summary.total_calls,
+                        provider=cost_summary.provider,
+                        model=cost_summary.model,
+                    )
+
+                metadata_path = create_metadata(
+                    output_file=output_path,
+                    model=args.model,
+                    repo_path=args.repo,
+                    prompt_file=args.prompt,
+                    citations=citation_stats,
+                    cost=cost_info,
+                )
+                print(f"Metadata written to: {metadata_path}", file=sys.stderr)
         else:
             print(report)
 
