@@ -8,15 +8,15 @@ Implementation tasks for complexity-based documentation budgets.
 
 | ID | Task | Status | Dependencies |
 |----|------|--------|--------------|
-| 3-1 | Create complexity.py module | pending | - |
-| 3-2 | Add unit tests for complexity module | pending | 3-1 |
-| 3-3 | Add CLI flags (--skip-complexity, --dry-run) | pending | 3-1 |
-| 3-4 | Integrate complexity budget into orchestrator | pending | 3-1, 3-3 |
-| 3-5 | Add context injection to LLM prompts | pending | 3-4 |
-| 3-6 | Add complexity to report metadata | pending | 3-4 |
-| 3-7 | Implement build-on-demand and Python fallback | pending | 3-1 |
-| 3-8 | Add integration tests | pending | 3-4 |
-| 3-9 | Add BDD feature tests | pending | 3-8 |
+| 3-1 | Create complexity.py module | done | - |
+| 3-2 | Add unit tests for complexity module | done | 3-1 |
+| 3-3 | Add CLI flags (--skip-complexity, --dry-run) | done | 3-1 |
+| 3-4 | Integrate complexity budget into orchestrator | done | 3-1, 3-3 |
+| 3-5 | Add context injection to LLM prompts | done | 3-4 |
+| 3-6 | Add complexity to report metadata | done | 3-4 |
+| 3-7 | Implement build-on-demand and Python fallback | done | 3-1 |
+| 3-8 | Add integration tests | done | 3-4 |
+| 3-9 | Add BDD feature tests | done | 3-8 |
 
 ## Task Details
 

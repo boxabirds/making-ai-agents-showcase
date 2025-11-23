@@ -9,6 +9,7 @@ import pytest
 from tech_writer.metadata import (
     METADATA_VERSION,
     CitationStats,
+    ComplexityInfo,
     CostInfo,
     InvalidCitation,
     RunMetadata,
@@ -327,3 +328,59 @@ class TestCostInfo:
         assert cost.total_calls == 10
         assert cost.provider == "openrouter"
         assert cost.model == "anthropic/claude-3-opus"
+
+
+class TestComplexityInfo:
+    """Tests for ComplexityInfo dataclass."""
+
+    def test_fields(self):
+        """ComplexityInfo has expected fields."""
+        complexity = ComplexityInfo(
+            total_cc=12345,
+            bucket="medium",
+            max_sections=25,
+            max_exploration_steps=300,
+            top_functions=[{"name": "foo", "cyclomatic_complexity": 30}],
+        )
+
+        assert complexity.total_cc == 12345
+        assert complexity.bucket == "medium"
+        assert complexity.max_sections == 25
+        assert complexity.max_exploration_steps == 300
+        assert len(complexity.top_functions) == 1
+
+
+class TestCreateMetadataWithComplexity:
+    """Tests for create_metadata with complexity info."""
+
+    def test_complexity_info_included_when_provided(self, tmp_path: Path):
+        """Complexity info is included in metadata when provided."""
+        output_file = tmp_path / "report.md"
+        output_file.write_text("# Report")
+
+        complexity_info = ComplexityInfo(
+            total_cc=5000,
+            bucket="medium",
+            max_sections=25,
+            max_exploration_steps=300,
+            top_functions=[
+                {"file": "src/core.py", "name": "process", "cyclomatic_complexity": 25}
+            ],
+        )
+
+        metadata_path = create_metadata(
+            output_file=output_file,
+            model="gpt-4",
+            repo_path="/path/to/repo",
+            prompt_file="prompt.txt",
+            complexity=complexity_info,
+        )
+
+        data = json.loads(metadata_path.read_text())
+
+        assert "complexity" in data
+        assert data["complexity"]["total_cc"] == 5000
+        assert data["complexity"]["bucket"] == "medium"
+        assert data["complexity"]["max_sections"] == 25
+        assert data["complexity"]["max_exploration_steps"] == 300
+        assert len(data["complexity"]["top_functions"]) == 1

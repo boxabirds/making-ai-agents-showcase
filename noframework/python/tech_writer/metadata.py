@@ -50,6 +50,17 @@ class CostInfo:
 
 
 @dataclass
+class ComplexityInfo:
+    """Complexity analysis information."""
+
+    total_cc: int
+    bucket: str
+    max_sections: int
+    max_exploration_steps: int
+    top_functions: list[dict]
+
+
+@dataclass
 class RunMetadata:
     """Metadata for a tech_writer run."""
 
@@ -61,6 +72,7 @@ class RunMetadata:
     output_file: str
     citations: Optional[CitationStats] = None
     cost: Optional[CostInfo] = None
+    complexity: Optional[ComplexityInfo] = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary, excluding None values."""
@@ -75,6 +87,7 @@ def create_metadata(
     prompt_file: str,
     citations: Optional[CitationStats] = None,
     cost: Optional[CostInfo] = None,
+    complexity: Optional[ComplexityInfo] = None,
 ) -> Path:
     """
     Create metadata JSON file alongside output.
@@ -86,6 +99,7 @@ def create_metadata(
         prompt_file: Path to the prompt file
         citations: Optional citation verification results
         cost: Optional cost information from LLM provider
+        complexity: Optional complexity analysis results
 
     Returns:
         Path to the created metadata file
@@ -99,6 +113,7 @@ def create_metadata(
         output_file=str(output_file),
         citations=citations,
         cost=cost,
+        complexity=complexity,
     )
 
     metadata_path = output_file.parent / f"{output_file.stem}.metadata.json"

@@ -97,6 +97,16 @@ def main():
         action="store_true",
         help="Generate metadata JSON file alongside output (requires --output)",
     )
+    parser.add_argument(
+        "--skip-complexity",
+        action="store_true",
+        help="Skip complexity analysis (use default budgets)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show complexity analysis without running pipeline",
+    )
 
     args = parser.parse_args()
 
@@ -111,6 +121,47 @@ def main():
         return 1
 
     prompt = prompt_path.read_text()
+
+    # Resolve repository path
+    from tech_writer.repo import resolve_repo
+
+    try:
+        repo_path, _is_remote = resolve_repo(args.repo, args.cache_dir)
+    except Exception as e:
+        print(f"Error resolving repository: {e}", file=sys.stderr)
+        return 1
+
+    # Run complexity analysis (unless skipped)
+    complexity_budget = None
+    if not args.skip_complexity:
+        from tech_writer.complexity import (
+            analyze_complexity,
+            map_complexity_to_budget,
+            get_complexity_context,
+        )
+
+        print("Analyzing codebase complexity...", file=sys.stderr)
+        analysis = analyze_complexity(repo_path)
+
+        if analysis:
+            complexity_budget = map_complexity_to_budget(analysis)
+            print(f"Complexity: {complexity_budget.total_cc:,} Total CC ({complexity_budget.bucket})", file=sys.stderr)
+            print(f"Budget: {complexity_budget.max_sections} sections, {complexity_budget.max_exploration_steps} exploration steps", file=sys.stderr)
+
+            # Show top complex functions
+            if complexity_budget.top_functions:
+                print("Top complex functions:", file=sys.stderr)
+                for func in complexity_budget.top_functions[:5]:
+                    print(f"  - {func.get('file', '?')}:{func.get('line', '?')} {func.get('name', '?')} (CC={func.get('cyclomatic_complexity', '?')})", file=sys.stderr)
+        else:
+            print("Complexity analysis unavailable, using defaults", file=sys.stderr)
+
+    # Dry run: show analysis and exit
+    if args.dry_run:
+        if complexity_budget:
+            print("\n" + get_complexity_context(complexity_budget), file=sys.stderr)
+        print("\nDry run complete. No pipeline execution.", file=sys.stderr)
+        return 0
 
     # Run pipeline
     try:
@@ -136,6 +187,7 @@ def main():
             db_path=db_path,
             log_level=args.log_level,
             track_cost=track_cost,
+            complexity_budget=complexity_budget,
         )
 
         # Report cost if tracked
@@ -180,6 +232,7 @@ def main():
                     CitationStats,
                     InvalidCitation,
                     CostInfo,
+                    ComplexityInfo,
                 )
 
                 # Build citation stats if verification was run
@@ -212,6 +265,17 @@ def main():
                         model=cost_summary.model,
                     )
 
+                # Build complexity info if available
+                complexity_info = None
+                if complexity_budget:
+                    complexity_info = ComplexityInfo(
+                        total_cc=complexity_budget.total_cc,
+                        bucket=complexity_budget.bucket,
+                        max_sections=complexity_budget.max_sections,
+                        max_exploration_steps=complexity_budget.max_exploration_steps,
+                        top_functions=complexity_budget.top_functions,
+                    )
+
                 metadata_path = create_metadata(
                     output_file=output_path,
                     model=args.model,
@@ -219,6 +283,7 @@ def main():
                     prompt_file=args.prompt,
                     citations=citation_stats,
                     cost=cost_info,
+                    complexity=complexity_info,
                 )
                 print(f"Metadata written to: {metadata_path}", file=sys.stderr)
         else:

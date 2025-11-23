@@ -12,7 +12,10 @@ import json
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from tech_writer.complexity import ComplexityBudget
 
 from tech_writer.citations import verify_all_citations
 from tech_writer.llm import CostSummary, LLMClient, get_tool_definitions
@@ -199,6 +202,7 @@ def run_pipeline(
     db_path: Optional[str] = None,
     log_level: Optional[str] = None,
     track_cost: bool = False,
+    complexity_budget: Optional["ComplexityBudget"] = None,
 ) -> tuple[str, CacheStore, Optional[CostSummary]]:
     """
     Run the full documentation pipeline.
@@ -222,6 +226,15 @@ def run_pipeline(
     """
     # Initialize logging
     configure_logging(level=log_level)
+
+    # Apply complexity budget overrides
+    section_max_steps = DEFAULT_SECTION_MAX_STEPS
+    if complexity_budget:
+        max_exploration = complexity_budget.max_exploration_steps
+        max_sections = complexity_budget.max_sections
+        section_max_steps = complexity_budget.section_max_steps
+        logger.info(f"Using complexity budget: {complexity_budget.bucket} ({complexity_budget.total_cc:,} Total CC)")
+
     logger.info(f"Starting pipeline: provider={provider}, model={model}, max_exploration={max_exploration}")
 
     # Handle remote repos
@@ -245,10 +258,17 @@ def run_pipeline(
     # Track phases that hit step limits
     limit_warnings: list[str] = []
 
+    # Generate complexity context for LLM prompts
+    complexity_context = None
+    if complexity_budget:
+        from tech_writer.complexity import get_complexity_context
+        complexity_context = get_complexity_context(complexity_budget)
+
     # Phase 1: Exploration
     log_phase_start("EXPLORATION", f"max_steps={max_exploration}")
     understanding, steps_taken, exploration_hit_limit = explore_codebase(
-        prompt, repo_path, store, llm, max_steps=max_exploration
+        prompt, repo_path, store, llm, max_steps=max_exploration,
+        complexity_context=complexity_context,
     )
     cached_files = store.list_cached_files()
     log_exploration_summary(
@@ -281,6 +301,7 @@ def run_pipeline(
         store=store,
         repo_root=repo_path,
         llm_client=llm,
+        max_exploration_steps=section_max_steps,
     )
 
     sections_content = []
@@ -384,6 +405,7 @@ def explore_codebase(
     store: CacheStore,
     llm_client: LLMClient,
     max_steps: int = DEFAULT_MAX_STEPS,
+    complexity_context: Optional[str] = None,
 ) -> tuple[str, int, bool]:
     """
     Agentic exploration phase.
@@ -410,12 +432,17 @@ def explore_codebase(
         "search_text": partial(search_text, store=store),
     }
 
+    # Build user message with optional complexity context
+    complexity_section = ""
+    if complexity_context:
+        complexity_section = f"\n{complexity_context}\n"
+
     messages = [
         {"role": "system", "content": EXPLORATION_SYSTEM_PROMPT},
         {"role": "user", "content": f"""Documentation task:
 
 {prompt}
-
+{complexity_section}
 Begin by using list_files to discover the codebase structure, then use get_structure on key source files to understand their components. Remember:
 - Use semantic tools (get_structure, get_symbols, get_imports) before reading raw code
 - Explore at least 5 source code files (not just config/docs)
