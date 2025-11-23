@@ -2,16 +2,16 @@
 
 ## Goals
 - Handle arbitrary-size codebases without context overruns.
-- Produce citation-backed reports with verifiable references.
-- Minimize LLM calls: O(1) for simple queries, O(iterations) for complex ones.
-- Primary output is a single Markdown file; SQLite is per-run working state only.
+- Produce arbitrary-length, citation-backed reports.
+- Be agentic: LLM decides what to explore, not brute-force ingest.
+- Minimize LLM calls: O(sections) for output, exploration is query-driven.
 
 ## Design Principles
 
-1. **No eager processing.** Don't summarize, embed, or transform anything until the query demands it.
-2. **Retrieval-first.** Parse and index for search; let the query drive what gets sent to the LLM.
-3. **Batch LLM calls.** One call to draft, one call to verify. Not one call per chunk/claim.
-4. **Simple orchestration.** No framework abstractions that don't add value.
+1. **Agentic exploration.** LLM decides what files to read via tool calls. No upfront "parse everything."
+2. **Lazy indexing.** Only parse/index files the LLM actually reads. SQLite is a cache, not a pre-computed index.
+3. **Section-by-section output.** Generate outline, then each section separately. Arbitrary length.
+4. **Citation grounding.** Every claim must cite content the LLM actually read.
 
 ## Architecture Overview
 
@@ -19,381 +19,401 @@
 User Prompt
     │
     ▼
-┌─────────────────┐
-│  Ingest & Index │  ← Tree-sitter parse, FTS index, symbol graph
-│  (no LLM calls) │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│    Retrieve     │  ← FTS + symbol lookup + graph expansion
-│  (no LLM calls) │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Draft Report   │  ← 1 LLM call: prompt + retrieved chunks → report with citations
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Verify Citations│  ← Deterministic: check citations resolve to stored chunks
-│  (no LLM calls) │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Quality Gate   │  ← If citations invalid or coverage low, iterate (bounded)
-└────────┬────────┘
-         │
-         ▼
-    Final Report
+┌─────────────────────────────────────────────────────────┐
+│  Phase 1: EXPLORATION (agentic)                         │
+│                                                         │
+│  LLM has tools:                                         │
+│    - list_files(pattern) → file paths                   │
+│    - read_file(path) → content (cached + parsed)        │
+│    - search_code(query) → matching chunks               │
+│    - get_symbols(path) → functions/classes in file      │
+│                                                         │
+│  LLM explores until it understands enough to outline.   │
+│  All reads are cached in SQLite for citation.           │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│  Phase 2: OUTLINE (1 LLM call)                          │
+│                                                         │
+│  Based on exploration, generate report outline:         │
+│    ["Introduction", "Authentication", "API", ...]       │
+│                                                         │
+│  Each section has a focus query for retrieval.          │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│  Phase 3: SECTION GENERATION (agentic, per section)     │
+│                                                         │
+│  For each section:                                      │
+│    - LLM can do more exploration if needed              │
+│    - Generate section content with citations            │
+│    - Citations must reference cached content            │
+│                                                         │
+│  Output: N sections, each with inline citations         │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│  Phase 4: ASSEMBLY & VERIFICATION                       │
+│                                                         │
+│  - Combine sections into final report                   │
+│  - Verify all citations resolve to cached chunks        │
+│  - Flag any invalid citations                           │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+              Final Report
 ```
 
-**Total LLM calls:** 1 per iteration. Max iterations bounded (default: 3).
+**LLM calls:** O(exploration steps) + 1 (outline) + O(sections)
 
-## Pipeline Stages
+For a 10-section report with moderate exploration: ~15-25 LLM calls total.
+Compared to v1's 1,100+ calls for summarization alone.
 
-### 1. Ingest (deterministic, no LLM)
+## Phase 1: Exploration Tools
 
-Walk the repo, parse with tree-sitter, store:
-- `files`: path, hash, lang, size, mtime
-- `chunks`: file_id, start_line, end_line, kind, text, hash
-- `symbols`: file_id, name, kind, signature, line range
-- `edges`: symbol relationships (imports, calls, inheritance)
+The LLM drives exploration. Tools are the interface.
 
-**FTS index:** `chunks_fts` on chunk text for lexical search.
-
-No summarization. No embeddings. Just structured storage for retrieval.
-
-### 2. Retrieve (deterministic, no LLM)
-
-Given user prompt, gather relevant chunks:
-
-1. **Lexical search:** FTS on chunks matching prompt keywords.
-2. **Symbol lookup:** Find symbols matching prompt terms (exact/regex/fuzzy).
-3. **Graph expansion:** Follow edges from matched symbols (imports, callers, etc.).
-4. **File path matching:** Include chunks from files whose paths match prompt terms.
-5. **Dedupe and rank:** Score by relevance (FTS rank + symbol match + graph proximity).
-6. **Budget:** Return top-K chunks that fit within context budget.
-
-**Output:** `RetrievedContext(chunks, symbols, edges)` with citation-ready references.
-
-### 3. Draft Report (1 LLM call)
-
-Single LLM call with:
-- User prompt
-- Retrieved chunks as evidence (each with `path:start-end` citation)
-- Instructions to cite evidence and not invent content
-
-**Prompt structure:**
-```
-System: You are a technical writer. Use only the provided evidence.
-        Every statement must cite evidence using [path:start-end] format.
-
-User: {user_prompt}
-
-Evidence:
-[src/foo.py:10-25] def calculate_total(...): ...
-[src/bar.py:5-15] class OrderManager: ...
-...
-
-Write a report addressing the prompt. Cite every claim.
-```
-
-**Output:** Markdown report with inline citations.
-
-### 4. Verify Citations (deterministic, no LLM)
-
-For each citation in the report:
-1. Parse `path:start-end` format.
-2. Look up file by path in store.
-3. Find chunk covering the line range.
-4. If not found → invalid citation.
-
-**Output:** List of valid/invalid citations.
-
-### 5. Quality Gate (deterministic)
-
-Check:
-- All citations valid (resolve to stored chunks)
-- Coverage threshold met (enough of the prompt addressed)
-- No hallucinated file paths
-
-If failed and iterations < max:
-- Re-draft with feedback about invalid citations
-- Include only valid evidence
-
-If failed at max iterations:
-- Emit partial report with warnings
-
-## Data Model
+### Tool: `list_files`
 
 ```python
-@dataclass
-class FileRecord:
-    id: int | None
-    path: str
-    hash: str
-    lang: str
-    size: int
-    mtime: datetime
-    parsed: bool
+def list_files(pattern: str = "*", path: str = ".") -> list[str]:
+    """
+    List files matching a glob pattern.
 
-@dataclass
-class ChunkRecord:
-    id: int | None
-    file_id: int
-    start_line: int
-    end_line: int
-    kind: str  # function, class, method, block
-    text: str
-    hash: str
+    Args:
+        pattern: Glob pattern (e.g., "*.py", "src/**/*.ts")
+        path: Directory to search in
 
-@dataclass
-class SymbolRecord:
-    id: int | None
-    file_id: int
-    name: str
-    kind: str  # function, class, import, variable
-    signature: str | None
-    start_line: int
-    end_line: int
-    doc: str | None
-    parent_symbol_id: int | None
-
-@dataclass
-class EdgeRecord:
-    src_symbol_id: int
-    dst_symbol_id: int
-    edge_type: str  # imports, calls, inherits, uses
-
-@dataclass
-class RetrievedContext:
-    chunks: list[ChunkRecord]
-    symbols: list[SymbolRecord]
-    edges: list[EdgeRecord]
-
-@dataclass
-class ReportVersion:
-    id: int | None
-    content: str
-    created_at: datetime
-    valid_citations: int
-    invalid_citations: int
-    iteration: int
+    Returns:
+        List of file paths relative to repo root
+    """
 ```
 
-## DB Schema
+### Tool: `read_file`
+
+```python
+def read_file(path: str, start_line: int = None, end_line: int = None) -> str:
+    """
+    Read a file's contents. Automatically parses and caches for citation.
+
+    Args:
+        path: File path relative to repo root
+        start_line: Optional start line (1-indexed)
+        end_line: Optional end line (inclusive)
+
+    Returns:
+        File content (or specified line range)
+
+    Side effects:
+        - Parses file with tree-sitter if supported language
+        - Caches content in SQLite for citation verification
+        - Extracts symbols for later reference
+    """
+```
+
+### Tool: `search_code`
+
+```python
+def search_code(query: str, file_pattern: str = None) -> list[dict]:
+    """
+    Search for code matching a query across cached files.
+
+    Args:
+        query: Search string or regex
+        file_pattern: Optional glob to filter files
+
+    Returns:
+        List of matches: [{"path": str, "line": int, "content": str}, ...]
+
+    Note:
+        Only searches files that have been read. If no results,
+        LLM should read more files first.
+    """
+```
+
+### Tool: `get_symbols`
+
+```python
+def get_symbols(path: str) -> list[dict]:
+    """
+    Get symbols (functions, classes, etc.) defined in a file.
+
+    Args:
+        path: File path (must have been read first)
+
+    Returns:
+        List of symbols: [{"name": str, "kind": str, "line": int}, ...]
+    """
+```
+
+### Tool: `finish_exploration`
+
+```python
+def finish_exploration(understanding: str) -> None:
+    """
+    Signal that exploration is complete. Triggers outline generation.
+
+    Args:
+        understanding: Brief summary of what was learned
+    """
+```
+
+## Phase 2: Outline Generation
+
+After exploration, one LLM call generates the report structure.
+
+```python
+def generate_outline(prompt: str, exploration_summary: str, cached_files: list[str]) -> list[Section]:
+    """
+    Generate report outline based on exploration.
+
+    Returns:
+        List of sections, each with:
+        - title: Section heading
+        - focus: What this section should cover
+        - relevant_files: Files likely relevant to this section
+    """
+```
+
+**Prompt:**
+```
+Based on your exploration of the codebase, create an outline for the report.
+
+User's request: {prompt}
+
+Files you explored: {cached_files}
+
+Your understanding: {exploration_summary}
+
+Output a JSON array of sections:
+[
+  {"title": "Introduction", "focus": "Overview of the system", "relevant_files": ["README.md", "src/main.py"]},
+  {"title": "Authentication", "focus": "How auth works", "relevant_files": ["src/auth.py", "src/middleware.py"]},
+  ...
+]
+```
+
+## Phase 3: Section Generation
+
+Each section is generated independently, allowing arbitrary total length.
+
+```python
+def generate_section(
+    section: Section,
+    prompt: str,
+    store: Store,
+    max_exploration_steps: int = 5
+) -> str:
+    """
+    Generate one section of the report.
+
+    The LLM can:
+    - Use already-cached content
+    - Do additional exploration via tools
+    - Must cite everything with [path:line-line] format
+
+    Returns:
+        Markdown content for this section
+    """
+```
+
+**Section generation is itself agentic:**
+- LLM sees the section focus and relevant files
+- Can call `read_file` to get more detail
+- Can call `search_code` to find related code
+- Eventually outputs section content with citations
+
+**Prompt for section:**
+```
+Write the "{section.title}" section of the report.
+
+Focus: {section.focus}
+
+User's original request: {prompt}
+
+Available evidence (from files you've read):
+{cached_content_for_relevant_files}
+
+Rules:
+1. Every statement must cite evidence using [path:start-end] format
+2. You can read additional files if needed using the read_file tool
+3. Do not invent facts - only cite what you've read
+4. When done, output the section content in markdown
+```
+
+## Phase 4: Assembly & Verification
+
+Combine sections and verify citations.
+
+```python
+def assemble_report(sections: list[str], store: Store) -> tuple[str, list[str]]:
+    """
+    Combine sections and verify all citations.
+
+    Returns:
+        (final_report, invalid_citations)
+    """
+    report = "\n\n".join(sections)
+
+    citations = extract_citations(report)
+    invalid = []
+    for cit in citations:
+        if not citation_resolves(store, cit):
+            invalid.append(cit)
+
+    return report, invalid
+```
+
+If invalid citations exist, can either:
+- Flag them in the output
+- Re-generate affected sections with stricter instructions
+- Accept best-effort output
+
+## SQLite as Cache (Not Pre-computed Index)
+
+Key difference from v1: SQLite stores **what was actually read**, not everything.
 
 ```sql
--- Core tables
+-- Files that have been read
 CREATE TABLE files (
     id INTEGER PRIMARY KEY,
     path TEXT UNIQUE NOT NULL,
     hash TEXT NOT NULL,
-    lang TEXT NOT NULL,
-    size INTEGER NOT NULL,
-    mtime TEXT NOT NULL,
-    parsed INTEGER DEFAULT 1
+    lang TEXT,
+    content TEXT NOT NULL,  -- Full content for citation lookup
+    read_at TEXT NOT NULL
 );
 
+-- Parsed chunks (for citation verification)
 CREATE TABLE chunks (
     id INTEGER PRIMARY KEY,
-    file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+    file_id INTEGER NOT NULL REFERENCES files(id),
     start_line INTEGER NOT NULL,
     end_line INTEGER NOT NULL,
-    kind TEXT NOT NULL,
-    text TEXT NOT NULL,
-    hash TEXT NOT NULL
+    kind TEXT,  -- function, class, block
+    text TEXT NOT NULL
 );
 
+-- Symbols (for get_symbols tool)
 CREATE TABLE symbols (
     id INTEGER PRIMARY KEY,
-    file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+    file_id INTEGER NOT NULL REFERENCES files(id),
     name TEXT NOT NULL,
     kind TEXT NOT NULL,
-    signature TEXT,
     start_line INTEGER NOT NULL,
-    end_line INTEGER NOT NULL,
-    doc TEXT,
-    parent_symbol_id INTEGER REFERENCES symbols(id)
+    end_line INTEGER NOT NULL
 );
 
-CREATE TABLE edges (
-    src_symbol_id INTEGER NOT NULL REFERENCES symbols(id) ON DELETE CASCADE,
-    dst_symbol_id INTEGER NOT NULL REFERENCES symbols(id) ON DELETE CASCADE,
-    edge_type TEXT NOT NULL,
-    PRIMARY KEY (src_symbol_id, dst_symbol_id, edge_type)
-);
-
-CREATE TABLE report_versions (
-    id INTEGER PRIMARY KEY,
-    content TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    valid_citations INTEGER DEFAULT 0,
-    invalid_citations INTEGER DEFAULT 0,
-    iteration INTEGER DEFAULT 0
-);
-
--- FTS for chunk search
+-- FTS on cached content only
 CREATE VIRTUAL TABLE chunks_fts USING fts5(text, content='chunks', content_rowid='id');
-
--- Indexes
-CREATE INDEX idx_chunks_file ON chunks(file_id);
-CREATE INDEX idx_symbols_name ON symbols(name);
-CREATE INDEX idx_symbols_file ON symbols(file_id);
-CREATE INDEX idx_edges_src ON edges(src_symbol_id);
-CREATE INDEX idx_edges_dst ON edges(dst_symbol_id);
 ```
 
-## Retrieval Strategy
+**The store grows as the LLM explores.** If the LLM only reads 10 files, only 10 files are indexed.
 
-### Context Budget
+## Exploration Strategy
 
-Modern LLMs have large context windows (128K+ tokens). Use them.
+The LLM decides how to explore. Typical patterns:
 
-```python
-MAX_CONTEXT_TOKENS = 100_000  # Leave room for prompt and response
-TOKENS_PER_CHAR = 0.25  # Rough estimate
-
-def fits_budget(chunks: list[ChunkRecord], budget: int = MAX_CONTEXT_TOKENS) -> bool:
-    total_chars = sum(len(c.text) for c in chunks)
-    return total_chars * TOKENS_PER_CHAR < budget
+**For "count Python files":**
 ```
-
-### Retrieval Algorithm
-
-```python
-def retrieve(store: Store, prompt: str, budget: int = MAX_CONTEXT_TOKENS) -> RetrievedContext:
-    scored: dict[int, float] = {}
-
-    # 1. FTS search
-    for chunk in store.search_fts(prompt, limit=50):
-        scored[chunk.id] = scored.get(chunk.id, 0) + 1.0
-
-    # 2. Symbol lookup
-    symbols = store.search_symbols(prompt, limit=20)
-    for sym in symbols:
-        for chunk in store.get_chunks_for_file(sym.file_id):
-            if chunk.start_line <= sym.end_line and chunk.end_line >= sym.start_line:
-                scored[chunk.id] = scored.get(chunk.id, 0) + 0.5
-
-    # 3. Graph expansion
-    edges = store.get_edges_for_symbols([s.id for s in symbols])
-    neighbor_ids = {e.dst_symbol_id for e in edges} | {e.src_symbol_id for e in edges}
-    for sym_id in neighbor_ids:
-        sym = store.get_symbol(sym_id)
-        if sym:
-            for chunk in store.get_chunks_for_file(sym.file_id):
-                scored[chunk.id] = scored.get(chunk.id, 0) + 0.25
-
-    # 4. Rank and budget
-    ranked = sorted(scored.items(), key=lambda x: -x[1])
-    selected = []
-    for chunk_id, score in ranked:
-        chunk = store.get_chunk(chunk_id)
-        if fits_budget(selected + [chunk], budget):
-            selected.append(chunk)
-        else:
-            break
-
-    return RetrievedContext(chunks=selected, symbols=symbols, edges=edges)
+1. list_files("*.py") → get count → done
 ```
+1 tool call. No parsing needed.
 
-## LLM Interface
-
-Single function, single responsibility:
-
-```python
-def draft_report(prompt: str, evidence: list[tuple[str, str]]) -> str:
-    """
-    Draft a report with citations.
-
-    Args:
-        prompt: User's request
-        evidence: List of (citation, text) tuples
-
-    Returns:
-        Markdown report with inline citations
-    """
-    evidence_block = "\n\n".join(f"[{cit}]\n{text}" for cit, text in evidence)
-
-    response = llm_call(
-        system=SYSTEM_PROMPT,
-        user=f"Prompt: {prompt}\n\nEvidence:\n{evidence_block}\n\nWrite the report.",
-    )
-    return response
-
-SYSTEM_PROMPT = """You are a technical writer producing documentation from source code.
-
-Rules:
-1. Use ONLY the provided evidence. Do not invent facts.
-2. Every statement must cite evidence using [path:start-end] format.
-3. If evidence is insufficient, say so explicitly rather than guessing.
-4. Match the style and scope requested in the prompt.
-"""
+**For "explain the authentication system":**
 ```
+1. list_files("*") → see directory structure
+2. list_files("*auth*") → find auth-related files
+3. read_file("src/auth.py") → understand main auth
+4. get_symbols("src/auth.py") → see functions
+5. read_file("src/middleware.py") → see how it's used
+6. finish_exploration("Auth uses JWT tokens, validated in middleware")
+```
+~6 tool calls. Only 2 files parsed.
+
+**For comprehensive architecture doc:**
+```
+1. list_files("*") → directory structure
+2. read_file("README.md") → project overview
+3. list_files("src/**/*.py") → find all source
+4. read_file("src/main.py") → entry point
+5. get_symbols("src/main.py") → key functions
+6. read_file("src/models.py") → data models
+7. ... (more exploration based on what's found)
+8. finish_exploration("...")
+```
+Maybe 15-20 tool calls for thorough exploration.
+
+## LLM Call Budget
+
+| Phase | Calls | Notes |
+|-------|-------|-------|
+| Exploration | O(files explored) | LLM-driven, typically 5-20 |
+| Outline | 1 | Single structured output |
+| Sections | O(sections) | One call per section, maybe more if section needs extra exploration |
+| **Total** | ~15-30 | For a typical 5-10 section report |
+
+Compare to v1: **1,100+ calls** for 100-file repo regardless of query.
 
 ## Citation Format
 
-Standard format: `path:start_line-end_line`
+Same as before: `path:start_line-end_line`
 
-Examples:
-- `src/auth.py:10-25`
-- `lib/utils/helpers.ts:100-150`
+But now citations are verified against the **cache of what was actually read**, not a pre-computed index of everything. If the LLM cites a file it didn't read, that's an invalid citation.
 
-Validation:
-```python
-def validate_citation(citation: str) -> tuple[str, int, int]:
-    """Parse and validate citation format. Raises ValueError if invalid."""
-    match = re.match(r'^(.+):(\d+)-(\d+)$', citation)
-    if not match:
-        raise ValueError(f"Invalid citation format: {citation}")
-    path, start, end = match.groups()
-    return path, int(start), int(end)
+## Example Flow
 
-def citation_resolves(store: Store, citation: str) -> bool:
-    """Check if citation points to a real chunk in the store."""
-    try:
-        path, start, end = validate_citation(citation)
-    except ValueError:
-        return False
-    file_rec = store.get_file_by_path(path)
-    if not file_rec:
-        return False
-    chunk = store.find_chunk_covering(file_rec.id, start, end)
-    return chunk is not None
+**Prompt:** "Write documentation for the API endpoints in this Flask app"
+
+**Phase 1 - Exploration:**
+```
+LLM: list_files("*.py")
+Tool: ["app.py", "routes/users.py", "routes/orders.py", "models.py", "config.py"]
+
+LLM: read_file("app.py")
+Tool: [content of app.py - Flask app initialization]
+
+LLM: list_files("routes/*.py")
+Tool: ["routes/users.py", "routes/orders.py"]
+
+LLM: read_file("routes/users.py")
+Tool: [content - user CRUD endpoints]
+
+LLM: read_file("routes/orders.py")
+Tool: [content - order endpoints]
+
+LLM: finish_exploration("Flask app with user and order REST endpoints")
 ```
 
-## Iteration Loop
-
-```python
-MAX_ITERATIONS = 3
-
-def generate_report(store: Store, prompt: str) -> str:
-    context = retrieve(store, prompt)
-    evidence = [(make_citation(c, store), c.text) for c in context.chunks]
-
-    for iteration in range(MAX_ITERATIONS):
-        report = draft_report(prompt, evidence)
-
-        # Verify citations
-        citations = extract_citations(report)
-        valid = [c for c in citations if citation_resolves(store, c)]
-        invalid = [c for c in citations if not citation_resolves(store, c)]
-
-        store.save_report_version(report, len(valid), len(invalid), iteration)
-
-        if not invalid:
-            return report  # Success
-
-        # Retry with feedback
-        evidence = [(c, get_chunk_text(store, c)) for c in valid]
-        prompt = f"{prompt}\n\nPrevious attempt had invalid citations: {invalid}. Use only provided evidence."
-
-    return report  # Best effort after max iterations
+**Phase 2 - Outline:**
+```json
+[
+  {"title": "Overview", "focus": "API structure", "relevant_files": ["app.py"]},
+  {"title": "User Endpoints", "focus": "/users routes", "relevant_files": ["routes/users.py"]},
+  {"title": "Order Endpoints", "focus": "/orders routes", "relevant_files": ["routes/orders.py"]}
+]
 ```
+
+**Phase 3 - Sections:**
+Each section generated with citations to the files that were read.
+
+**Phase 4 - Assembly:**
+Combine sections, verify citations, output final report.
+
+## What's Different from tech-writer.py
+
+| Aspect | tech-writer.py | v2 |
+|--------|----------------|-----|
+| Output length | Single LLM response | Arbitrary (section by section) |
+| Exploration | Tool calls | Tool calls (same) |
+| Storage | None (in memory) | SQLite cache |
+| Citations | None | Required, verified |
+| Structure | Flat | Outline → sections |
+
+**v2 is tech-writer.py + sections + citations.**
 
 ## CLI
 
@@ -404,50 +424,37 @@ python -m infinite_scalability --prompt prompt.md --repo /path/to/repo
 # Remote repo
 python -m infinite_scalability --prompt prompt.md --repo https://github.com/user/repo
 
-# Persist working store for debugging
-python -m infinite_scalability --prompt prompt.md --repo /path/to/repo --persist-store
+# Control exploration depth
+python -m infinite_scalability --prompt prompt.md --repo /path/to/repo --max-exploration 30
 
-# Output to specific file
-python -m infinite_scalability --prompt prompt.md --repo /path/to/repo --output report.md
+# Control output sections
+python -m infinite_scalability --prompt prompt.md --repo /path/to/repo --max-sections 20
 ```
+
+## Testing Strategy
+
+1. **Unit tests:** Tool implementations, citation parsing, cache operations
+2. **Integration tests:** End-to-end with mock LLM on small repos
+3. **Exploration tests:** Verify LLM can find relevant files for known queries
+4. **Citation tests:** Verify only readable content can be cited
 
 ## What's Removed (vs v1)
 
 | Component | v1 | v2 | Reason |
 |-----------|----|----|--------|
-| Chunk summarization | LLM per chunk | None | Unused, expensive |
-| File summarization | LLM per file | None | Unused, expensive |
-| Module/package summaries | String concat | None | Pretending to be useful |
-| DSPy | Imported, unused | Removed | Cargo cult |
-| Embeddings | SHA256 hashes | Removed | Not actually embeddings |
-| Per-claim grading | LLM per claim | Batch or none | O(claims) → O(1) |
-| Per-line enforcement | Retrieval per line | Single pass | O(lines) → O(1) |
+| Upfront ingest | Parse everything | Parse on read | Agentic exploration |
+| Summarization | LLM per chunk | None | Never needed |
+| DSPy | Cargo cult | Removed | Not useful |
+| Embeddings | Fake (SHA256) | Removed | FTS sufficient |
+| Per-claim grading | LLM per claim | None | Trust citations |
 
 ## Cost Comparison
 
 | Scenario | v1 LLM Calls | v2 LLM Calls |
 |----------|--------------|--------------|
-| 100 files, 10 chunks each | 1,100+ | 1-3 |
-| 1,000 files, 10 chunks each | 11,000+ | 1-3 |
-| Simple query | 1,100+ | 1 |
-| Complex query needing revision | 1,463+ | 3 |
+| "Count Python files" | 1,100+ | 1-2 |
+| "Explain auth system" | 1,100+ | ~10 |
+| "Full architecture doc (10 sections)" | 1,100+ | ~25 |
+| 1,000 file repo, simple query | 11,000+ | ~5 |
 
-## Future Extensions (not in v2 scope)
-
-These are explicitly **not implemented** in v2, but could be added if needed:
-
-1. **Real embeddings:** If FTS recall is insufficient, add sentence-transformer embeddings. But prove it's needed first.
-
-2. **Streaming:** For very large reports, stream generation. But most reports fit in a single response.
-
-3. **Caching:** Cache ingest results across runs for unchanged files. But per-run stores are simpler to reason about.
-
-4. **Parallel ingest:** Tree-sitter parsing is fast; parallelization is premature optimization.
-
-## Testing Strategy
-
-1. **Unit tests:** Citation parsing, retrieval ranking, FTS queries
-2. **Integration tests:** End-to-end on small fixture repos
-3. **Golden tests:** Known repo + prompt → expected report structure
-
-No need for mock LLM tests for summarization because there is no summarization.
+v2 cost scales with **query complexity**, not repo size.
