@@ -58,37 +58,13 @@
     *   Note any significant version constraints or compatibility issues *mentioned* in configurations.
     *   Identify any clearly deprecated or outdated dependencies *based on package information*.
 
-## Mermaid Diagram Requirements
-1. Basic rules:
-   - Use square brackets `[]` for node names (e.g. `[Component]` not `{Component}`)
-   - Keep names simple - no special characters or parentheses
-   - Use `-->` for arrows
-   - Validate at: https://mermaid.live
+## Mermaid Diagrams
 
-2. STRICT limitations:
-   - Max 10 nodes per diagram
-   - Only these diagram types:
-     - Simple flowcharts (`graph TD`/`graph LR`)
-     - Basic class diagrams (`classDiagram`)
-   - NEVER use:
-     - Subgraphs
-     - Sequence diagrams
-     - Complex styling
+Include Mermaid diagrams to visualize:
+- Component relationships (flowcharts)
+- Key class structures (class diagrams)
 
-Example valid diagrams:
-```mermaid
-graph TD
-    Core[Core] --> Adapter[Adapter]
-    Adapter --> HTTP[HTTP]
-```
-
-```mermaid  
-classDiagram
-    class Axios {
-        +request()
-    }
-    Axios --> Adapter
-```
+Keep diagrams simple with max 10 nodes. Focus on clarity over completeness.
 
 
 # Questions to ask after this analysis:

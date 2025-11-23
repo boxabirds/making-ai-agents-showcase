@@ -1,3 +1,4 @@
+# This is v1 of the tech writer -- with the goal being "the world's simplest yet useful agent"
 from pathlib import Path
 import json
 import re

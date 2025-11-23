@@ -16,6 +16,13 @@ from typing import Optional
 
 from tech_writer.citations import verify_all_citations
 from tech_writer.llm import LLMClient, get_tool_definitions
+from tech_writer.logging import (
+    configure_logging,
+    log_exploration_summary,
+    log_phase_end,
+    log_phase_start,
+    logger,
+)
 from tech_writer.store import CacheStore
 from tech_writer.tools.filesystem import list_files, read_file
 from tech_writer.tools.semantic import (
@@ -41,28 +48,66 @@ class Section:
     relevant_files: list[str]
 
 
-EXPLORATION_SYSTEM_PROMPT = """You are a technical documentation expert exploring a codebase.
+EXPLORATION_SYSTEM_PROMPT = """You are a technical documentation expert performing deep exploration of a codebase.
 
-Your goal is to understand the codebase well enough to write comprehensive documentation based on the user's prompt.
+Your goal is to thoroughly understand the codebase's architecture, components, and implementation patterns so you can write accurate, citation-backed documentation.
 
-You have access to these tools:
-- list_files(pattern, path): List files matching a glob pattern
-- read_file(path, start_line, end_line): Read file content
-- get_symbols(path, kind): Get functions/classes/methods in a file
-- get_imports(path): Get imports in a file
-- get_definition(name): Find where a symbol is defined
+## Available Tools
+
+**Discovery tools:**
+- list_files(pattern, path): Find files matching glob patterns (e.g., "**/*.py", "src/**/*.js")
+
+**Semantic analysis tools (USE THESE - they use tree-sitter for accurate parsing):**
+- get_structure(path): Get complete overview of a file (imports, classes, functions with line numbers). USE THIS FIRST on any code file.
+- get_symbols(path, kind): Extract functions/classes/methods with signatures and line ranges
+- get_imports(path): Extract import statements to understand dependencies
+- get_definition(name): Find where a symbol is defined across cached files
 - get_references(name): Find all usages of a symbol
-- get_structure(path): Get complete structural overview of a file
-- search_text(query): Search for text across files you've read
-- finish_exploration(understanding): Signal you're done exploring
 
-Explore strategically:
-1. Start with entry points (README, main files, package.json)
-2. Follow imports to understand dependencies
-3. Use get_structure for file overviews before reading full content
-4. Focus on understanding architecture, not every line of code
+**Content tools:**
+- read_file(path, start_line, end_line): Read file content. Use line ranges from get_structure to read specific functions/classes.
+- search_text(query): Full-text search across files you've read
 
-When you have enough understanding to write documentation matching the prompt, call finish_exploration with a summary of what you've learned.
+**Completion:**
+- finish_exploration(understanding): Call ONLY when you have explored enough code to write documentation with accurate citations
+
+## Exploration Strategy
+
+Follow this systematic approach:
+
+1. **Discover structure**: Use list_files to find source code directories and key files
+   - Look for: src/, lib/, core/, main files, entry points
+   - Identify the primary language(s) used
+
+2. **Analyze key files**: For EACH important source file:
+   - ALWAYS call get_structure(path) first to see classes, functions, and their line numbers
+   - Then use read_file with specific line ranges to examine implementations
+   - Call get_imports to understand dependencies
+
+3. **Trace architecture**:
+   - Use get_definition to find where key classes/functions are defined
+   - Use get_references to see how components interact
+   - Follow import chains to understand module relationships
+
+4. **Build understanding**: You must be able to cite specific files and line numbers in your documentation.
+
+## CRITICAL REQUIREMENTS
+
+- You MUST call get_structure on at least 5 source code files (not just README/config)
+- You MUST read actual code implementations, not just documentation
+- You MUST understand the relationships between major components
+- Do NOT call finish_exploration until you have explored source code files
+- Every claim in your documentation will need a [file:line-line] citation, so gather that data now
+
+## When to Finish
+
+Call finish_exploration ONLY when you can answer:
+- What are the main components/classes and their responsibilities?
+- How do they interact (data flow, dependencies)?
+- What are the key implementation patterns?
+- Can you cite specific file:line ranges for these claims?
+
+If you cannot answer these questions with specific code references, KEEP EXPLORING.
 """
 
 OUTLINE_SYSTEM_PROMPT = """You are a technical documentation expert creating an outline.
@@ -110,6 +155,38 @@ Follow these rules:
 6. If pre-gathered context is insufficient, use tools to read more files
 
 7. When you have enough information, output the section content and stop calling tools
+
+## Mermaid Diagram Syntax (if diagrams are requested)
+
+Mermaid has strict syntax. Follow these rules exactly:
+
+**Flowcharts:**
+```mermaid
+graph TD
+    NodeA[Label A] --> NodeB[Label B]
+```
+- Use `graph TD` or `graph LR`
+- Node format: `Id[Label]` - labels in square brackets
+- NO special characters in labels (no parens, braces, colons)
+
+**Class diagrams:**
+```mermaid
+classDiagram
+    class MyClass {
+        +propertyName
+        +methodName()
+    }
+    MyClass --> OtherClass
+```
+- Properties: `+name` or `+name : SimpleType`
+- Methods: `+methodName()` - NO parameters, NO return types
+- NO nested objects or braces inside class bodies
+- Relationships go OUTSIDE class definitions
+
+**INVALID syntax (causes parse errors):**
+- `interceptors : { request, response }` - no nested braces
+- `+request(config: Object): Promise` - no complex signatures
+- Subgraphs, sequence diagrams, state diagrams
 """
 
 CITATION_FIX_PROMPT_ADDITION = """
@@ -133,12 +210,13 @@ def run_pipeline(
     prompt: str,
     repo: str,
     cache_dir: Optional[str] = None,
-    model: str = "gpt-4o",
+    model: str = "gpt-5.1",
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     max_exploration: int = DEFAULT_MAX_EXPLORATION_STEPS,
     max_sections: int = DEFAULT_MAX_SECTIONS,
     db_path: Optional[str] = None,
+    log_level: Optional[str] = None,
 ) -> tuple[str, CacheStore]:
     """
     Run the full documentation pipeline.
@@ -153,32 +231,51 @@ def run_pipeline(
         max_exploration: Maximum exploration steps in Phase 1
         max_sections: Maximum sections in the outline
         db_path: Path for persistent cache (None for in-memory)
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
 
     Returns:
         Tuple of (report_markdown, cache_store)
     """
+    # Initialize logging
+    configure_logging(level=log_level)
+    logger.info(f"Starting pipeline: model={model}, max_exploration={max_exploration}")
+
     # Handle remote repos
     repo_path = Path(repo)
     if not repo_path.exists():
         from tech_writer.repo import resolve_repo
         repo_path, _ = resolve_repo(repo, cache_dir)
 
+    logger.info(f"Repository: {repo_path}")
+
     # Initialize store with optional persistence
     store = CacheStore(db_path=db_path)
     llm = LLMClient(model=model, api_key=api_key, base_url=base_url)
 
     # Phase 1: Exploration
-    understanding = explore_codebase(prompt, repo_path, store, llm, max_steps=max_exploration)
+    log_phase_start("EXPLORATION", f"max_steps={max_exploration}")
+    understanding, steps_taken = explore_codebase(prompt, repo_path, store, llm, max_steps=max_exploration)
+    cached_files = store.list_cached_files()
+    log_exploration_summary(
+        files_cached=len(cached_files),
+        symbols_found=0,  # TODO: count from store
+        steps_taken=steps_taken,
+        understanding_preview=understanding[:200] if understanding else "",
+    )
+    log_phase_end("EXPLORATION", f"{len(cached_files)} files cached in {steps_taken} steps")
 
     # Phase 2: Outline
-    cached_files = store.list_cached_files()
+    log_phase_start("OUTLINE")
     outline = generate_outline(prompt, understanding, cached_files, llm)
+    log_phase_end("OUTLINE", f"{len(outline)} sections")
 
     # Enforce max_sections limit
     if len(outline) > max_sections:
+        logger.warning(f"Truncating outline from {len(outline)} to {max_sections} sections")
         outline = outline[:max_sections]
 
     # Phase 3: Sections
+    log_phase_start("SECTIONS", f"{len(outline)} sections to generate")
     generator = SectionGenerator(
         store=store,
         repo_root=repo_path,
@@ -186,15 +283,18 @@ def run_pipeline(
     )
 
     sections_content = []
-    for section in outline:
+    for i, section in enumerate(outline):
+        logger.info(f"Generating section {i+1}/{len(outline)}: {section.title}")
         content = generator.generate(
             section=section,
             prompt=prompt,
             previous_sections=sections_content,
         )
         sections_content.append(content)
+    log_phase_end("SECTIONS")
 
     # Phase 3.5: Citation verification and re-generation
+    log_phase_start("CITATION_FIX")
     sections_content = verify_and_fix_citations(
         outline=outline,
         sections_content=sections_content,
@@ -202,10 +302,14 @@ def run_pipeline(
         generator=generator,
         prompt=prompt,
     )
+    log_phase_end("CITATION_FIX")
 
     # Phase 4: Assembly
+    log_phase_start("ASSEMBLY")
     report = assemble_report(prompt, outline, sections_content)
+    log_phase_end("ASSEMBLY", f"{len(report)} chars")
 
+    logger.info("Pipeline complete")
     return report, store
 
 
@@ -263,7 +367,7 @@ def explore_codebase(
     store: CacheStore,
     llm_client: LLMClient,
     max_steps: int = 50,
-) -> str:
+) -> tuple[str, int]:
     """
     Agentic exploration phase.
 
@@ -275,7 +379,7 @@ def explore_codebase(
         max_steps: Maximum exploration steps
 
     Returns:
-        Understanding summary from LLM
+        Tuple of (understanding_summary, steps_taken)
     """
     # Create tool handlers with bound parameters
     tool_handlers = {
@@ -291,17 +395,27 @@ def explore_codebase(
 
     messages = [
         {"role": "system", "content": EXPLORATION_SYSTEM_PROMPT},
-        {"role": "user", "content": f"Documentation task:\n\n{prompt}\n\nPlease explore the codebase and call finish_exploration when ready."},
+        {"role": "user", "content": f"""Documentation task:
+
+{prompt}
+
+Begin by using list_files to discover the codebase structure, then use get_structure on key source files to understand their components. Remember:
+- Use semantic tools (get_structure, get_symbols, get_imports) before reading raw code
+- Explore at least 5 source code files (not just config/docs)
+- You will need file:line citations for every claim, so record what you find
+
+Start exploring now."""},
     ]
 
-    understanding, _ = llm_client.run_tool_loop(
+    understanding, _, steps_taken = llm_client.run_tool_loop(
         messages=messages,
         tools=get_tool_definitions(),
         tool_handlers=tool_handlers,
         max_steps=max_steps,
+        phase="EXPLORATION",
     )
 
-    return understanding
+    return understanding, steps_taken
 
 
 def generate_outline(
@@ -470,11 +584,12 @@ Write this section with citations in [path:line-line] format."""
         ]
 
         # Run agentic loop with limited steps
-        content, _ = self.llm_client.run_tool_loop(
+        content, _, _ = self.llm_client.run_tool_loop(
             messages=messages,
             tools=self._get_section_tools(),
             tool_handlers=self._get_tool_handlers(),
             max_steps=self.max_exploration_steps,
+            phase=f"SECTION:{section.title[:20]}",
         )
 
         return content or ""
@@ -507,11 +622,12 @@ Write this section with citations in [path:line-line] format."""
         ]
 
         # Run agentic generation with extra steps for verification
-        content, _ = self.llm_client.run_tool_loop(
+        content, _, _ = self.llm_client.run_tool_loop(
             messages=messages,
             tools=self._get_section_tools(),
             tool_handlers=self._get_tool_handlers(),
             max_steps=self.max_exploration_steps + 2,
+            phase=f"CITATION_FIX:{section.title[:20]}",
         )
 
         return content or ""

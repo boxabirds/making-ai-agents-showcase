@@ -9,9 +9,18 @@ Provides a unified interface for LLM interactions with:
 
 import json
 import os
+import time
 from typing import Any, Callable, Optional
 
 from openai import OpenAI
+
+from tech_writer.logging import (
+    log_llm_request,
+    log_llm_response,
+    log_tool_call,
+    log_tool_result,
+    logger,
+)
 
 
 # Type for tool functions
@@ -203,7 +212,7 @@ class LLMClient:
 
     def __init__(
         self,
-        model: str = "gpt-4o",
+        model: str = "gpt-5.1",
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
@@ -229,6 +238,8 @@ class LLMClient:
         messages: list[dict],
         tools: Optional[list[dict]] = None,
         tool_choice: Optional[str] = None,
+        step: Optional[int] = None,
+        phase: Optional[str] = None,
     ) -> dict:
         """
         Send a chat completion request.
@@ -237,6 +248,8 @@ class LLMClient:
             messages: Conversation messages
             tools: Tool definitions (OpenAI format)
             tool_choice: "auto", "none", or specific tool
+            step: Current step number (for logging)
+            phase: Current phase (for logging)
 
         Returns:
             Response dict with content and tool_calls
@@ -250,6 +263,14 @@ class LLMClient:
             kwargs["tools"] = tools
             if tool_choice:
                 kwargs["tool_choice"] = tool_choice
+
+        log_llm_request(
+            model=self.model,
+            messages_count=len(messages),
+            has_tools=bool(tools),
+            step=step,
+            phase=phase,
+        )
 
         response = self._client.chat.completions.create(**kwargs)
         message = response.choices[0].message
@@ -269,6 +290,13 @@ class LLMClient:
                 for tc in message.tool_calls
             ]
 
+        log_llm_response(
+            has_content=bool(message.content),
+            tool_calls_count=len(message.tool_calls) if message.tool_calls else 0,
+            step=step,
+            phase=phase,
+        )
+
         return result
 
     def run_tool_loop(
@@ -277,7 +305,8 @@ class LLMClient:
         tools: list[dict],
         tool_handlers: dict[str, ToolFunction],
         max_steps: int = 50,
-    ) -> tuple[str, list[dict]]:
+        phase: Optional[str] = None,
+    ) -> tuple[str, list[dict], int]:
         """
         Run tool calling loop until completion.
 
@@ -286,18 +315,20 @@ class LLMClient:
             tools: Tool definitions
             tool_handlers: Map of tool name to handler function
             max_steps: Maximum iterations
+            phase: Current pipeline phase (for logging)
 
         Returns:
-            Tuple of (final_response, updated_messages)
+            Tuple of (final_response, updated_messages, steps_taken)
         """
         messages = list(messages)  # Copy
 
-        for _ in range(max_steps):
-            response = self.chat(messages, tools=tools)
+        for step in range(max_steps):
+            response = self.chat(messages, tools=tools, step=step, phase=phase)
 
             # No tool calls - we're done
             if not response["tool_calls"]:
-                return response["content"] or "", messages
+                logger.info(f"[{phase}] Completed after {step + 1} steps (no more tool calls)")
+                return response["content"] or "", messages, step + 1
 
             # Add assistant message with tool calls
             assistant_msg = {"role": "assistant", "content": response["content"]}
@@ -320,26 +351,35 @@ class LLMClient:
                 tool_name = tc["name"]
                 tool_args = tc["arguments"]
 
+                log_tool_call(tool_name, tool_args, step=step, phase=phase)
+
                 # Special handling for finish_exploration
                 if tool_name == "finish_exploration":
                     understanding = tool_args.get("understanding", "")
+                    log_tool_result(tool_name, f"Exploration complete ({len(understanding)} chars)", step=step, phase=phase)
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc["id"],
                         "content": "Exploration complete.",
                     })
-                    return understanding, messages
+                    logger.info(f"[{phase}] Finished after {step + 1} steps via finish_exploration")
+                    return understanding, messages, step + 1
 
                 # Execute tool
                 handler = tool_handlers.get(tool_name)
                 if handler:
                     try:
+                        start_time = time.time()
                         result = handler(**tool_args)
+                        duration_ms = (time.time() - start_time) * 1000
                         result_str = json.dumps(result, indent=2, default=str)
+                        log_tool_result(tool_name, result, duration_ms=duration_ms, step=step, phase=phase)
                     except Exception as e:
                         result_str = f"Error: {str(e)}"
+                        logger.error(f"[{phase}] Tool {tool_name} failed: {e}")
                 else:
                     result_str = f"Unknown tool: {tool_name}"
+                    logger.warning(f"[{phase}] Unknown tool called: {tool_name}")
 
                 messages.append({
                     "role": "tool",
@@ -347,4 +387,5 @@ class LLMClient:
                     "content": result_str,
                 })
 
-        return "Max steps reached", messages
+        logger.warning(f"[{phase}] Hit max steps limit ({max_steps})")
+        return "Max steps reached", messages, max_steps

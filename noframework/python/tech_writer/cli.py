@@ -43,7 +43,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="gpt-4o",
+        default="gpt-5.1",
         help="LLM model to use",
     )
     parser.add_argument(
@@ -76,6 +76,12 @@ def main():
         "--cache-path",
         help=f"Path for persistent cache file (default: {DEFAULT_CACHE_FILENAME})",
     )
+    parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
+        help="Logging level (default: INFO). Logs go to stderr and ~/.tech_writer/logs/",
+    )
 
     args = parser.parse_args()
 
@@ -105,6 +111,7 @@ def main():
             max_exploration=args.max_exploration,
             max_sections=args.max_sections,
             db_path=db_path,
+            log_level=args.log_level,
         )
 
         # Verify citations if requested
