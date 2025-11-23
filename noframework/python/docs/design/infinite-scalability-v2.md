@@ -74,9 +74,13 @@ Compared to v1's 1,100+ calls for summarization alone.
 
 ## Phase 1: Exploration Tools
 
-The LLM drives exploration. Tools are the interface.
+The LLM drives exploration. Tools answer **semantic questions**, not regex queries.
 
-### Tool: `list_files`
+Tree-sitter parses files on read, enabling structured queries. The LLM asks "what functions exist?" not "grep for def".
+
+### File System Tools
+
+#### `list_files`
 
 ```python
 def list_files(pattern: str = "*", path: str = ".") -> list[str]:
@@ -92,64 +96,139 @@ def list_files(pattern: str = "*", path: str = ".") -> list[str]:
     """
 ```
 
-### Tool: `read_file`
+#### `read_file`
 
 ```python
 def read_file(path: str, start_line: int = None, end_line: int = None) -> str:
     """
-    Read a file's contents. Automatically parses and caches for citation.
-
-    Args:
-        path: File path relative to repo root
-        start_line: Optional start line (1-indexed)
-        end_line: Optional end line (inclusive)
-
-    Returns:
-        File content (or specified line range)
+    Read a file's contents.
 
     Side effects:
-        - Parses file with tree-sitter if supported language
-        - Caches content in SQLite for citation verification
-        - Extracts symbols for later reference
-    """
-```
-
-### Tool: `search_code`
-
-```python
-def search_code(query: str, file_pattern: str = None) -> list[dict]:
-    """
-    Search for code matching a query across cached files.
-
-    Args:
-        query: Search string or regex
-        file_pattern: Optional glob to filter files
+        - Parses with tree-sitter (if supported language)
+        - Caches content + symbols in SQLite
+        - Builds symbol graph incrementally
 
     Returns:
-        List of matches: [{"path": str, "line": int, "content": str}, ...]
-
-    Note:
-        Only searches files that have been read. If no results,
-        LLM should read more files first.
+        File content (or line range). After reading, semantic
+        queries on this file become available.
     """
 ```
 
-### Tool: `get_symbols`
+### Semantic Tools (tree-sitter powered)
+
+These tools give complete answers. No grep thrashing.
+
+#### `get_symbols`
 
 ```python
-def get_symbols(path: str) -> list[dict]:
+def get_symbols(path: str, kind: str = None) -> list[dict]:
     """
-    Get symbols (functions, classes, etc.) defined in a file.
+    Get all symbols defined in a file.
 
     Args:
-        path: File path (must have been read first)
+        path: File path (reads file if not already cached)
+        kind: Optional filter: "function", "class", "method", "variable"
 
     Returns:
-        List of symbols: [{"name": str, "kind": str, "line": int}, ...]
+        [{"name": "authenticate", "kind": "function", "line": 45, "end_line": 67,
+          "signature": "def authenticate(user, password)", "doc": "Validate credentials..."},
+         ...]
+
+    Complete list. No guessing. No repeated searches.
     """
 ```
 
-### Tool: `finish_exploration`
+#### `get_imports`
+
+```python
+def get_imports(path: str) -> list[dict]:
+    """
+    Get all imports/dependencies in a file.
+
+    Returns:
+        [{"module": "flask", "names": ["Flask", "request"], "line": 1},
+         {"module": "./auth", "names": ["validate"], "line": 3},
+         ...]
+
+    Know immediately what a file depends on.
+    """
+```
+
+#### `get_definition`
+
+```python
+def get_definition(name: str) -> dict | None:
+    """
+    Find where a symbol is defined (across all read files).
+
+    Args:
+        name: Symbol name (function, class, variable)
+
+    Returns:
+        {"path": "src/auth.py", "line": 45, "kind": "function", "signature": "..."}
+        or None if not found in read files.
+
+    One call. Exact location.
+    """
+```
+
+#### `get_references`
+
+```python
+def get_references(name: str) -> list[dict]:
+    """
+    Find all usages of a symbol (across all read files).
+
+    Returns:
+        [{"path": "src/api.py", "line": 23, "context": "result = authenticate(...)"},
+         ...]
+
+    Answers "where is this used?" without grep.
+    """
+```
+
+#### `get_structure`
+
+```python
+def get_structure(path: str) -> dict:
+    """
+    Get the structural overview of a file.
+
+    Returns:
+        {
+            "classes": [
+                {"name": "AuthManager", "line": 10, "methods": ["login", "logout", "refresh"]},
+                ...
+            ],
+            "functions": [
+                {"name": "validate_token", "line": 89},
+                ...
+            ],
+            "exports": ["AuthManager", "validate_token"]
+        }
+
+    Understand file organization in one call.
+    """
+```
+
+### Text Search (fallback)
+
+#### `search_text`
+
+```python
+def search_text(query: str, file_pattern: str = None) -> list[dict]:
+    """
+    Full-text search across cached files. Use semantic tools first;
+    this is for finding strings, comments, or unsupported languages.
+
+    Returns:
+        [{"path": str, "line": int, "content": str}, ...]
+    """
+```
+
+### Control Flow
+
+#### `finish_exploration`
 
 ```python
 def finish_exploration(understanding: str) -> None:
@@ -160,6 +239,17 @@ def finish_exploration(understanding: str) -> None:
         understanding: Brief summary of what was learned
     """
 ```
+
+## Why Semantic Tools Stop Thrashing
+
+| LLM question | Regex approach | Semantic approach |
+|--------------|----------------|-------------------|
+| "What functions are in auth.py?" | `grep "def "` (misses methods, lambdas) | `get_symbols("auth.py", kind="function")` → complete list |
+| "What does this file import?" | `grep "import\|from"` (parsing hell) | `get_imports("auth.py")` → structured data |
+| "Where is User defined?" | `grep "class User"` across files | `get_definition("User")` → exact location |
+| "What calls authenticate()?" | `grep "authenticate("` (false positives) | `get_references("authenticate")` → actual call sites |
+
+The LLM asks once, gets a complete answer, moves on.
 
 ## Phase 2: Outline Generation
 
