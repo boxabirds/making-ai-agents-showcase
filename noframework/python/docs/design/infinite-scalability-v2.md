@@ -1,17 +1,18 @@
-# Infinite-Scalability Tech Writer Agent v2
+# Infinite-Scalability Tech Writer Agent
 
 ## Goals
 - Handle arbitrary-size codebases without context overruns.
 - Produce arbitrary-length, citation-backed reports.
-- Be agentic: LLM decides what to explore, not brute-force ingest.
-- Minimize LLM calls: O(sections) for output, exploration is query-driven.
+- Be agentic: LLM decides what to explore via semantic tools.
+- Cost scales with query complexity, not repo size.
 
 ## Design Principles
 
-1. **Agentic exploration.** LLM decides what files to read via tool calls. No upfront "parse everything."
-2. **Lazy indexing.** Only parse/index files the LLM actually reads. SQLite is a cache, not a pre-computed index.
-3. **Section-by-section output.** Generate outline, then each section separately. Arbitrary length.
-4. **Citation grounding.** Every claim must cite content the LLM actually read.
+1. **Agentic exploration.** LLM decides what files to read via tool calls.
+2. **Semantic tools.** Tree-sitter powers structured queries ("what functions exist?") instead of regex grep.
+3. **Lazy caching.** Only cache files the LLM actually reads.
+4. **Section-by-section output.** Generate outline, then each section separately. Arbitrary length.
+5. **Citation grounding.** Every claim must cite content the LLM actually read.
 
 ## Architecture Overview
 
@@ -22,24 +23,25 @@ User Prompt
 ┌─────────────────────────────────────────────────────────┐
 │  Phase 1: EXPLORATION (agentic)                         │
 │                                                         │
-│  LLM has tools:                                         │
+│  LLM has semantic tools:                                │
 │    - list_files(pattern) → file paths                   │
-│    - read_file(path) → content (cached + parsed)        │
-│    - search_code(query) → matching chunks               │
-│    - get_symbols(path) → functions/classes in file      │
+│    - read_file(path) → content (parsed + cached)        │
+│    - get_symbols(path) → functions/classes              │
+│    - get_imports(path) → dependencies                   │
+│    - get_definition(name) → where is X defined?         │
+│    - get_references(name) → where is X used?            │
 │                                                         │
 │  LLM explores until it understands enough to outline.   │
-│  All reads are cached in SQLite for citation.           │
 └────────────────────┬────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Phase 2: OUTLINE (1 LLM call)                          │
 │                                                         │
-│  Based on exploration, generate report outline:         │
+│  Generate report structure:                             │
 │    ["Introduction", "Authentication", "API", ...]       │
 │                                                         │
-│  Each section has a focus query for retrieval.          │
+│  Each section has a focus and relevant files.           │
 └────────────────────┬────────────────────────────────────┘
                      │
                      ▼
@@ -59,18 +61,13 @@ User Prompt
 │  Phase 4: ASSEMBLY & VERIFICATION                       │
 │                                                         │
 │  - Combine sections into final report                   │
-│  - Verify all citations resolve to cached chunks        │
+│  - Verify all citations resolve to cached content       │
 │  - Flag any invalid citations                           │
 └────────────────────┬────────────────────────────────────┘
                      │
                      ▼
               Final Report
 ```
-
-**LLM calls:** O(exploration steps) + 1 (outline) + O(sections)
-
-For a 10-section report with moderate exploration: ~15-25 LLM calls total.
-Compared to v1's 1,100+ calls for summarization alone.
 
 ## Phase 1: Exploration Tools
 
@@ -105,12 +102,11 @@ def read_file(path: str, start_line: int = None, end_line: int = None) -> str:
 
     Side effects:
         - Parses with tree-sitter (if supported language)
-        - Caches content + symbols in SQLite
-        - Builds symbol graph incrementally
+        - Caches content + symbols
+        - Enables semantic queries on this file
 
     Returns:
-        File content (or line range). After reading, semantic
-        queries on this file become available.
+        File content (or line range).
     """
 ```
 
@@ -131,7 +127,7 @@ def get_symbols(path: str, kind: str = None) -> list[dict]:
 
     Returns:
         [{"name": "authenticate", "kind": "function", "line": 45, "end_line": 67,
-          "signature": "def authenticate(user, password)", "doc": "Validate credentials..."},
+          "signature": "def authenticate(user, password)", "doc": "..."},
          ...]
 
     Complete list. No guessing. No repeated searches.
@@ -198,11 +194,9 @@ def get_structure(path: str) -> dict:
         {
             "classes": [
                 {"name": "AuthManager", "line": 10, "methods": ["login", "logout", "refresh"]},
-                ...
             ],
             "functions": [
                 {"name": "validate_token", "line": 89},
-                ...
             ],
             "exports": ["AuthManager", "validate_token"]
         }
@@ -240,7 +234,7 @@ def finish_exploration(understanding: str) -> None:
     """
 ```
 
-## Why Semantic Tools Stop Thrashing
+## Why Semantic Tools Matter
 
 | LLM question | Regex approach | Semantic approach |
 |--------------|----------------|-------------------|
@@ -254,19 +248,6 @@ The LLM asks once, gets a complete answer, moves on.
 ## Phase 2: Outline Generation
 
 After exploration, one LLM call generates the report structure.
-
-```python
-def generate_outline(prompt: str, exploration_summary: str, cached_files: list[str]) -> list[Section]:
-    """
-    Generate report outline based on exploration.
-
-    Returns:
-        List of sections, each with:
-        - title: Section heading
-        - focus: What this section should cover
-        - relevant_files: Files likely relevant to this section
-    """
-```
 
 **Prompt:**
 ```
@@ -290,30 +271,9 @@ Output a JSON array of sections:
 
 Each section is generated independently, allowing arbitrary total length.
 
-```python
-def generate_section(
-    section: Section,
-    prompt: str,
-    store: Store,
-    max_exploration_steps: int = 5
-) -> str:
-    """
-    Generate one section of the report.
-
-    The LLM can:
-    - Use already-cached content
-    - Do additional exploration via tools
-    - Must cite everything with [path:line-line] format
-
-    Returns:
-        Markdown content for this section
-    """
-```
-
 **Section generation is itself agentic:**
 - LLM sees the section focus and relevant files
-- Can call `read_file` to get more detail
-- Can call `search_code` to find related code
+- Can call `read_file` or semantic tools for more detail
 - Eventually outputs section content with citations
 
 **Prompt for section:**
@@ -338,121 +298,36 @@ Rules:
 
 Combine sections and verify citations.
 
-```python
-def assemble_report(sections: list[str], store: Store) -> tuple[str, list[str]]:
-    """
-    Combine sections and verify all citations.
+- Join all sections into final markdown
+- Extract all citations from the report
+- Verify each citation resolves to cached content
+- Flag invalid citations (file not read, or line range doesn't exist)
 
-    Returns:
-        (final_report, invalid_citations)
-    """
-    report = "\n\n".join(sections)
-
-    citations = extract_citations(report)
-    invalid = []
-    for cit in citations:
-        if not citation_resolves(store, cit):
-            invalid.append(cit)
-
-    return report, invalid
-```
-
-If invalid citations exist, can either:
+If invalid citations exist:
 - Flag them in the output
 - Re-generate affected sections with stricter instructions
-- Accept best-effort output
-
-## SQLite as Cache (Not Pre-computed Index)
-
-Key difference from v1: SQLite stores **what was actually read**, not everything.
-
-```sql
--- Files that have been read
-CREATE TABLE files (
-    id INTEGER PRIMARY KEY,
-    path TEXT UNIQUE NOT NULL,
-    hash TEXT NOT NULL,
-    lang TEXT,
-    content TEXT NOT NULL,  -- Full content for citation lookup
-    read_at TEXT NOT NULL
-);
-
--- Parsed chunks (for citation verification)
-CREATE TABLE chunks (
-    id INTEGER PRIMARY KEY,
-    file_id INTEGER NOT NULL REFERENCES files(id),
-    start_line INTEGER NOT NULL,
-    end_line INTEGER NOT NULL,
-    kind TEXT,  -- function, class, block
-    text TEXT NOT NULL
-);
-
--- Symbols (for get_symbols tool)
-CREATE TABLE symbols (
-    id INTEGER PRIMARY KEY,
-    file_id INTEGER NOT NULL REFERENCES files(id),
-    name TEXT NOT NULL,
-    kind TEXT NOT NULL,
-    start_line INTEGER NOT NULL,
-    end_line INTEGER NOT NULL
-);
-
--- FTS on cached content only
-CREATE VIRTUAL TABLE chunks_fts USING fts5(text, content='chunks', content_rowid='id');
-```
-
-**The store grows as the LLM explores.** If the LLM only reads 10 files, only 10 files are indexed.
-
-## Exploration Strategy
-
-The LLM decides how to explore. Typical patterns:
-
-**For "count Python files":**
-```
-1. list_files("*.py") → get count → done
-```
-1 tool call. No parsing needed.
-
-**For "explain the authentication system":**
-```
-1. list_files("*") → see directory structure
-2. list_files("*auth*") → find auth-related files
-3. read_file("src/auth.py") → understand main auth
-4. get_symbols("src/auth.py") → see functions
-5. read_file("src/middleware.py") → see how it's used
-6. finish_exploration("Auth uses JWT tokens, validated in middleware")
-```
-~6 tool calls. Only 2 files parsed.
-
-**For comprehensive architecture doc:**
-```
-1. list_files("*") → directory structure
-2. read_file("README.md") → project overview
-3. list_files("src/**/*.py") → find all source
-4. read_file("src/main.py") → entry point
-5. get_symbols("src/main.py") → key functions
-6. read_file("src/models.py") → data models
-7. ... (more exploration based on what's found)
-8. finish_exploration("...")
-```
-Maybe 15-20 tool calls for thorough exploration.
-
-## LLM Call Budget
-
-| Phase | Calls | Notes |
-|-------|-------|-------|
-| Exploration | O(files explored) | LLM-driven, typically 5-20 |
-| Outline | 1 | Single structured output |
-| Sections | O(sections) | One call per section, maybe more if section needs extra exploration |
-| **Total** | ~15-30 | For a typical 5-10 section report |
-
-Compare to v1: **1,100+ calls** for 100-file repo regardless of query.
+- Or accept best-effort output
 
 ## Citation Format
 
-Same as before: `path:start_line-end_line`
+Format: `path:start_line-end_line`
 
-But now citations are verified against the **cache of what was actually read**, not a pre-computed index of everything. If the LLM cites a file it didn't read, that's an invalid citation.
+Examples:
+- `src/auth.py:10-25`
+- `lib/utils/helpers.ts:100-150`
+
+Citations are verified against cached content. If the LLM cites a file it didn't read, that's invalid.
+
+## Storage
+
+SQLite caches what was read during the run:
+- File content (for citation verification)
+- Parsed symbols (for semantic queries)
+- FTS index on cached content (for text search fallback)
+
+The cache grows as the LLM explores. If the LLM only reads 10 files, only 10 files are cached.
+
+Cache is per-run by default; optionally persisted for debugging.
 
 ## Example Flow
 
@@ -466,11 +341,14 @@ Tool: ["app.py", "routes/users.py", "routes/orders.py", "models.py", "config.py"
 LLM: read_file("app.py")
 Tool: [content of app.py - Flask app initialization]
 
-LLM: list_files("routes/*.py")
-Tool: ["routes/users.py", "routes/orders.py"]
+LLM: get_structure("app.py")
+Tool: {"functions": [...], "imports": ["flask", "routes.users", "routes.orders"]}
 
 LLM: read_file("routes/users.py")
 Tool: [content - user CRUD endpoints]
+
+LLM: get_symbols("routes/users.py", kind="function")
+Tool: [{"name": "get_user", "line": 10}, {"name": "create_user", "line": 25}, ...]
 
 LLM: read_file("routes/orders.py")
 Tool: [content - order endpoints]
@@ -493,58 +371,28 @@ Each section generated with citations to the files that were read.
 **Phase 4 - Assembly:**
 Combine sections, verify citations, output final report.
 
-## What's Different from tech-writer.py
-
-| Aspect | tech-writer.py | v2 |
-|--------|----------------|-----|
-| Output length | Single LLM response | Arbitrary (section by section) |
-| Exploration | Tool calls | Tool calls (same) |
-| Storage | None (in memory) | SQLite cache |
-| Citations | None | Required, verified |
-| Structure | Flat | Outline → sections |
-
-**v2 is tech-writer.py + sections + citations.**
-
 ## CLI
 
 ```bash
 # Basic usage
-python -m infinite_scalability --prompt prompt.md --repo /path/to/repo
+python -m tech_writer --prompt prompt.md --repo /path/to/repo
 
 # Remote repo
-python -m infinite_scalability --prompt prompt.md --repo https://github.com/user/repo
+python -m tech_writer --prompt prompt.md --repo https://github.com/user/repo
 
 # Control exploration depth
-python -m infinite_scalability --prompt prompt.md --repo /path/to/repo --max-exploration 30
+python -m tech_writer --prompt prompt.md --repo /path/to/repo --max-exploration 30
 
 # Control output sections
-python -m infinite_scalability --prompt prompt.md --repo /path/to/repo --max-sections 20
+python -m tech_writer --prompt prompt.md --repo /path/to/repo --max-sections 20
+
+# Persist cache for debugging
+python -m tech_writer --prompt prompt.md --repo /path/to/repo --persist-cache
 ```
 
 ## Testing Strategy
 
-1. **Unit tests:** Tool implementations, citation parsing, cache operations
-2. **Integration tests:** End-to-end with mock LLM on small repos
-3. **Exploration tests:** Verify LLM can find relevant files for known queries
-4. **Citation tests:** Verify only readable content can be cited
-
-## What's Removed (vs v1)
-
-| Component | v1 | v2 | Reason |
-|-----------|----|----|--------|
-| Upfront ingest | Parse everything | Parse on read | Agentic exploration |
-| Summarization | LLM per chunk | None | Never needed |
-| DSPy | Cargo cult | Removed | Not useful |
-| Embeddings | Fake (SHA256) | Removed | FTS sufficient |
-| Per-claim grading | LLM per claim | None | Trust citations |
-
-## Cost Comparison
-
-| Scenario | v1 LLM Calls | v2 LLM Calls |
-|----------|--------------|--------------|
-| "Count Python files" | 1,100+ | 1-2 |
-| "Explain auth system" | 1,100+ | ~10 |
-| "Full architecture doc (10 sections)" | 1,100+ | ~25 |
-| 1,000 file repo, simple query | 11,000+ | ~5 |
-
-v2 cost scales with **query complexity**, not repo size.
+1. **Tool tests:** Each semantic tool returns correct results for known code
+2. **Exploration tests:** LLM can find relevant files for known queries
+3. **Citation tests:** Only cached content can be cited; invalid citations are caught
+4. **Integration tests:** End-to-end on small fixture repos
