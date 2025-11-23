@@ -8,15 +8,15 @@ Implementation tasks for OpenRouter integration with cost tracking.
 
 | ID | Task | Status | Dependencies |
 |----|------|--------|--------------|
-| 1-1 | Add data types to llm.py | pending | - |
-| 1-2 | Implement CostTracker class | pending | 1-1 |
-| 1-3 | Implement ProviderConfig class | pending | 1-1 |
-| 1-4 | Modify LLMClient for provider support | pending | 1-2, 1-3 |
-| 1-5 | Add CLI arguments | pending | - |
-| 1-6 | Integrate cost tracking in orchestrator | pending | 1-4, 1-5 |
-| 1-7 | Add unit tests | pending | 1-4 |
-| 1-8 | Add integration tests | pending | 1-6 |
-| 1-9 | Add BDD feature tests | pending | 1-8 |
+| 1-1 | Add data types to llm.py | done | - |
+| 1-2 | Implement CostTracker class | done | 1-1 |
+| 1-3 | Implement ProviderConfig class | done | 1-1 |
+| 1-4 | Modify LLMClient for provider support | done | 1-2, 1-3 |
+| 1-5 | Add CLI arguments | done | - |
+| 1-6 | Integrate cost tracking in orchestrator | done | 1-4, 1-5 |
+| 1-7 | Add unit tests | done | 1-4 |
+| 1-8 | Add integration tests | done | 1-6 |
+| 1-9 | Add BDD feature tests | done | 1-8 |
 | 1-10 | Extend metadata output with cost | pending | 1-6, Feature 2 |
 
 ## Task Details

@@ -6,3 +6,4 @@
 5. Task ids are globally unique defined as <feature-id>-<task id>
 6. every task has its own file inside plans/<feature-id>/ named <task id>.md (e.g. 1-1.md for feature id 1, task 1). Tasks are planning devices: they do not include design decisions and instead refer to the exhaustive design material in the tech design doc by section. E.g. "implements citation evaluation as per §3.2", and include testing. Tasks start by creating tests that fail, then implementing / debugging until they pass. 
 7. every feature is bookended with a BDD test covering different feature variations.
+- backlog.md should be ordered by priority / dependency. First items at top

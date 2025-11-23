@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from tech_writer.citations import verify_all_citations
-from tech_writer.llm import LLMClient, get_tool_definitions
+from tech_writer.llm import CostSummary, LLMClient, get_tool_definitions
 from tech_writer.logging import (
     configure_logging,
     log_exploration_summary,
@@ -52,35 +52,14 @@ EXPLORATION_SYSTEM_PROMPT = """You are a technical documentation expert performi
 
 Your goal is to thoroughly understand the codebase's architecture, components, and implementation patterns so you can write accurate, citation-backed documentation.
 
-## Available Tools
-
-**Discovery tools:**
-- list_files(pattern, path): Find files matching glob patterns (e.g., "**/*.py", "src/**/*.js")
-
-**Semantic analysis tools (USE THESE - they use tree-sitter for accurate parsing):**
-- get_structure(path): Get complete overview of a file (imports, classes, functions with line numbers). USE THIS FIRST on any code file.
-- get_symbols(path, kind): Extract functions/classes/methods with signatures and line ranges
-- get_imports(path): Extract import statements to understand dependencies
-- get_definition(name): Find where a symbol is defined across cached files
-- get_references(name): Find all usages of a symbol
-
-**Content tools:**
-- read_file(path, start_line, end_line): Read file content. Use line ranges from get_structure to read specific functions/classes.
-- search_text(query): Full-text search across files you've read
-
-**Completion:**
-- finish_exploration(understanding): Call ONLY when you have explored enough code to write documentation with accurate citations
-
 ## Exploration Strategy
-
-Follow this systematic approach:
 
 1. **Discover structure**: Use list_files to find source code directories and key files
    - Look for: src/, lib/, core/, main files, entry points
    - Identify the primary language(s) used
 
 2. **Analyze key files**: For EACH important source file:
-   - ALWAYS call get_structure(path) first to see classes, functions, and their line numbers
+   - ALWAYS call get_structure first to see classes, functions, and line numbers
    - Then use read_file with specific line ranges to examine implementations
    - Call get_imports to understand dependencies
 
@@ -89,7 +68,7 @@ Follow this systematic approach:
    - Use get_references to see how components interact
    - Follow import chains to understand module relationships
 
-4. **Build understanding**: You must be able to cite specific files and line numbers in your documentation.
+4. **Build understanding**: Gather file:line references for every architectural claim.
 
 ## CRITICAL REQUIREMENTS
 
@@ -97,7 +76,7 @@ Follow this systematic approach:
 - You MUST read actual code implementations, not just documentation
 - You MUST understand the relationships between major components
 - Do NOT call finish_exploration until you have explored source code files
-- Every claim in your documentation will need a [file:line-line] citation, so gather that data now
+- Every claim in your documentation will need a [file:line-line] citation
 
 ## When to Finish
 
@@ -107,7 +86,7 @@ Call finish_exploration ONLY when you can answer:
 - What are the key implementation patterns?
 - Can you cite specific file:line ranges for these claims?
 
-If you cannot answer these questions with specific code references, KEEP EXPLORING.
+If you cannot answer these with specific code references, KEEP EXPLORING.
 """
 
 OUTLINE_SYSTEM_PROMPT = """You are a technical documentation expert creating an outline.
@@ -211,13 +190,15 @@ def run_pipeline(
     repo: str,
     cache_dir: Optional[str] = None,
     model: str = "gpt-5.1",
+    provider: str = "openai",
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     max_exploration: int = DEFAULT_MAX_EXPLORATION_STEPS,
     max_sections: int = DEFAULT_MAX_SECTIONS,
     db_path: Optional[str] = None,
     log_level: Optional[str] = None,
-) -> tuple[str, CacheStore]:
+    track_cost: bool = False,
+) -> tuple[str, CacheStore, Optional[CostSummary]]:
     """
     Run the full documentation pipeline.
 
@@ -226,19 +207,21 @@ def run_pipeline(
         repo: Repository path or URL
         cache_dir: Directory for caching cloned repos
         model: LLM model to use
+        provider: LLM provider ("openai" or "openrouter")
         api_key: API key
         base_url: Base URL for API
         max_exploration: Maximum exploration steps in Phase 1
         max_sections: Maximum sections in the outline
         db_path: Path for persistent cache (None for in-memory)
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
+        track_cost: Enable cost tracking (OpenRouter only)
 
     Returns:
-        Tuple of (report_markdown, cache_store)
+        Tuple of (report_markdown, cache_store, cost_summary)
     """
     # Initialize logging
     configure_logging(level=log_level)
-    logger.info(f"Starting pipeline: model={model}, max_exploration={max_exploration}")
+    logger.info(f"Starting pipeline: provider={provider}, model={model}, max_exploration={max_exploration}")
 
     # Handle remote repos
     repo_path = Path(repo)
@@ -250,7 +233,13 @@ def run_pipeline(
 
     # Initialize store with optional persistence
     store = CacheStore(db_path=db_path)
-    llm = LLMClient(model=model, api_key=api_key, base_url=base_url)
+    llm = LLMClient(
+        model=model,
+        provider=provider,
+        api_key=api_key,
+        base_url=base_url,
+        track_cost=track_cost,
+    )
 
     # Phase 1: Exploration
     log_phase_start("EXPLORATION", f"max_steps={max_exploration}")
@@ -309,8 +298,11 @@ def run_pipeline(
     report = assemble_report(prompt, outline, sections_content)
     log_phase_end("ASSEMBLY", f"{len(report)} chars")
 
+    # Get cost summary
+    cost_summary = llm.get_cost_summary() if track_cost else None
+
     logger.info("Pipeline complete")
-    return report, store
+    return report, store, cost_summary
 
 
 def verify_and_fix_citations(
@@ -366,7 +358,7 @@ def explore_codebase(
     repo_root: Path,
     store: CacheStore,
     llm_client: LLMClient,
-    max_steps: int = 50,
+    max_steps: int = 200,
 ) -> tuple[str, int]:
     """
     Agentic exploration phase.
@@ -452,7 +444,7 @@ Files explored:
 Create a JSON outline for this documentation."""},
     ]
 
-    response = llm_client.chat(messages)
+    response, _usage = llm_client.chat(messages)
     content = response["content"] or "[]"
 
     # Parse JSON from response

@@ -2,9 +2,13 @@
 End-to-end integration tests for tech_writer.
 
 These tests run the full pipeline against a fixture repository.
-They require OPENAI_API_KEY or a mock LLM.
+They require OPENAI_API_KEY (from .env.test or environment).
 
-Set SKIP_E2E_TESTS=1 to skip these tests in CI without API access.
+API key handling:
+- If .env.test exists, it's loaded automatically by tests/__init__.py
+- If API key is available, tests run
+- If API key is missing and SKIP_E2E_TESTS is not set, tests FAIL explicitly
+- To skip in CI without API access, set SKIP_E2E_TESTS=1
 """
 
 import os
@@ -17,18 +21,38 @@ from tech_writer.citations import verify_all_citations, extract_citations
 
 
 FIXTURE_REPO = Path(__file__).parent.parent / "fixtures" / "sample_flask_app"
-SKIP_E2E = os.environ.get("SKIP_E2E_TESTS", "").lower() in ("1", "true", "yes")
-SKIP_REASON = "E2E tests skipped via SKIP_E2E_TESTS env var"
+
+# Check for API key availability
+HAS_API_KEY = bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY"))
+SKIP_E2E_REQUESTED = os.environ.get("SKIP_E2E_TESTS", "").lower() in ("1", "true", "yes")
+
+
+def _check_api_key_or_fail():
+    """Check API key availability and fail explicitly if missing."""
+    if SKIP_E2E_REQUESTED:
+        if HAS_API_KEY:
+            pytest.skip(
+                "SKIP_E2E_TESTS=1 but API key is available. "
+                "Unset SKIP_E2E_TESTS to run these tests."
+            )
+        else:
+            pytest.skip("E2E tests skipped via SKIP_E2E_TESTS env var")
+    elif not HAS_API_KEY:
+        pytest.fail(
+            "OPENAI_API_KEY or OPENROUTER_API_KEY required for e2e tests. "
+            "Either provide .env.test with API keys, set env vars, "
+            "or set SKIP_E2E_TESTS=1 to explicitly skip."
+        )
 
 
 @pytest.fixture
 def fixture_repo():
     """Path to the fixture Flask app."""
+    _check_api_key_or_fail()
     assert FIXTURE_REPO.exists(), f"Fixture repo not found: {FIXTURE_REPO}"
     return FIXTURE_REPO
 
 
-@pytest.mark.skipif(SKIP_E2E, reason=SKIP_REASON)
 class TestE2EPipeline:
     """End-to-end pipeline tests."""
 
@@ -36,7 +60,7 @@ class TestE2EPipeline:
         """Test that the pipeline produces a non-empty report."""
         prompt = "Document the API endpoints in this Flask application."
 
-        report, store = run_pipeline(
+        report, store, _cost = run_pipeline(
             prompt=prompt,
             repo=str(fixture_repo),
             max_exploration=20,
@@ -51,7 +75,7 @@ class TestE2EPipeline:
         """Test that the report contains citations."""
         prompt = "Explain how the routes are organized."
 
-        report, store = run_pipeline(
+        report, store, _cost = run_pipeline(
             prompt=prompt,
             repo=str(fixture_repo),
             max_exploration=15,
@@ -65,7 +89,7 @@ class TestE2EPipeline:
         """Test that citations reference cached files with valid line ranges."""
         prompt = "Document the data models."
 
-        report, store = run_pipeline(
+        report, store, _cost = run_pipeline(
             prompt=prompt,
             repo=str(fixture_repo),
             max_exploration=15,
@@ -84,7 +108,7 @@ class TestE2EPipeline:
         """Test that exploration is limited."""
         prompt = "Document everything in extreme detail."
 
-        report, store = run_pipeline(
+        report, store, _cost = run_pipeline(
             prompt=prompt,
             repo=str(fixture_repo),
             max_exploration=5,  # Very low limit
@@ -100,7 +124,7 @@ class TestE2EPipeline:
         """Test that outline is truncated to max_sections."""
         prompt = "Create comprehensive documentation covering every aspect."
 
-        report, store = run_pipeline(
+        report, store, _cost = run_pipeline(
             prompt=prompt,
             repo=str(fixture_repo),
             max_exploration=10,
@@ -112,7 +136,6 @@ class TestE2EPipeline:
         assert section_count <= 3, f"Too many sections: {section_count}"  # Allow some flexibility
 
 
-@pytest.mark.skipif(SKIP_E2E, reason=SKIP_REASON)
 class TestE2ECLIIntegration:
     """Test CLI integration."""
 

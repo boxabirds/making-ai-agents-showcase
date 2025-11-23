@@ -14,3 +14,7 @@ dependencies = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "integration: marks tests that make real API calls",
+    "slow: marks tests that take a long time to run",
+]

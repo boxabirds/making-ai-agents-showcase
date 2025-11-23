@@ -44,11 +44,22 @@ def main():
     parser.add_argument(
         "--model",
         default="gpt-5.1",
-        help="LLM model to use",
+        help="LLM model to use (e.g., gpt-5.1 for OpenAI, openai/gpt-5.1 for OpenRouter)",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=["openai", "openrouter"],
+        default="openai",
+        help="LLM provider (default: openai)",
+    )
+    parser.add_argument(
+        "--no-track-cost",
+        action="store_true",
+        help="Disable cost tracking (enabled by default for OpenRouter)",
     )
     parser.add_argument(
         "--base-url",
-        help="Base URL for LLM API",
+        help="Base URL for LLM API (overrides provider default)",
     )
     parser.add_argument(
         "--verify-citations",
@@ -102,17 +113,31 @@ def main():
         if args.persist_cache:
             db_path = args.cache_path or DEFAULT_CACHE_FILENAME
 
-        report, store = run_pipeline(
+        # Determine cost tracking setting
+        track_cost = args.provider == "openrouter" and not args.no_track_cost
+
+        report, store, cost_summary = run_pipeline(
             prompt=prompt,
             repo=args.repo,
             cache_dir=args.cache_dir,
             model=args.model,
+            provider=args.provider,
             base_url=args.base_url,
             max_exploration=args.max_exploration,
             max_sections=args.max_sections,
             db_path=db_path,
             log_level=args.log_level,
+            track_cost=track_cost,
         )
+
+        # Report cost if tracked
+        if cost_summary and cost_summary.total_cost_usd > 0:
+            print(f"\nCost summary:", file=sys.stderr)
+            print(f"  Provider: {cost_summary.provider}", file=sys.stderr)
+            print(f"  Model: {cost_summary.model}", file=sys.stderr)
+            print(f"  Total cost: ${cost_summary.total_cost_usd:.4f}", file=sys.stderr)
+            print(f"  Total tokens: {cost_summary.total_tokens:,}", file=sys.stderr)
+            print(f"  API calls: {cost_summary.total_calls}", file=sys.stderr)
 
         # Verify citations if requested
         if args.verify_citations:
