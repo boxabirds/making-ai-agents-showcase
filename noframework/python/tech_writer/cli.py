@@ -9,6 +9,11 @@ import argparse
 import sys
 from pathlib import Path
 
+# Default values (must match orchestrator.py constants)
+DEFAULT_MAX_EXPLORATION = 50
+DEFAULT_MAX_SECTIONS = 20
+DEFAULT_CACHE_FILENAME = ".tech_writer_cache.db"
+
 
 def main():
     """Main entry point for CLI."""
@@ -50,6 +55,27 @@ def main():
         action="store_true",
         help="Verify and report on citation validity",
     )
+    parser.add_argument(
+        "--max-exploration",
+        type=int,
+        default=DEFAULT_MAX_EXPLORATION,
+        help=f"Maximum exploration steps during Phase 1 (default: {DEFAULT_MAX_EXPLORATION})",
+    )
+    parser.add_argument(
+        "--max-sections",
+        type=int,
+        default=DEFAULT_MAX_SECTIONS,
+        help=f"Maximum sections in the outline (default: {DEFAULT_MAX_SECTIONS})",
+    )
+    parser.add_argument(
+        "--persist-cache",
+        action="store_true",
+        help="Persist SQLite cache to disk for debugging",
+    )
+    parser.add_argument(
+        "--cache-path",
+        help=f"Path for persistent cache file (default: {DEFAULT_CACHE_FILENAME})",
+    )
 
     args = parser.parse_args()
 
@@ -65,12 +91,20 @@ def main():
     try:
         from tech_writer.orchestrator import run_pipeline
 
+        # Determine cache path for persistence
+        db_path = None
+        if args.persist_cache:
+            db_path = args.cache_path or DEFAULT_CACHE_FILENAME
+
         report, store = run_pipeline(
             prompt=prompt,
             repo=args.repo,
             cache_dir=args.cache_dir,
             model=args.model,
             base_url=args.base_url,
+            max_exploration=args.max_exploration,
+            max_sections=args.max_sections,
+            db_path=db_path,
         )
 
         # Verify citations if requested

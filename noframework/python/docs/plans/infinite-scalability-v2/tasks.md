@@ -19,16 +19,16 @@ Reference prompt: `prompts/architecture-overview-lite.prompt.txt`
 | 10 | get_definition tool | ✅ done | 8 |
 | 11 | get_references tool | ✅ done | 8 |
 | 12 | get_structure tool | ✅ done | 8, 9 |
-| 13 | search_text tool (FTS) | ⚠️ partial | 2 |
+| 13 | search_text tool (FTS) | ✅ done | 2 |
 | 14 | Tool registration (OpenAI format) | ✅ done | 3, 4, 8-13 |
 | 15 | Exploration orchestration | ✅ done | 14 |
 | 16 | finish_exploration handling | ✅ done | 15 |
 | 17 | Outline generation | ✅ done | 16 |
-| 18 | Section generation (agentic) | ⚠️ partial | 17 |
+| 18 | Section generation (agentic) | ✅ done | 17 |
 | 19 | Citation parsing | ✅ done | 4 |
 | 20 | Citation verification | ✅ done | 19 |
 | 21 | Report assembly | ✅ done | 18, 20 |
-| 22 | CLI implementation | ⚠️ partial | 21 |
+| 22 | CLI implementation | ✅ done | 21 |
 | 23 | Remote repo cloning | ✅ done | 22 |
 | 24 | BDD test framework setup | ✅ done | 1 |
 | 25 | Feature: exploration tools | ✅ done | 24, 14 |
@@ -37,11 +37,11 @@ Reference prompt: `prompts/architecture-overview-lite.prompt.txt`
 | 28 | Feature: section generation | ✅ done | 27 |
 | 29 | Feature: citation verification | ✅ done | 28 |
 | 30 | E2E: axios + architecture-overview-lite | ⚠️ partial | 29, 23 |
-| 31 | Make section generation agentic | 🔲 todo | 18 |
-| 32 | Add CLI control flags | 🔲 todo | 22, 31 |
-| 33 | Implement FTS5 in CacheStore | 🔲 todo | 2 |
-| 34 | Citation re-generation | 🔲 todo | 20, 31 |
-| 35 | E2E integration test | 🔲 todo | 31, 32, 34 |
+| 31 | Make section generation agentic | ✅ done | 18 |
+| 32 | Add CLI control flags | ✅ done | 22, 31 |
+| 33 | Implement FTS5 in CacheStore | ✅ done | 2 |
+| 34 | Citation re-generation | ✅ done | 20, 31 |
+| 35 | E2E integration test | ✅ done | 31, 32, 34 |
 
 ## Phases
 

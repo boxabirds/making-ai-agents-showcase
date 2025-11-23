@@ -284,7 +284,7 @@ def search_text(
     limit: int = 20,
 ) -> list[dict]:
     """
-    Full-text search across cached files.
+    Full-text search across cached files using FTS5.
 
     Args:
         query: Search query
@@ -294,35 +294,5 @@ def search_text(
     Returns:
         List of dicts: {path, line, snippet, score}
     """
-    results = []
-
-    # Simple text search (not FTS5 yet - that's an enhancement)
-    # Use word boundaries for better matching
-    try:
-        pattern = re.compile(query, re.IGNORECASE)
-    except re.error:
-        # Invalid regex, treat as literal
-        pattern = re.compile(re.escape(query), re.IGNORECASE)
-
-    for file_path in store.list_cached_files():
-        cached = store.get_file(file_path)
-        if cached is None:
-            continue
-
-        content = cached.content
-        lines = content.splitlines()
-
-        for i, line in enumerate(lines):
-            match = pattern.search(line)
-            if match:
-                results.append({
-                    "path": file_path,
-                    "line": i + 1,
-                    "snippet": line.strip()[:200],
-                    "score": 1.0,  # Simple scoring
-                })
-
-                if len(results) >= limit:
-                    return results
-
-    return results
+    # Use the store's FTS5 search
+    return store.search(query, limit=limit)

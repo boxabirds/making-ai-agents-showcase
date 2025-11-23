@@ -67,6 +67,30 @@ CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
 CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
 """
 
+FTS_SCHEMA = """
+-- FTS5 virtual table for full-text search
+CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
+    path,
+    content,
+    content='files',
+    content_rowid='id'
+);
+
+-- Triggers to keep FTS index in sync with files table
+CREATE TRIGGER IF NOT EXISTS files_ai AFTER INSERT ON files BEGIN
+    INSERT INTO files_fts(rowid, path, content) VALUES (new.id, new.path, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS files_ad AFTER DELETE ON files BEGIN
+    INSERT INTO files_fts(files_fts, rowid, path, content) VALUES('delete', old.id, old.path, old.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
+    INSERT INTO files_fts(files_fts, rowid, path, content) VALUES('delete', old.id, old.path, old.content);
+    INSERT INTO files_fts(rowid, path, content) VALUES (new.id, new.path, new.content);
+END;
+"""
+
 
 class CacheStore:
     """SQLite cache for file content and metadata."""
@@ -84,8 +108,9 @@ class CacheStore:
         self._init_schema()
 
     def _init_schema(self) -> None:
-        """Initialize database schema."""
+        """Initialize database schema including FTS."""
         self._conn.executescript(SCHEMA)
+        self._conn.executescript(FTS_SCHEMA)
         self._conn.commit()
 
     def _hash_content(self, content: str) -> str:
@@ -274,8 +299,93 @@ class CacheStore:
         return [row['path'] for row in cursor.fetchall()]
 
     def search(self, query: str, limit: int = 20) -> list[dict]:
-        """Full-text search across cached files."""
-        raise NotImplementedError("Task 13")
+        """
+        Full-text search across cached files using FTS5.
+
+        Args:
+            query: Search string (will be escaped for literal search)
+            limit: Maximum results to return
+
+        Returns:
+            List of matches: [{"path": str, "line": int, "snippet": str, "score": float}, ...]
+        """
+        if not query or not query.strip():
+            return []
+
+        # Escape special FTS5 characters for literal search
+        escaped_query = self._escape_fts_query(query)
+
+        try:
+            cursor = self._conn.execute(
+                """
+                SELECT
+                    f.path,
+                    f.content,
+                    bm25(files_fts) as score
+                FROM files_fts
+                JOIN files f ON files_fts.rowid = f.id
+                WHERE files_fts MATCH ?
+                ORDER BY score
+                LIMIT ?
+                """,
+                (escaped_query, limit * 2)  # Fetch extra to account for line-level filtering
+            )
+
+            results = []
+            query_lower = query.lower()
+
+            for row in cursor.fetchall():
+                path = row["path"]
+                content = row["content"]
+                score = row["score"]
+
+                # Find matching lines within the file
+                for line_num, line in enumerate(content.splitlines(), start=1):
+                    if query_lower in line.lower():
+                        results.append({
+                            "path": path,
+                            "line": line_num,
+                            "snippet": line.strip(),
+                            "score": score,
+                        })
+                        if len(results) >= limit:
+                            return results
+
+            return results
+
+        except sqlite3.OperationalError:
+            # FTS query failed, fall back to simple search
+            return self._simple_search(query, limit)
+
+    def _escape_fts_query(self, query: str) -> str:
+        """Escape special FTS5 characters for literal search."""
+        # FTS5 special chars: AND OR NOT ( ) " *
+        # Wrap in quotes for phrase search
+        escaped = query.replace('"', '""')
+        return f'"{escaped}"'
+
+    def _simple_search(self, query: str, limit: int) -> list[dict]:
+        """Fallback simple search when FTS fails."""
+        results = []
+        query_lower = query.lower()
+
+        cursor = self._conn.execute("SELECT path, content FROM files")
+        for row in cursor.fetchall():
+            path = row["path"]
+            content = row["content"]
+
+            for line_num, line in enumerate(content.splitlines(), start=1):
+                if query_lower in line.lower():
+                    results.append({
+                        "path": path,
+                        "line": line_num,
+                        "snippet": line.strip(),
+                        "score": 0.0,
+                    })
+                    if len(results) >= limit:
+                        return results
+
+        return results
 
     def close(self) -> None:
         """Close database connection."""
