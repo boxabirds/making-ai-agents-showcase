@@ -36,8 +36,8 @@ from tech_writer.tools.semantic import (
 
 # Constants
 DEFAULT_MAX_STEPS = 500  # Maximum tool-calling steps per phase
-DEFAULT_SECTION_MAX_STEPS = 10  # Maximum steps for section generation (smaller scope)
-DEFAULT_MAX_SECTIONS = 20
+DEFAULT_SECTION_MAX_STEPS = 30  # Maximum steps for section generation (smaller scope)
+DEFAULT_MAX_SECTIONS = 50
 MAX_CITATION_FIX_ATTEMPTS = 2
 
 

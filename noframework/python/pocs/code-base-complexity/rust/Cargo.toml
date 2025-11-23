@@ -1,0 +1,38 @@
+[package]
+name = "complexity-analyzer"
+version = "0.1.0"
+edition = "2021"
+description = "Codebase complexity analyzer using tree-sitter AST parsing"
+
+[dependencies]
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Error handling
+anyhow = "1"
+
+# Tree-sitter
+tree-sitter = "0.22"
+tree-sitter-python = "0.21"
+tree-sitter-javascript = "0.21"
+tree-sitter-typescript = "0.21"
+tree-sitter-go = "0.21"
+tree-sitter-rust = "0.21"
+tree-sitter-java = "0.21"
+
+# File walking with .gitignore support
+ignore = "0.4"
+
+# Parallel processing
+rayon = "1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Time
+chrono = "0.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
