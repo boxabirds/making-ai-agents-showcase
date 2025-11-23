@@ -92,7 +92,8 @@ print("Summary Comparison:")
 matches = []
 matches.append(compare("Total files", py["summary"]["total_files"], rs["summary"]["total_files"]))
 matches.append(compare("Total functions", py["summary"]["total_functions"], rs["summary"]["total_functions"]))
-matches.append(compare("Complexity score", py["summary"]["complexity_score"], rs["summary"]["complexity_score"], 0.05))
+matches.append(compare("Total CC", py["summary"]["total_cyclomatic_complexity"], rs["summary"]["total_cyclomatic_complexity"]))
+matches.append(compare("Avg CC", py["summary"]["avg_cyclomatic_complexity"], rs["summary"]["avg_cyclomatic_complexity"], 0.05))
 matches.append(compare("Complexity bucket", py["summary"]["complexity_bucket"], rs["summary"]["complexity_bucket"]))
 print()
 

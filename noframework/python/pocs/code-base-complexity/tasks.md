@@ -1,5 +1,8 @@
 # Tasks: Codebase Complexity Analyzer POC
 
+> **Note**: The Rust implementation has been promoted to `tools/complexity-analyzer/`.
+> The Python implementation remains here for reference and as a fallback.
+
 ## Phase 1: Python Implementation
 
 ### P1.1: File Discovery with .gitignore Support

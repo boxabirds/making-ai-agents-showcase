@@ -18,9 +18,11 @@ use std::{
 };
 use tree_sitter::{Language, Node, Parser as TsParser};
 
-// Complexity thresholds for bucket classification
-const COMPLEXITY_THRESHOLD_SIMPLE: f64 = 20.0;
-const COMPLEXITY_THRESHOLD_MEDIUM: f64 = 50.0;
+// Total CC bucket thresholds (based on benchmarks: axios=3.3K, fastapi=12.6K, codex=24K, react=152K)
+const BUCKET_SIMPLE_MAX: usize = 5000;     // Small focused libraries
+const BUCKET_MEDIUM_MAX: usize = 25000;    // Medium frameworks
+const BUCKET_LARGE_MAX: usize = 100000;    // Large codebases
+// Above BUCKET_LARGE_MAX = "complex" (massive codebases like React)
 
 // Top functions limit
 const TOP_FUNCTIONS_LIMIT: usize = 10;
@@ -241,7 +243,8 @@ struct RepoSummary {
     total_files: usize,
     total_functions: usize,
     languages: HashMap<String, usize>,
-    complexity_score: f64,
+    total_cyclomatic_complexity: usize,
+    avg_cyclomatic_complexity: f64,
     complexity_bucket: String,
     description: String,
     parse_success_rate: f64,
@@ -712,13 +715,15 @@ fn analyze_file(file_path: &Path, repo_root: &Path) -> Option<FileMetrics> {
 // Repository Analysis
 // ============================================================================
 
-fn get_complexity_bucket(score: f64) -> (&'static str, &'static str) {
-    if score < COMPLEXITY_THRESHOLD_SIMPLE {
-        ("simple", "Small, focused codebase")
-    } else if score < COMPLEXITY_THRESHOLD_MEDIUM {
-        ("medium", "Moderate complexity codebase")
+fn get_complexity_bucket(total_cc: usize) -> (&'static str, &'static str) {
+    if total_cc < BUCKET_SIMPLE_MAX {
+        ("simple", "Small, focused codebase - minimal documentation needed")
+    } else if total_cc < BUCKET_MEDIUM_MAX {
+        ("medium", "Medium codebase - moderate documentation effort")
+    } else if total_cc < BUCKET_LARGE_MAX {
+        ("large", "Large codebase - substantial documentation effort")
     } else {
-        ("complex", "Large, complex codebase")
+        ("complex", "Complex codebase - comprehensive documentation required")
     }
 }
 
@@ -770,21 +775,21 @@ fn analyze_repository(repo_path: &Path, repo_name: &str) -> Result<RepoMetrics> 
         .filter(|f| f.cyclomatic_complexity > 15)
         .count();
 
-    // Complexity score
-    let complexity_score = if !all_functions.is_empty() {
-        let avg_complexity = all_functions
-            .iter()
-            .map(|f| f.cyclomatic_complexity)
-            .sum::<usize>() as f64
-            / all_functions.len() as f64;
-        let language_diversity = languages.len() as f64;
-        let size_factor = (total_functions as f64 / 100.0).min(1.0);
-        avg_complexity * (1.0 + 0.1 * language_diversity) * (1.0 + size_factor)
+    // Total Cyclomatic Complexity (sum of all function CC)
+    // This is the primary metric for documentation effort - scales with both size AND complexity
+    let total_cc: usize = all_functions
+        .iter()
+        .map(|f| f.cyclomatic_complexity)
+        .sum();
+
+    // Average complexity per function (useful for code quality assessment)
+    let avg_cc = if !all_functions.is_empty() {
+        total_cc as f64 / all_functions.len() as f64
     } else {
         0.0
     };
 
-    let (bucket, description) = get_complexity_bucket(complexity_score);
+    let (bucket, description) = get_complexity_bucket(total_cc);
 
     // Top complex functions
     let mut sorted_functions: Vec<_> = all_functions.iter().collect();
@@ -818,7 +823,8 @@ fn analyze_repository(repo_path: &Path, repo_name: &str) -> Result<RepoMetrics> 
             total_files,
             total_functions,
             languages,
-            complexity_score: (complexity_score * 100.0).round() / 100.0,
+            total_cyclomatic_complexity: total_cc,
+            avg_cyclomatic_complexity: (avg_cc * 100.0).round() / 100.0,
             complexity_bucket: bucket.to_string(),
             description: description.to_string(),
             parse_success_rate,
@@ -895,9 +901,10 @@ fn main() -> Result<()> {
     eprintln!("Total functions: {}", metrics.summary.total_functions);
     eprintln!("Languages: {:?}", metrics.summary.languages);
     eprintln!(
-        "Complexity score: {} ({})",
-        metrics.summary.complexity_score, metrics.summary.complexity_bucket
+        "Total CC: {} ({})",
+        metrics.summary.total_cyclomatic_complexity, metrics.summary.complexity_bucket
     );
+    eprintln!("Avg CC: {}", metrics.summary.avg_cyclomatic_complexity);
     eprintln!(
         "Distribution: Low={}, Medium={}, High={}",
         metrics.distribution.low, metrics.distribution.medium, metrics.distribution.high

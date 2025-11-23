@@ -388,14 +388,23 @@ def clone_or_update_repo(repo_url: str, cache_dir: str = "~/.cache/github") -> P
     return cache_path
 
 
-def get_complexity_bucket(score: float) -> tuple[str, str]:
-    """Map complexity score to bucket and description."""
-    if score < 20:
-        return "simple", "Small, focused codebase"
-    elif score < 50:
-        return "medium", "Moderate complexity codebase"
+# Total CC bucket thresholds (based on benchmarks: axios=3.3K, fastapi=12.6K, codex=24K, react=152K)
+BUCKET_SIMPLE_MAX = 5000       # Small focused libraries (< axios)
+BUCKET_MEDIUM_MAX = 25000      # Medium frameworks (fastapi, codex range)
+BUCKET_LARGE_MAX = 100000      # Large codebases
+# Above BUCKET_LARGE_MAX = "complex" (massive codebases like React)
+
+
+def get_complexity_bucket(total_cc: int) -> tuple[str, str]:
+    """Map total cyclomatic complexity to bucket and description."""
+    if total_cc < BUCKET_SIMPLE_MAX:
+        return "simple", "Small, focused codebase - minimal documentation needed"
+    elif total_cc < BUCKET_MEDIUM_MAX:
+        return "medium", "Medium codebase - moderate documentation effort"
+    elif total_cc < BUCKET_LARGE_MAX:
+        return "large", "Large codebase - substantial documentation effort"
     else:
-        return "complex", "Large, complex codebase"
+        return "complex", "Complex codebase - comprehensive documentation required"
 
 
 def analyze_repository(repo_path: Path, repo_name: str, parallel: bool = True) -> RepoMetrics:
@@ -438,17 +447,14 @@ def analyze_repository(repo_path: Path, repo_name: str, parallel: bool = True) -
     medium = sum(1 for f in all_functions if 5 < f.cyclomatic_complexity <= 15)
     high = sum(1 for f in all_functions if f.cyclomatic_complexity > 15)
 
-    # Complexity score: weighted average
-    if all_functions:
-        avg_complexity = sum(f.cyclomatic_complexity for f in all_functions) / len(all_functions)
-        # Factor in diversity and size
-        language_diversity = len(languages)
-        size_factor = min(1.0, total_functions / 100)  # Scale up to 100 functions
-        complexity_score = avg_complexity * (1 + 0.1 * language_diversity) * (1 + size_factor)
-    else:
-        complexity_score = 0.0
+    # Total Cyclomatic Complexity (sum of all function CC)
+    # This is the primary metric for documentation effort - scales with both size AND complexity
+    total_cc = sum(f.cyclomatic_complexity for f in all_functions)
 
-    bucket, description = get_complexity_bucket(complexity_score)
+    # Average complexity per function (useful for code quality assessment)
+    avg_complexity = total_cc / len(all_functions) if all_functions else 0.0
+
+    bucket, description = get_complexity_bucket(total_cc)
 
     # Top complex functions
     top_functions = sorted(all_functions, key=lambda f: f.cyclomatic_complexity, reverse=True)[:10]
@@ -472,7 +478,8 @@ def analyze_repository(repo_path: Path, repo_name: str, parallel: bool = True) -
             "total_files": total_files,
             "total_functions": total_functions,
             "languages": languages,
-            "complexity_score": round(complexity_score, 2),
+            "total_cyclomatic_complexity": total_cc,
+            "avg_cyclomatic_complexity": round(avg_complexity, 2),
             "complexity_bucket": bucket,
             "description": description,
             "parse_success_rate": round(
@@ -566,7 +573,8 @@ def main():
     print(f"Total files: {metrics.summary['total_files']}", file=sys.stderr)
     print(f"Total functions: {metrics.summary['total_functions']}", file=sys.stderr)
     print(f"Languages: {metrics.summary['languages']}", file=sys.stderr)
-    print(f"Complexity score: {metrics.summary['complexity_score']} ({metrics.summary['complexity_bucket']})", file=sys.stderr)
+    print(f"Total CC: {metrics.summary['total_cyclomatic_complexity']:,} ({metrics.summary['complexity_bucket']})", file=sys.stderr)
+    print(f"Avg CC: {metrics.summary['avg_cyclomatic_complexity']}", file=sys.stderr)
     print(f"Distribution: Low={metrics.distribution['low']}, Medium={metrics.distribution['medium']}, High={metrics.distribution['high']}", file=sys.stderr)
 
 
