@@ -19,6 +19,8 @@
 | 10 | CLI integration | ⬚ todo | 9 | 4 | - |
 | 11 | Argilla dataset setup | ⬚ todo | - | 5 | §7.2 |
 | 12 | Calibration workflow | ⬚ todo | 9,11 | 5 | §7.3, §7.4 |
+| 13 | Failed citation output | ⬚ todo | 8,9 | 6 | §15.2, §8.6 |
+| 14 | Correction workflow | ⬚ todo | 13 | 6 | §15 |
 
 ## Phases
 
@@ -42,18 +44,27 @@ Pipeline assembly and CLI.
 Human-in-the-loop validation and LLM judge tuning.
 **Ref:** tech-design.md §12.5
 
+### Phase 6: Correction Workflow (Tasks 13-14)
+Iterative correction loop targeting 100% citation accuracy.
+**Ref:** tech-design.md §15
+
 ## Dependency Graph
 
 ```
-Phase 1          Phase 2         Phase 3         Phase 4         Phase 5
-────────         ────────        ────────        ────────        ────────
+Phase 1          Phase 2         Phase 3         Phase 4         Phase 5         Phase 6
+────────         ────────        ────────        ────────        ────────        ────────
    1 ─────────────→ 4 ──→ 5 ─────────────────────→ 8 ────→ 9 ───→ 12
    │                              │                │       │       ↑
    ├──→ 2 ────────────────────────┼───→ 6 ──→ 7 ──┘       │       │
    │                              │                        │       │
    └──→ 3 ────────────────────────┴────────────────────────┘       │
                                                            10      11
+                                                            │
+                                                            └───────────→ 13 ──→ 14
 ```
+
+**Note:** Phase 6 (correction workflow) depends on the evaluation pipeline (Tasks 8-9) being complete.
+Target: 100% citation accuracy through iterative correction (see tech-design.md §15.1).
 
 ## Execution Strategy
 
@@ -63,11 +74,13 @@ Phase 1          Phase 2         Phase 3         Phase 4         Phase 5
 - Track C (LLM): 2 → 6 → 7
 - Track D (integration): 8 → 9 → 10
 - Track E (calibration): 11 → 12
+- Track F (correction): 13 → 14 (requires Track D)
 
 **Milestones:**
 1. **Structural eval:** Tasks 1-3 complete → can report validity & coverage
 2. **Full automated:** Tasks 1-9 complete → can report precision (extractive + abstractive)
-3. **Production ready:** Tasks 1-12 complete → calibrated and validated
+3. **100% accuracy:** Tasks 1-14 complete → iterative correction until perfect
+4. **Production ready:** Tasks 1-14 + calibration → human-validated judges
 
 ## Estimated Effort
 
@@ -75,8 +88,12 @@ Phase 1          Phase 2         Phase 3         Phase 4         Phase 5
 |-------|-------|--------|----------|
 | 1 | 1-3 | 1 day | $0 |
 | 2 | 4-5 | 1 day | $0 |
-| 3 | 6-7 | 1-2 days | ~$0.10/report |
+| 3 | 6-7 | 1-2 days | ~$0.002/report* |
 | 4 | 8-10 | 1 day | - |
 | 5 | 11-12 | 3-5 days | ~$5 (human time) |
+| 6 | 13-14 | 2-3 days | ~$0.006/report** |
 
-**Total:** ~2 weeks including calibration
+*Per tech-design.md §14: batched gpt-4o-mini. With 20% escalation to gpt-4o: ~$0.02/report.
+**Per tech-design.md §15.8: eval + correction + re-eval for 10% failure rate.
+
+**Total:** ~2-3 weeks including calibration and correction workflow

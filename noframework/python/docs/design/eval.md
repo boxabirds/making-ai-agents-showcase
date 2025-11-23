@@ -286,7 +286,7 @@ exploration_efficiency = files_cached / total_repo_files
 │      └── "Is the report well-organized?" → score 0-3                       │
 │                                                                             │
 │  Output: eval_results.json with scores and reasoning                        │
-│  Cost: ~$0.10-0.50 per report (depends on size)                            │
+│  Cost: ~$0.002-0.02/report (see tech-design.md §14)                        │
 │  Latency: 30-120 seconds                                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
                                        │

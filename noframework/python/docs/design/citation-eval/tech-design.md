@@ -156,7 +156,7 @@ The claim interprets, summarizes, or infers from the code.
 │  Method: Regex + fuzzy      │   │  Method: LLM-as-judge           │
 │  Checks:                    │   │  Input: Claim + cited code       │
 │    - Key terms present      │   │  Output: supports/not + reason   │
-│    - Names match code       │   │  Cost: ~$0.01 per citation       │
+│    - Names match code       │   │  Cost: See §14 (Cost Model)       │
 │    - Structure aligns       │   │                                  │
 │  Cost: O(1) per citation    │   │                                  │
 └─────────────────────────────┘   └─────────────────────────────────┘
@@ -645,21 +645,39 @@ class EvalResult:
 
     # Details
     results: list[VerificationResult]
-    failures: list[str]
+
+    # Failed citations for correction workflow (see §15.2)
+    failed_citations: list[FailedCitation]
+
+    @property
+    def needs_correction(self) -> bool:
+        """True if any citations failed verification."""
+        return len(self.failed_citations) > 0
+
+    @property
+    def is_perfect(self) -> bool:
+        """True if all citations valid and supporting."""
+        return (
+            self.validity_rate == 1.0
+            and self.overall_precision == 1.0
+            and len(self.failed_citations) == 0
+        )
 ```
 
 ---
 
 ## 9. Configuration
 
-### 9.1 Thresholds
+### 9.1 Detection Thresholds
+
+> **Note:** These are detection thresholds, not acceptance thresholds. The target is 100% citation accuracy (see §15). These values determine what triggers the correction workflow.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `validity_threshold` | 0.95 | Minimum citation validity rate |
-| `precision_threshold` | 0.80 | Minimum citation precision |
-| `coverage_threshold` | 0.50 | Minimum claim coverage |
-| `extractive_term_threshold` | 0.5 | Min term match for extractive support |
+| `extractive_term_threshold` | 0.5 | Min term match for extractive "supports" |
+| `confidence_threshold` | 0.7 | Below this, escalate to better model |
+
+**Removed:** `validity_threshold`, `precision_threshold`, `coverage_threshold`. Any failure triggers correction—there is no "acceptable failure rate."
 
 ### 9.2 LLM Settings
 
@@ -668,7 +686,6 @@ class EvalResult:
 | `judge_model` | "gpt-4o-mini" | Model for abstractive verification |
 | `escalation_model` | "gpt-4o" | Model for low-confidence escalation |
 | `max_batch_size` | 5 | Max claims per LLM call |
-| `confidence_threshold` | 0.7 | Below this, escalate to better model |
 
 ### 9.3 Classification Settings
 
@@ -861,3 +878,314 @@ Result: NOT_SUPPORTS
 Method: Abstractive (LLM)
 Reasoning: Code shows username/password auth, no OAuth indicators
 ```
+
+---
+
+## 14. Cost Model
+
+### 14.1 Pricing Reference
+
+**OpenAI API Pricing (as of November 2024):**
+
+| Model | Input | Output |
+|-------|-------|--------|
+| gpt-4o-mini | $0.15 / 1M tokens | $0.60 / 1M tokens |
+| gpt-4o | $5.00 / 1M tokens | $15.00 / 1M tokens |
+
+Source: [OpenAI Pricing](https://openai.com/api/pricing/)
+
+### 14.2 Per-Citation Cost Estimate
+
+**Assumptions for single citation verification:**
+- System prompt: ~300 tokens
+- Claim text: ~50 tokens
+- Cited code: ~400 tokens (varies widely)
+- Total input: ~750 tokens
+- Output (JSON + reasoning): ~200 tokens
+
+**gpt-4o-mini cost per citation:**
+```
+Input:  750 tokens × $0.00000015 = $0.00011
+Output: 200 tokens × $0.00000060 = $0.00012
+Total:  $0.00023 per citation (~$0.0002)
+```
+
+**gpt-4o cost per citation:**
+```
+Input:  750 tokens × $0.000005 = $0.00375
+Output: 200 tokens × $0.000015 = $0.00300
+Total:  $0.00675 per citation (~$0.007)
+```
+
+### 14.3 Batched Cost Estimate
+
+With batching (5 claims per request):
+- System prompt: ~300 tokens (shared)
+- 5 × (claim + code): ~2250 tokens
+- Total input: ~2550 tokens
+- Output (5 JSON objects): ~600 tokens
+
+**gpt-4o-mini batched (per citation):**
+```
+Input:  2550 tokens × $0.00000015 = $0.00038
+Output: 600 tokens × $0.00000060 = $0.00036
+Total for 5: $0.00074
+Per citation: $0.00015 (~$0.0001)
+```
+
+### 14.4 Report-Level Cost Estimate
+
+**Typical report: 30 citations, 50% abstractive**
+- Structural validation: $0 (no LLM)
+- Extractive (15 citations): $0 (no LLM)
+- Abstractive (15 citations, batched): 3 batches × $0.00074 = $0.0022
+
+**Total per report: ~$0.002** (gpt-4o-mini, batched)
+
+**With escalation (20% to gpt-4o):**
+- 12 citations via gpt-4o-mini: $0.0015
+- 3 citations via gpt-4o: 3 × $0.007 = $0.021
+- Total: ~$0.023 per report
+
+### 14.5 Cost Summary Table
+
+| Scenario | Model | Per Citation | Per Report (30 cit) |
+|----------|-------|--------------|---------------------|
+| Single calls | gpt-4o-mini | $0.0002 | $0.003 |
+| Batched (5) | gpt-4o-mini | $0.0001 | $0.002 |
+| Single calls | gpt-4o | $0.007 | $0.10 |
+| Mixed (80/20) | mini + 4o | ~$0.002 | $0.02 |
+
+### 14.6 Cost Control Strategies
+
+1. **Batch aggressively**: 5x cost reduction
+2. **Classify before calling**: Skip LLM for extractive claims
+3. **Use gpt-4o-mini first**: 30x cheaper than gpt-4o
+4. **Escalate selectively**: Only low-confidence to gpt-4o
+5. **Cache results**: Don't re-evaluate unchanged citations
+
+---
+
+## 15. Correction Workflow
+
+### 15.1 Design Philosophy
+
+**Target: 100% citation accuracy.** LLMs are probabilistic and produce errors. Evaluation is not a pass/fail gate—it drives an iterative correction loop until all citations are valid.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     CORRECTION LOOP                                  │
+│                                                                      │
+│   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐     │
+│   │ Generate │───►│ Evaluate │───►│ Extract  │───►│ Correct  │──┐  │
+│   │ Report   │    │ Citations│    │ Failures │    │ Citations│  │  │
+│   └──────────┘    └──────────┘    └──────────┘    └──────────┘  │  │
+│        ▲                                                         │  │
+│        │                                                         │  │
+│        └─────────────────────────────────────────────────────────┘  │
+│                          (until 0 failures)                         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 15.2 Failed Citation Output
+
+The evaluation produces a structured list of failed citations with enough context for correction:
+
+```python
+@dataclass
+class FailedCitation:
+    """A citation that failed verification, with correction context."""
+
+    # Location
+    section: str           # Section containing the citation
+    paragraph_index: int   # Paragraph within section
+    claim_text: str        # The claim making the citation
+
+    # Citation details
+    citation: Citation     # The parsed citation object
+    cited_code: str        # The code that was cited
+
+    # Failure details
+    failure_type: Literal[
+        "invalid_file",      # File doesn't exist in cache
+        "invalid_range",     # Line range out of bounds
+        "not_supporting",    # Code doesn't support claim (LLM verdict)
+        "low_confidence",    # LLM uncertain
+    ]
+    failure_reason: str    # Human-readable explanation
+
+    # For correction
+    suggested_action: Literal[
+        "fix_reference",     # Find correct file/lines
+        "rewrite_claim",     # Claim doesn't match code
+        "remove_citation",   # Citation unnecessary
+        "expand_range",      # Need more context
+    ]
+    llm_reasoning: str | None  # LLM's explanation (if applicable)
+```
+
+### 15.3 Correction Interface
+
+The correction process receives failed citations and produces fixes:
+
+```python
+@dataclass
+class CitationCorrection:
+    """A proposed fix for a failed citation."""
+
+    failed: FailedCitation
+
+    # Correction
+    action_taken: Literal[
+        "replaced_reference",  # New file:line reference
+        "rewrote_claim",       # Modified claim text
+        "removed_citation",    # Deleted citation
+        "expanded_range",      # Widened line range
+        "no_change",           # Manual review needed
+    ]
+
+    # New values (if applicable)
+    new_citation: Citation | None
+    new_claim_text: str | None
+
+    # Explanation
+    correction_reasoning: str
+
+class CorrectionResult:
+    """Result of correction pass."""
+
+    corrections: list[CitationCorrection]
+    remaining_failures: int  # Should be 0 for success
+    iterations: int          # How many correction passes
+```
+
+### 15.4 Correction Strategies
+
+#### 15.4.1 Invalid Reference (file/range)
+
+```
+Strategy: Search cache for correct location
+
+Input:
+  - Claim text
+  - Invalid citation
+  - File cache
+
+Process:
+  1. Extract key terms from claim
+  2. Search cache for files containing terms
+  3. Find line ranges matching context
+  4. Propose new reference
+
+Output:
+  - New citation with correct file:lines
+  - Or flag for manual review if ambiguous
+```
+
+#### 15.4.2 Non-Supporting Code
+
+```
+Strategy: Either find supporting code or rewrite claim
+
+Input:
+  - Claim text
+  - Current citation
+  - LLM reasoning for failure
+
+Process:
+  1. Parse LLM explanation for mismatch
+  2. Option A: Search for code that DOES support claim
+  3. Option B: Rewrite claim to match cited code
+  4. Option C: Remove citation if claim is inferential
+
+Output:
+  - New citation, or
+  - Rewritten claim, or
+  - Claim without citation
+```
+
+#### 15.4.3 Low Confidence
+
+```
+Strategy: Gather more context
+
+Input:
+  - Claim + citation
+  - LLM confidence score
+
+Process:
+  1. Expand line range for more context
+  2. Re-evaluate with expanded range
+  3. If still uncertain, escalate to gpt-4o
+  4. If still uncertain, flag for human review
+
+Output:
+  - Verdict with higher confidence, or
+  - Human review queue item
+```
+
+### 15.5 Integration with Reporting Pipeline
+
+The correction loop integrates with tech_writer's agentic workflow:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    INTEGRATED WORKFLOW                               │
+│                                                                      │
+│  tech_writer generate                                                │
+│       │                                                              │
+│       ▼                                                              │
+│  ┌─────────┐                                                         │
+│  │ Report  │◄─────────────────────────────────────────┐             │
+│  │ Draft   │                                          │             │
+│  └────┬────┘                                          │             │
+│       │                                               │             │
+│       ▼                                               │             │
+│  ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐          │
+│  │Citation │───►│ Failed  │───►│Correction│───►│ Apply   │          │
+│  │  Eval   │    │Citations│    │  Pass    │    │ Fixes   │──────────┘
+│  └─────────┘    └─────────┘    └─────────┘    └─────────┘           │
+│       │                                                              │
+│       │ (0 failures)                                                 │
+│       ▼                                                              │
+│  ┌─────────┐                                                         │
+│  │ Final   │                                                         │
+│  │ Report  │                                                         │
+│  └─────────┘                                                         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 15.6 Iteration Limits
+
+To prevent infinite loops:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_correction_iterations` | 3 | Max correction passes |
+| `max_failures_for_auto` | 10 | Above this, require human review |
+
+**Exit conditions:**
+1. **Success**: 0 failed citations
+2. **Iteration limit**: Max iterations reached, output remaining failures
+3. **Manual required**: Failures exceed auto-correction threshold
+
+### 15.7 Output Modes
+
+```
+--eval                    # Evaluate only, report failures
+--eval --correct          # Evaluate and auto-correct
+--eval --correct --strict # Fail if any citations remain unfixed
+```
+
+### 15.8 Correction Cost
+
+Additional cost per correction iteration:
+- Search/index operations: O(1) local
+- LLM re-evaluation: Same as initial (~$0.0002/citation)
+- Claim rewriting (if needed): ~$0.001/claim
+
+**Typical scenario (30 citations, 10% failure rate):**
+- Initial eval: $0.002
+- Correction pass 1: 3 failures × $0.001 = $0.003
+- Re-eval: 3 × $0.0002 = $0.0006
+- Total: ~$0.006 per report with correction
