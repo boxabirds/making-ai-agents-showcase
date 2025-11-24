@@ -243,6 +243,7 @@ tech_writer/index/
 ├── queries.py        # Language-specific tree-sitter queries
 ├── updater.py        # Incremental updates
 ├── search.py         # Query engine
+├── query_expander.py # LLM-based semantic query expansion
 └── watcher.py        # File system monitoring
 ```
 
@@ -546,6 +547,186 @@ class QueryEngine:
         """
         ...
 ```
+
+#### 3.2.2 Semantic Query Expansion (LLM-Based)
+
+The pattern-based `expand_query()` method cannot bridge semantic gaps. For example, "How does authentication work?" yields only `["authentication"]`, missing related terms like `login`, `JWT`, `token`, `session`.
+
+**Solution**: Use a cheap, fast LLM to perform semantic query expansion before index lookup.
+
+##### Design Rationale
+
+| Approach | Latency | Cost/Query | Semantic Coverage |
+|----------|---------|------------|-------------------|
+| Pattern extraction | ~1ms | $0 | Poor - literal matches only |
+| LLM expansion (Haiku/GPT-4o-mini) | ~100-200ms | ~$0.00001 | Good - understands synonyms, domain concepts |
+
+The additional 100-200ms latency is acceptable because:
+1. It's a one-time cost per user prompt
+2. It prevents 10-30 unnecessary LLM tool calls (2-5s each)
+3. Net savings: 20-60 seconds per query
+
+##### Types
+
+```python
+# tech_writer/index/types.py (additions)
+
+@dataclass(frozen=True)
+class QueryExpansion:
+    """Structured output from semantic query expansion."""
+    symbols: list[str]       # Likely symbol names: ["auth", "login", "verify_token"]
+    file_patterns: list[str] # Glob patterns: ["*auth*", "*login*", "*session*"]
+    concepts: list[str]      # Related terms: ["middleware", "jwt", "oauth"]
+    original_query: str      # Preserved for fallback
+
+
+# Constants for LLM query expansion
+QUERY_EXPANSION_MODEL: str = "claude-3-haiku-20240307"  # Or "gpt-4o-mini"
+QUERY_EXPANSION_TIMEOUT_MS: int = 500
+QUERY_EXPANSION_MAX_SYMBOLS: int = 8
+QUERY_EXPANSION_MAX_PATTERNS: int = 5
+QUERY_EXPANSION_MAX_CONCEPTS: int = 6
+```
+
+##### Interface
+
+```python
+# tech_writer/index/query_expander.py
+
+from .types import QueryExpansion
+
+# System prompt for query expansion
+EXPANSION_SYSTEM_PROMPT: str = """You are a code search query expander. Given a natural language question about code, extract:
+1. symbols: Likely function/class/method names (snake_case, camelCase, PascalCase)
+2. file_patterns: Glob patterns for relevant files
+3. concepts: Related programming terms the user might not have mentioned
+
+Be concise. Output JSON only."""
+
+
+class SemanticQueryExpander:
+    """Expands natural language queries using a fast LLM."""
+
+    def __init__(self, model: str = QUERY_EXPANSION_MODEL):
+        """
+        Initialize expander with model selection.
+
+        Args:
+            model: Model identifier (supports Anthropic and OpenAI)
+        """
+        ...
+
+    async def expand(self, query: str) -> QueryExpansion:
+        """
+        Expand a natural language query to structured search terms.
+
+        Args:
+            query: User's natural language query
+
+        Returns:
+            QueryExpansion with symbols, file_patterns, and concepts
+
+        Example:
+            Input:  "How does authentication work?"
+            Output: QueryExpansion(
+                symbols=["auth", "login", "authenticate", "verify_token", "AuthMiddleware"],
+                file_patterns=["*auth*", "*login*", "*session*", "*jwt*"],
+                concepts=["middleware", "jwt", "oauth", "credential", "bearer"],
+                original_query="How does authentication work?"
+            )
+        """
+        ...
+
+    def _build_prompt(self, query: str) -> str:
+        """Build the expansion prompt with few-shot examples."""
+        ...
+
+    def _parse_response(self, response: str, original_query: str) -> QueryExpansion:
+        """Parse LLM JSON response into QueryExpansion, with fallback on parse failure."""
+        ...
+
+
+def expand_query_with_fallback(
+    query: str,
+    expander: SemanticQueryExpander | None,
+    pattern_fallback: Callable[[str], list[str]]
+) -> QueryExpansion:
+    """
+    Expand query with LLM, falling back to pattern extraction on failure.
+
+    Args:
+        query: Natural language query
+        expander: Optional LLM expander (None = skip LLM)
+        pattern_fallback: Pattern-based expand_query function
+
+    Returns:
+        QueryExpansion (from LLM or synthesized from pattern results)
+
+    Fallback triggers:
+    - expander is None
+    - LLM timeout (>QUERY_EXPANSION_TIMEOUT_MS)
+    - LLM API error
+    - JSON parse failure
+    """
+    ...
+```
+
+##### Sequence Diagram: Query Expansion Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant H as UserPromptSubmit Hook
+    participant E as SemanticQueryExpander
+    participant LLM as Haiku/Fast LLM
+    participant QE as QueryEngine
+    participant DB as SQLite Index
+
+    U->>H: "How does authentication work?"
+    H->>E: expand(query)
+    E->>LLM: Expansion prompt
+
+    alt LLM responds in time (<500ms)
+        LLM-->>E: {"symbols": ["auth", "login"...], ...}
+        E-->>H: QueryExpansion
+    else LLM timeout or error
+        E-->>H: Fallback to pattern extraction
+    end
+
+    loop For each symbol in expansion.symbols
+        H->>QE: search_symbols(symbol)
+        QE->>DB: SELECT ... WHERE name LIKE ...
+        DB-->>QE: Results
+        QE-->>H: SearchResults
+    end
+
+    loop For each pattern in expansion.file_patterns
+        H->>QE: search_content(pattern)
+        QE->>DB: FTS5 query
+        DB-->>QE: Results
+        QE-->>H: SearchResults
+    end
+
+    H-->>U: {"additionalContext": "## Relevant Code\n..."}
+```
+
+##### Configuration
+
+| Environment Variable | Description | Default |
+|---------------------|-------------|---------|
+| `TECH_WRITER_EXPANSION_MODEL` | Model for query expansion | `claude-3-haiku-20240307` |
+| `TECH_WRITER_EXPANSION_ENABLED` | Enable/disable LLM expansion | `true` |
+| `TECH_WRITER_EXPANSION_TIMEOUT` | Timeout in milliseconds | `500` |
+
+##### Testing
+
+| Test | Description |
+|------|-------------|
+| `test_expand_auth_query` | "authentication" → includes "login", "token", "jwt" |
+| `test_expand_database_query` | "database connection" → includes "db", "pool", "connect" |
+| `test_expand_timeout_fallback` | Slow LLM → falls back to pattern extraction |
+| `test_expand_malformed_json` | Bad LLM output → graceful fallback |
+| `test_expand_preserves_explicit_symbols` | Backtick refs preserved in output |
 
 ### 3.3 Hook Scripts
 
@@ -935,19 +1116,27 @@ sequenceDiagram
     participant U as User
     participant CC as Claude Code
     participant H as UserPromptSubmit Hook
+    participant E as SemanticQueryExpander
+    participant FLLM as Fast LLM (Haiku)
     participant QE as Query Engine
     participant DB as SQLite Index
     participant LLM as Claude LLM
 
     U->>CC: "Where is authentication handled?"
     CC->>H: Hook triggered (stdin JSON)
-    H->>QE: expand_query("authentication")
-    QE-->>H: ["auth", "authentication", "AuthMiddleware"]
-    H->>QE: search_symbols("auth")
-    QE->>DB: SELECT * FROM symbols WHERE name LIKE '%auth%'
-    DB-->>QE: [AuthMiddleware, verify_token, login_user]
-    QE-->>H: SearchResults with scores
-    H-->>CC: {"additionalContext": "## Pre-indexed...\n- class AuthMiddleware [src/auth.py:15]"}
+    H->>E: expand("Where is authentication handled?")
+    E->>FLLM: Query expansion prompt
+    FLLM-->>E: {"symbols": ["auth", "login", "jwt"], "file_patterns": ["*auth*"], ...}
+    E-->>H: QueryExpansion
+
+    loop For each symbol
+        H->>QE: search_symbols(symbol)
+        QE->>DB: SELECT * FROM symbols WHERE name LIKE ...
+        DB-->>QE: Results
+    end
+
+    QE-->>H: Merged SearchResults with scores
+    H-->>CC: {"additionalContext": "## Pre-indexed...\n- class AuthMiddleware [src/auth.py:15]\n- func verify_token [src/auth/jwt.py:23]"}
     CC->>LLM: User prompt + injected context
     LLM->>CC: "I can see AuthMiddleware at src/auth.py:15. Let me read it."
     CC->>CC: read_file("src/auth.py")
@@ -1084,6 +1273,21 @@ sequenceDiagram
 | `test_discover_repos_nested` | Multiple nested repos detected |
 | `test_discover_repos_fallback` | No .git → returns workspace root |
 | `test_cleanup_stale_indexes` | Removes orphaned/old indexes |
+
+#### 6.1.5 Query Expander Tests (`tests/tech_writer/index/test_query_expander.py`)
+
+| Test | Description |
+|------|-------------|
+| `test_expand_auth_query` | "How does authentication work?" → symbols include "login", "token", "jwt" |
+| `test_expand_database_query` | "database connection" → symbols include "db", "pool", "connect" |
+| `test_expand_error_handling_query` | "error handling" → symbols include "exception", "catch", "try" |
+| `test_expand_preserves_explicit_refs` | Query with `BacktickRef` → ref preserved in output |
+| `test_expand_timeout_fallback` | Mock slow LLM → returns pattern-based fallback |
+| `test_expand_api_error_fallback` | Mock API failure → returns pattern-based fallback |
+| `test_expand_malformed_json_fallback` | Mock garbled response → graceful fallback |
+| `test_expand_respects_max_limits` | Output truncated to MAX_SYMBOLS, MAX_PATTERNS, MAX_CONCEPTS |
+| `test_expand_empty_query` | Empty string → returns empty QueryExpansion |
+| `test_expand_code_only_query` | "`MyClass.method`" → extracts symbol without LLM call |
 
 ### 6.2 Integration Tests
 

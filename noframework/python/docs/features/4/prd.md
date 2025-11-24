@@ -33,10 +33,17 @@ User types: "How does authentication work?"
          UserPromptSubmit Hook
                     │
                     ▼
-        Query SQLite index for:
-        - Symbols matching "auth", "login", "token"
+        Semantic Query Expansion (fast LLM):
+        - Input: natural language query
+        - Output: {"symbols": ["auth", "login", "verify_token", "jwt"],
+                   "file_patterns": ["*auth*", "*session*"],
+                   "concepts": ["middleware", "oauth", "bearer"]}
+                    │
+                    ▼
+        Query SQLite index with expanded terms:
+        - Symbol search for each predicted name
+        - File pattern matching
         - Import relationships
-        - Function signatures
                     │
                     ▼
         Inject context into prompt:
@@ -51,6 +58,8 @@ User types: "How does authentication work?"
                     ▼
         3-5 targeted reads instead of 30-50 discovery calls
 ```
+
+**Why semantic expansion?** Pattern-based keyword extraction ("authentication" → `["authentication"]`) cannot bridge semantic gaps. A cheap, fast LLM (~100ms, ~$0.00001/query) understands that "authentication" relates to `login`, `JWT`, `token`, `session`, etc.
 
 ### Expected Outcomes
 
